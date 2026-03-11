@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -22,6 +23,17 @@ type claims struct {
 func RequireAuth(jwtSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// 1. Check if NGINX API Gateway already verified auth and injected user details
+			if xUid := r.Header.Get("X-User-Id"); xUid != "" {
+				if uid, err := strconv.ParseUint(xUid, 10, 32); err == nil {
+					ctx := context.WithValue(r.Context(), "user_id", uint(uid))
+					ctx = context.WithValue(ctx, "user_email", r.Header.Get("X-User-Email"))
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+			}
+
+			// 2. Fallback to manual JWT verification (e.g., local development without NGINX)
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
 				respondAuthError(w, "Authorization header required")

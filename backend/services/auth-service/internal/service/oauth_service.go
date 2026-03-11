@@ -36,6 +36,7 @@ type OAuthService struct {
 	oauthRepo     repository.OAuthRepository
 	jwtManager    *jwt.JWTManager
 	oauthManager  *oauth.OAuthManager
+	authService   *AuthService
 	encryptionKey []byte // For encrypting OAuth tokens
 }
 
@@ -44,6 +45,7 @@ func NewOAuthService(
 	userRepo repository.UserRepository,
 	oauthRepo repository.OAuthRepository,
 	jwtManager *jwt.JWTManager,
+	authService *AuthService,
 	oauthConfig *config.OAuthConfig,
 	encryptionKey string,
 ) *OAuthService {
@@ -60,6 +62,7 @@ func NewOAuthService(
 		oauthRepo:     oauthRepo,
 		jwtManager:    jwtManager,
 		oauthManager:  oauth.NewOAuthManager(oauthConfig),
+		authService:   authService,
 		encryptionKey: key,
 	}
 }
@@ -87,88 +90,20 @@ func (s *OAuthService) HandleGoogleCallback(ctx context.Context, code, state str
 	}
 
 	// Exchange code for user info
-	oauthUser, token, err := s.oauthManager.ExchangeGoogleCode(ctx, code)
+	oauthUser, _, err := s.oauthManager.ExchangeGoogleCode(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 
-	// Check if OAuth provider already exists
-	existingProvider, _ := s.oauthRepo.FindByProviderID("google", oauthUser.ProviderID)
-	
-	var user *domain.User
-	if existingProvider != nil {
-		// Existing user - login
-		user, err = s.userRepo.FindByID(existingProvider.UserID)
-		if err != nil {
-			return nil, err
-		}
-		
-		// Update tokens
-		existingProvider.AccessToken = s.encryptToken(token.AccessToken)
-		if token.RefreshToken != "" {
-			existingProvider.RefreshToken = s.encryptToken(token.RefreshToken)
-		}
-		if token.Expiry.After(time.Now()) {
-			existingProvider.TokenExpiry = &token.Expiry
-		}
-		s.oauthRepo.Update(existingProvider)
-	} else {
-		// Check if user exists by email
-		user, _ = s.userRepo.FindByEmail(oauthUser.Email)
-		
-		if user == nil {
-			// Create new user
-			user = &domain.User{
-				Email:    oauthUser.Email,
-				FullName: oauthUser.Name,
-				Role:     domain.RoleFreelancer, // Default to freelancer
-				IsActive: true,
-			}
-			if err := s.userRepo.Create(user); err != nil {
-				return nil, err
-			}
-		}
-		
-		// Create OAuth provider record
-		profileData, _ := json.Marshal(oauthUser.RawData)
-		oauthProvider := &domain.OAuthProvider{
-			UserID:       user.ID,
-			Provider:     "google",
-			ProviderID:   oauthUser.ProviderID,
-			Email:        oauthUser.Email,
-			AccessToken:  s.encryptToken(token.AccessToken),
-			ProfileData:  string(profileData),
-			IsVerified:   true,
-		}
-		if token.RefreshToken != "" {
-			oauthProvider.RefreshToken = s.encryptToken(token.RefreshToken)
-		}
-		if token.Expiry.After(time.Now()) {
-			oauthProvider.TokenExpiry = &token.Expiry
-		}
-		
-		if err := s.oauthRepo.Create(oauthProvider); err != nil {
-			return nil, err
-		}
+	// Retrieve stored role from context/state (defaults to freelancer)
+	// We will pass this to AuthLoginAndRegister
+	authRole := ctx.Value("oauth_role")
+	roleStr := domain.RoleFreelancer
+	if r, ok := authRole.(string); ok && (r == domain.RoleClient || r == domain.RoleFreelancer) {
+		roleStr = r
 	}
 
-	// Generate JWT tokens
-	accessToken, err := s.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := s.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dto.AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int(s.jwtManager.GetAccessTokenTTL().Hours()),
-	}, nil
+	return s.authService.OAuthLoginAndRegister(oauthUser.Email, oauthUser.Name, "google", oauthUser.ProviderID, roleStr)
 }
 
 // HandleLinkedInCallback handles LinkedIn OAuth callback
@@ -177,74 +112,18 @@ func (s *OAuthService) HandleLinkedInCallback(ctx context.Context, code, state s
 		return nil, ErrInvalidState
 	}
 
-	oauthUser, token, err := s.oauthManager.ExchangeLinkedInCode(ctx, code)
+	oauthUser, _, err := s.oauthManager.ExchangeLinkedInCode(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}
 
-	existingProvider, _ := s.oauthRepo.FindByProviderID("linkedin", oauthUser.ProviderID)
-	
-	var user *domain.User
-	if existingProvider != nil {
-		user, err = s.userRepo.FindByID(existingProvider.UserID)
-		if err != nil {
-			return nil, err
-		}
-		existingProvider.AccessToken = s.encryptToken(token.AccessToken)
-		if token.Expiry.After(time.Now()) {
-			existingProvider.TokenExpiry = &token.Expiry
-		}
-		s.oauthRepo.Update(existingProvider)
-	} else {
-		user, _ = s.userRepo.FindByEmail(oauthUser.Email)
-		
-		if user == nil {
-			user = &domain.User{
-				Email:    oauthUser.Email,
-				FullName: oauthUser.Name,
-				Role:     domain.RoleFreelancer,
-				IsActive: true,
-			}
-			if err := s.userRepo.Create(user); err != nil {
-				return nil, err
-			}
-		}
-		
-		profileData, _ := json.Marshal(oauthUser.RawData)
-		oauthProvider := &domain.OAuthProvider{
-			UserID:      user.ID,
-			Provider:    "linkedin",
-			ProviderID:  oauthUser.ProviderID,
-			Email:       oauthUser.Email,
-			AccessToken: s.encryptToken(token.AccessToken),
-			ProfileData: string(profileData),
-			IsVerified:  true,
-		}
-		if token.Expiry.After(time.Now()) {
-			oauthProvider.TokenExpiry = &token.Expiry
-		}
-		
-		if err := s.oauthRepo.Create(oauthProvider); err != nil {
-			return nil, err
-		}
+	authRole := ctx.Value("oauth_role")
+	roleStr := domain.RoleFreelancer
+	if r, ok := authRole.(string); ok && (r == domain.RoleClient || r == domain.RoleFreelancer) {
+		roleStr = r
 	}
 
-	accessToken, err := s.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role)
-	if err != nil {
-		return nil, err
-	}
-
-	refreshToken, err := s.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dto.AuthResponse{
-		AccessToken:  accessToken,
-		RefreshToken: refreshToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    int(s.jwtManager.GetAccessTokenTTL().Hours()),
-	}, nil
+	return s.authService.OAuthLoginAndRegister(oauthUser.Email, oauthUser.Name, "linkedin", oauthUser.ProviderID, roleStr)
 }
 
 // HandleGitHubCallback handles GitHub OAuth callback

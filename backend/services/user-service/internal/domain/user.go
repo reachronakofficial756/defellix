@@ -7,12 +7,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserProfile represents a user profile in the system
+// User represents a user and their profile in the system (Mapped to the exact same 'users' table as auth-service)
 // Using PostgreSQL with JSONB for flexible fields
-type UserProfile struct {
+type User struct {
 	ID     uint   `gorm:"primaryKey" json:"id"`
-	UserID uint   `gorm:"uniqueIndex;not null" json:"user_id"` // Foreign key to auth-service users table
-	Email  string `gorm:"index;not null" json:"email"`
+	Email  string `gorm:"uniqueIndex;not null" json:"email"`
 
 	// Basic Information (Required at registration)
 	FullName      string `gorm:"not null" json:"full_name"`
@@ -31,15 +30,14 @@ type UserProfile struct {
 	// Skills (Required at registration - multiple) - Using PostgreSQL array
 	Skills datatypes.JSON `gorm:"type:jsonb" json:"skills,omitempty"` // Stored as JSON array
 
-	// Extended Profile Fields (Added after contracts/projects)
-	Bio          string   `gorm:"type:text" json:"bio,omitempty"` // Detailed bio
-	Timezone     string   `gorm:"type:varchar(50)" json:"timezone,omitempty"`
-	Phone        string   `gorm:"type:varchar(20)" json:"phone,omitempty"`
-	HourlyRate   *float64 `gorm:"type:decimal(10,2)" json:"hourly_rate,omitempty"`
-	Availability string   `gorm:"type:varchar(20)" json:"availability,omitempty"` // full-time, part-time, available, unavailable
+	// Extended Profile Fields (Added after contracts
+	Bio      string `gorm:"type:text" json:"bio,omitempty"` // Detailed bio
+	Timezone string `gorm:"type:varchar(50)" json:"timezone,omitempty"`
+	Phone    string `gorm:"type:varchar(20)" json:"phone,omitempty"`
 
 	// Reputation & Stats (Populated after contracts) - Using JSONB for flexibility
-	Stats datatypes.JSON `gorm:"type:jsonb" json:"stats,omitempty"` // {no_of_projects_done, on_time_completion, reputation_score}
+	Stats                    datatypes.JSON `gorm:"type:jsonb" json:"stats,omitempty"` // {no_of_projects_done, on_time_completion, reputation_score}
+	AggregateReputationScore int            `gorm:"default:0" json:"aggregate_reputation_score"`
 
 	// Projects (Added after contract completion) - Using JSONB for nested documents
 	Projects datatypes.JSON `gorm:"type:jsonb" json:"projects,omitempty"` // Array of project objects
@@ -50,15 +48,14 @@ type UserProfile struct {
 	// Portfolio Items (Legacy - for backward compatibility) - Using JSONB
 	Portfolio datatypes.JSON `gorm:"type:jsonb" json:"portfolio,omitempty"` // Array of portfolio items
 
-	// Client-specific fields
+	// Client-specific fields (if role is client or both)
 	CompanyName string `gorm:"type:varchar(100)" json:"company_name,omitempty"`
-	CompanySize string `gorm:"type:varchar(20)" json:"company_size,omitempty"` // startup, small, medium, large
 
-	// Public profile: ourdomain.com/user_name (unique when set; empty = not set, partial unique index in DB)
+	// Public profile: ourdomain.com/user_name (unique when set; empty = not set, unique index)
 	UserName string `gorm:"type:varchar(50);index" json:"user_name,omitempty"`
 
 	// Visibility: what to show on public profile
-	ShowProfile  bool `gorm:"default:true" json:"show_profile"`   // main profile (name, headline, bio, skills, etc.)
+	ShowProfile  bool `gorm:"default:true" json:"show_profile"`   // main profile
 	ShowProjects bool `gorm:"default:true" json:"show_projects"`  // projects section
 	ShowContracts bool `gorm:"default:false" json:"show_contracts"` // contracts section (when integrated)
 
@@ -72,8 +69,8 @@ type UserProfile struct {
 }
 
 // TableName specifies the table name
-func (UserProfile) TableName() string {
-	return "user_profiles"
+func (User) TableName() string {
+	return "users"
 }
 
 // Project represents a completed project (stored as JSONB in PostgreSQL)

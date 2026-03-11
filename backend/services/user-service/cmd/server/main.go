@@ -35,7 +35,7 @@ func main() {
 	}
 
 	// Run migrations
-	if err := config.AutoMigrate(db, &domain.UserProfile{}); err != nil {
+	if err := config.AutoMigrate(db, &domain.User{}, &domain.Reputation{}); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
@@ -48,10 +48,12 @@ func main() {
 
 	// Initialize repository
 	userRepo := repository.NewUserRepository(db)
+	repRepo := repository.NewReputationRepository(db)
 
 	// Initialize services
 	userService := service.NewUserService(userRepo)
 	profileService := service.NewProfileService(userRepo)
+	repService := service.NewReputationService(repRepo, userRepo)
 
 	// Create router
 	r := chi.NewRouter()
@@ -60,7 +62,7 @@ func main() {
 	setupMiddleware(r)
 
 	// Setup routes
-	setupRoutes(r, userService, profileService)
+	setupRoutes(r, userService, profileService, repService)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -120,7 +122,7 @@ func setupMiddleware(r *chi.Mux) {
 }
 
 // setupRoutes configures all application routes
-func setupRoutes(r *chi.Mux, userService *service.UserService, profileService *service.ProfileService) {
+func setupRoutes(r *chi.Mux, userService *service.UserService, profileService *service.ProfileService, repService *service.ReputationService) {
 	// Health check handler
 	healthHandler := handler.NewHealthHandler()
 	healthHandler.RegisterRoutes(r)
@@ -128,4 +130,12 @@ func setupRoutes(r *chi.Mux, userService *service.UserService, profileService *s
 	// User handler
 	userHandler := handler.NewUserHandler(userService, profileService)
 	userHandler.RegisterRoutes(r)
+
+	// Reputation handler
+	repHandler := handler.NewReputationHandler(repService)
+	repHandler.RegisterRoutes(r)
+
+	// Contract link handler (internal, called by contract-service)
+	contractLinkHandler := handler.NewContractLinkHandler(profileService)
+	contractLinkHandler.RegisterRoutes(r)
 }

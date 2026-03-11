@@ -54,13 +54,13 @@ func main() {
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, jwtManager)
-	
+
 	// Initialize OAuth service
 	encryptionKey := os.Getenv("OAUTH_ENCRYPTION_KEY")
 	if encryptionKey == "" {
 		encryptionKey = cfg.JWT.SecretKey // Fallback to JWT secret
 	}
-	oauthService := service.NewOAuthService(userRepo, oauthRepo, jwtManager, cfg.OAuth, encryptionKey)
+	oauthService := service.NewOAuthService(userRepo, oauthRepo, jwtManager, authService, cfg.OAuth, encryptionKey)
 
 	// Create router
 	r := chi.NewRouter()

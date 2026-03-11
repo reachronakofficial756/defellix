@@ -43,6 +43,7 @@ type Contract struct {
 
 	// Lifecycle
 	Status   string `gorm:"type:varchar(20);default:draft;index" json:"status"` // draft | sent | pending | signed | active | completed | cancelled
+	IsRevised bool   `gorm:"default:false" json:"is_revised"`
 	SentAt   *time.Time `gorm:"type:timestamptz" json:"sent_at,omitempty"`
 
 	// Client view & actions (no auth): token set when contract is sent; used in /public/contracts/:token
@@ -51,6 +52,16 @@ type Contract struct {
 	ClientSignedAt   *time.Time `gorm:"type:timestamptz" json:"client_signed_at,omitempty"`
 	ClientCompanyAddress string `gorm:"type:varchar(500)" json:"client_company_address,omitempty"` // required on sign: Remote | address | maps URL
 	ClientSignMetadata string  `gorm:"type:text" json:"-"` // JSON: optional gst_number, business_email, instagram, linkedin etc.; flexible for later
+	SignOTP            string  `gorm:"type:varchar(6)" json:"-"`
+	OTPExpiresAt       *time.Time `gorm:"type:timestamptz" json:"-"`
+	LastOTPSentAt      *time.Time `gorm:"type:timestamptz" json:"-"`
+	// Blockchain metadata (set when contract is written to chain)
+	BlockchainTxHash   string `gorm:"type:varchar(66);index" json:"blockchain_tx_hash,omitempty"` // Transaction hash from Base L2
+	BlockchainTxID     string `gorm:"type:varchar(66)" json:"blockchain_tx_id,omitempty"`
+	BlockchainBlockNum *uint64 `gorm:"type:bigint" json:"blockchain_block_num,omitempty"`
+	BlockchainGasUsed  *uint64 `gorm:"type:bigint" json:"blockchain_gas_used,omitempty"`
+	BlockchainNetwork  string `gorm:"type:varchar(20)" json:"blockchain_network,omitempty"` // base_sepolia, base_mainnet
+	BlockchainStatus   string `gorm:"type:varchar(20)" json:"blockchain_status,omitempty"` // pending, confirmed, failed
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -76,6 +87,10 @@ type ContractMilestone struct {
 	Amount      float64 `gorm:"type:decimal(12,2);not null" json:"amount"`
 	DueDate     *time.Time `gorm:"type:timestamptz" json:"due_date,omitempty"`
 	IsInitialPayment bool `gorm:"default:false" json:"is_initial_payment"`
+
+	// Phase 8: Structured Deliverables
+	SubmissionCriteria   string `gorm:"type:jsonb" json:"submission_criteria,omitempty"`
+	CompletionCriteriaTC string `gorm:"type:text" json:"completion_criteria_tc,omitempty"`
 
 	// Status (Week 5: submission/approval)
 	Status string `gorm:"type:varchar(20);default:pending" json:"status"` // pending | submitted | approved | paid

@@ -1,5 +1,5 @@
 # Rules of Backend
-## Decentralized Freelancer Trust Platform — Development Standards
+## Defellix — Development Standards
 
 **Attach this document to every backend-related prompt.**  
 **Audience:** Backend development (Go).  
@@ -32,7 +32,7 @@ All backend decisions (APIs, schemas, jobs, services) must support this intent.
 
 - **Language:** Go 1.21+.
 - **HTTP:** `net/http` + **Chi** router. Route groups, middleware, URL params only—no magic.
-- **DB:** **PostgreSQL** (single logical DB `freelancer_platform` for auth, user, contract; extra DBs only when there is a documented reason). **GORM** for migrations and CRUD; use transactions for multi-table writes.
+- **DB:** **PostgreSQL** (single logical DB `defellix` for auth, user, contract; extra DBs only when there is a documented reason). **GORM** for migrations and CRUD; use transactions for multi-table writes.
 - **Auth:** JWT access/refresh from auth-service. Other services validate using the **same JWT_SECRET** or a shared introspect endpoint. No auth bypass in production.
 - **Blockchain:** Base L2 (or agreed L2). Backend owns key derivation and signing; users never see private keys.
 

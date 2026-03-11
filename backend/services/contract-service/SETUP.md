@@ -9,7 +9,7 @@
 - **Draft auto-delete** – Background job deletes drafts older than 14 days (configurable).
 - **Public (no auth):** `GET /api/v1/public/contracts/:token` (client view), `POST .../send-for-review`, `POST .../sign`.
 
-Uses the **same PostgreSQL database** as auth-service and user-service: `freelancer_platform`.
+Uses the **same PostgreSQL database** as auth-service and user-service: `defellix`.
 
 ---
 
@@ -27,7 +27,7 @@ Reuse the existing database. Contract-service will create:
 - `contracts`
 - `contract_milestones`
 
-No extra DB setup if auth/user are already running against `freelancer_platform`.
+No extra DB setup if auth/user are already running against `defellix`.
 
 ---
 
@@ -41,7 +41,7 @@ cp .env.example .env
 
 Required:
 
-- **DB_*** – Same as auth/user (host, port, user, password, `DB_NAME=freelancer_platform`, SSL mode).
+- **DB_*** – Same as auth/user (host, port, user, password, `DB_NAME=defellix`, SSL mode).
 - **JWT_SECRET** – Same value as auth-service, so access tokens from login can be validated here.
 
 Optional:

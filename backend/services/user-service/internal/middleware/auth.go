@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -11,7 +13,17 @@ import (
 // This is a placeholder - in production, validate JWT token from auth-service
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Extract token from Authorization header
+		// 1. Check if NGINX API Gateway already verified auth and injected user details
+		if xUid := r.Header.Get("X-User-Id"); xUid != "" {
+			if uid, err := strconv.ParseUint(xUid, 10, 32); err == nil {
+				ctx := context.WithValue(r.Context(), "user_id", uint(uid))
+				ctx = context.WithValue(ctx, "user_email", r.Header.Get("X-User-Email"))
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
+
+		// 2. Fallback: Extract token from Authorization header (used in local dev)
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			respondError(w, http.StatusUnauthorized, "Authorization header required", "UNAUTHORIZED")
@@ -25,17 +37,40 @@ func RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		// TODO: Validate JWT token with auth-service via gRPC
-		// For now, extract user_id from token claims (simplified)
-		// In production, call auth-service to validate token
+		// Extract user_id from JWT payload
+		tokenString := parts[1]
+		tokenParts := strings.Split(tokenString, ".")
+		if len(tokenParts) != 3 {
+			respondError(w, http.StatusUnauthorized, "Invalid token structure", "UNAUTHORIZED")
+			return
+		}
 
-		// Placeholder: Extract user_id from context or token
-		// This will be replaced with actual JWT validation in gRPC integration
-		userID := uint(1) // Placeholder - will come from validated token
+		payload, err := base64.RawURLEncoding.DecodeString(tokenParts[1])
+		if err != nil {
+			respondError(w, http.StatusUnauthorized, "Invalid token payload", "UNAUTHORIZED")
+			return
+		}
+
+		var claims struct {
+			UserID float64 `json:"user_id"`
+			Email  string  `json:"email"`
+		}
+		if err := json.Unmarshal(payload, &claims); err != nil {
+			respondError(w, http.StatusUnauthorized, "Invalid token claims", "UNAUTHORIZED")
+			return
+		}
+
+		if claims.UserID == 0 {
+			respondError(w, http.StatusUnauthorized, "Invalid user ID in token", "UNAUTHORIZED")
+			return
+		}
+
+		userID := uint(claims.UserID)
+		userEmail := claims.Email
 
 		// Add user info to context
 		ctx := context.WithValue(r.Context(), "user_id", userID)
-		ctx = context.WithValue(ctx, "user_email", "user@example.com") // Placeholder
+		ctx = context.WithValue(ctx, "user_email", userEmail)
 
 		// Continue with authenticated request
 		next.ServeHTTP(w, r.WithContext(ctx))

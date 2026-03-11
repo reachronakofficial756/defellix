@@ -33,7 +33,9 @@ type MilestoneInput struct {
 	Description       string     `json:"description,omitempty" validate:"omitempty,max=2000"`
 	Amount            float64    `json:"amount" validate:"required,min=0"`
 	DueDate           *time.Time `json:"due_date,omitempty"`
-	IsInitialPayment  bool       `json:"is_initial_payment"`
+	IsInitialPayment     bool        `json:"is_initial_payment"`
+	SubmissionCriteria   interface{} `json:"submission_criteria,omitempty"`
+	CompletionCriteriaTC string      `json:"completion_criteria_tc,omitempty" validate:"omitempty,max=10000"`
 }
 
 // UpdateContractRequest is the payload for updating a draft contract
@@ -51,7 +53,19 @@ type UpdateContractRequest struct {
 	ClientEmail        *string    `json:"client_email,omitempty" validate:"omitempty,email"`
 	ClientPhone        *string    `json:"client_phone,omitempty" validate:"omitempty,max=30"`
 	TermsAndConditions *string    `json:"terms_and_conditions,omitempty" validate:"omitempty,max=10000"`
-	Milestones         []MilestoneInput `json:"milestones,omitempty" validate:"omitempty,dive"`
+	Milestones         []UpdateMilestoneInput `json:"milestones,omitempty" validate:"omitempty,dive"`
+}
+
+// UpdateMilestoneInput is for modifying milestones via PUT
+type UpdateMilestoneInput struct {
+	ID                *uint      `json:"id,omitempty"`
+	Title             *string    `json:"title,omitempty" validate:"omitempty,max=200"`
+	Description       *string    `json:"description,omitempty" validate:"omitempty,max=2000"`
+	Amount            *float64   `json:"amount,omitempty" validate:"omitempty,min=0"`
+	DueDate           *time.Time `json:"due_date,omitempty"`
+	IsInitialPayment     *bool       `json:"is_initial_payment,omitempty"`
+	SubmissionCriteria   interface{} `json:"submission_criteria,omitempty"`
+	CompletionCriteriaTC *string     `json:"completion_criteria_tc,omitempty" validate:"omitempty,max=10000"`
 }
 
 // ContractResponse is the API response for a contract (with milestones)
@@ -72,9 +86,11 @@ type ContractResponse struct {
 	ClientPhone        string               `json:"client_phone,omitempty"`
 	TermsAndConditions string               `json:"terms_and_conditions,omitempty"`
 	Status             string               `json:"status"`
+	IsRevised          bool                 `json:"is_revised"`
 	SentAt             *time.Time           `json:"sent_at,omitempty"`
 	ShareableLink      string               `json:"shareable_link,omitempty"` // Set when status is sent; base URL + /:id
-	Milestones         []MilestoneResponse  `json:"milestones"`
+	ClientReviewComment string              `json:"client_review_comment,omitempty"`
+	Milestones         []MilestoneResponse  `json:"milestones,omitempty"`
 	CreatedAt          time.Time            `json:"created_at"`
 	UpdatedAt          time.Time            `json:"updated_at"`
 }
@@ -87,7 +103,9 @@ type MilestoneResponse struct {
 	Description       string     `json:"description,omitempty"`
 	Amount            float64    `json:"amount"`
 	DueDate           *time.Time `json:"due_date,omitempty"`
-	IsInitialPayment  bool       `json:"is_initial_payment"`
+	IsInitialPayment     bool        `json:"is_initial_payment"`
+	SubmissionCriteria   interface{} `json:"submission_criteria,omitempty"`
+	CompletionCriteriaTC string      `json:"completion_criteria_tc,omitempty"`
 	Status            string     `json:"status"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
@@ -117,6 +135,7 @@ type PublicContractViewResponse struct {
 	ClientPhone         string               `json:"client_phone,omitempty"`
 	TermsAndConditions  string               `json:"terms_and_conditions,omitempty"`
 	Status              string               `json:"status"`
+	IsRevised           bool                 `json:"is_revised"`
 	SentAt              *time.Time           `json:"sent_at,omitempty"`
 	ClientReviewComment string               `json:"client_review_comment,omitempty"` // set when status is pending
 	Milestones          []MilestoneResponse  `json:"milestones"`
@@ -132,6 +151,7 @@ type SendForReviewRequest struct {
 // SignRequest is the body for POST /api/v1/public/contracts/:token/sign
 // CompanyAddress is required: "Remote" | full address | Google Maps URL. GST and other fields optional (flexible for later).
 type SignRequest struct {
+	OTP            string `json:"otp" validate:"required,len=6"`
 	CompanyAddress string `json:"company_address" validate:"required,max=500"`
 	Email          string `json:"email,omitempty" validate:"omitempty,email,max=255"`
 	Phone          string `json:"phone,omitempty" validate:"omitempty,max=30"`
@@ -140,4 +160,9 @@ type SignRequest struct {
 	BusinessEmail  string `json:"business_email,omitempty" validate:"omitempty,email,max=255"`
 	Instagram      string `json:"instagram,omitempty" validate:"omitempty,max=100"`
 	LinkedIn       string `json:"linkedin,omitempty" validate:"omitempty,url,max=300"`
+}
+
+// SendOTPRequest is payload for generating contract sign OTP
+type SendOTPRequest struct {
+	Email string `json:"email" validate:"required,email"`
 }

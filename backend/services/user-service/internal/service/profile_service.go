@@ -10,6 +10,7 @@ import (
 	"github.com/saiyam0211/defellix/services/user-service/internal/domain"
 	"github.com/saiyam0211/defellix/services/user-service/internal/dto"
 	"github.com/saiyam0211/defellix/services/user-service/internal/repository"
+	"gorm.io/datatypes"
 )
 
 var (
@@ -29,11 +30,16 @@ func NewProfileService(userRepo repository.UserRepository) *ProfileService {
 	}
 }
 
-// CreateProfile creates a new freelancer profile
-func (s *ProfileService) CreateProfile(ctx context.Context, userID uint, email string, req *dto.CreateProfileRequest) (*domain.UserProfile, error) {
-	// Check if profile already exists
-	existing, _ := s.userRepo.FindByUserID(ctx, userID)
-	if existing != nil {
+// CreateProfile handles the initial profile setup for a freelancer
+func (s *ProfileService) CreateProfile(ctx context.Context, userID uint, email string, req *dto.CreateProfileRequest) (*domain.User, error) {
+	// Check if user exists (should exist from auth-service registration)
+	user, err := s.userRepo.FindByUserID(ctx, userID)
+	if err != nil {
+		return nil, errors.New("user not found from auth service")
+	}
+
+	// Prevent setting up multiple times
+	if user.IsProfileComplete {
 		return nil, ErrProfileExists
 	}
 
@@ -52,47 +58,43 @@ func (s *ProfileService) CreateProfile(ctx context.Context, userID uint, email s
 		}
 		userName = normalised
 		existing, _ := s.userRepo.FindByUserName(ctx, normalised)
-		if existing != nil {
+		if existing != nil && existing.ID != userID {
 			return nil, repository.ErrUserNameTaken
 		}
 	}
 
-	profile := &domain.UserProfile{
-		UserID:            userID,
-		Email:             email,
-		FullName:          req.FullName,
-		Photo:             req.Photo,
-		ShortHeadline:     req.ShortHeadline,
-		Role:              req.Role,
-		Location:          req.Location,
-		Experience:        req.Experience,
-		GitHubLink:        req.GitHubLink,
-		LinkedInLink:      req.LinkedInLink,
-		PortfolioLink:     req.PortfolioLink,
-		InstagramLink:     req.InstagramLink,
-		Skills:            skillsJSON,
-		UserName:          userName,
-		ShowProfile:       true,
-		ShowProjects:      true,
-		ShowContracts:     false,
-		IsActive:          true,
-		IsProfileComplete: s.checkProfileComplete(req),
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
-	}
+	// Update existing record
+	user.Phone = req.Phone
+	user.Photo = req.Photo
+	user.ShortHeadline = req.ShortHeadline
+	user.Location = req.Location
+	user.Experience = req.Experience
+	user.GitHubLink = req.GitHubLink
+	user.LinkedInLink = req.LinkedInLink
+	user.PortfolioLink = req.PortfolioLink
+	user.InstagramLink = req.InstagramLink
+	user.Skills = datatypes.JSON(skillsJSON)
+	user.UserName = userName
+	
+	user.ShowProfile = true
+	user.ShowProjects = true
+	user.ShowContracts = false
+	user.IsActive = true
+	user.IsProfileComplete = s.checkProfileComplete(req)
+	user.UpdatedAt = time.Now()
 
-	if err := s.userRepo.Create(ctx, profile); err != nil {
+	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
 
-	return profile, nil
+	return user, nil
 }
 
 // checkProfileComplete checks if all required fields are filled
 func (s *ProfileService) checkProfileComplete(req *dto.CreateProfileRequest) bool {
-	return req.FullName != "" &&
+	return req.UserName != "" &&
+		req.Phone != "" &&
 		req.ShortHeadline != "" &&
-		req.Role != "" &&
 		len(req.Skills) > 0
 }
 
@@ -298,6 +300,76 @@ func (s *ProfileService) DeleteProject(ctx context.Context, userID uint, project
 	}
 
 	profile.Projects = projectsJSON
+	profile.Stats = statsJSON
+	profile.UpdatedAt = time.Now()
+
+	return s.userRepo.Update(ctx, profile)
+}
+
+// CompletedContractData is the data received from the contract-service when a contract is completed
+type CompletedContractData struct {
+	ContractID     uint    `json:"contract_id"`
+	ProjectName    string  `json:"project_name"`
+	ClientName     string  `json:"client_name"`
+	TotalAmount    float64 `json:"total_amount"`
+	Currency       string  `json:"currency"`
+	CompletionDate string  `json:"completion_date"`
+	Rating         int     `json:"rating"`
+}
+
+// AddCompletedContract adds a completed contract summary to the freelancer's profile
+func (s *ProfileService) AddCompletedContract(ctx context.Context, freelancerUserID uint, data CompletedContractData) error {
+	profile, err := s.userRepo.FindByUserID(ctx, freelancerUserID)
+	if err != nil {
+		return err
+	}
+
+	// Parse existing stats
+	var stats map[string]interface{}
+	if len(profile.Stats) > 0 {
+		if err := json.Unmarshal(profile.Stats, &stats); err != nil {
+			stats = make(map[string]interface{})
+		}
+	} else {
+		stats = make(map[string]interface{})
+	}
+
+	// Add/Update completed contracts list in stats
+	var contracts []map[string]interface{}
+	if raw, ok := stats["completed_contracts"]; ok {
+		if arr, ok := raw.([]interface{}); ok {
+			for _, item := range arr {
+				if m, ok := item.(map[string]interface{}); ok {
+					contracts = append(contracts, m)
+				}
+			}
+		}
+	}
+
+	contracts = append(contracts, map[string]interface{}{
+		"contract_id":     data.ContractID,
+		"project_name":    data.ProjectName,
+		"client_name":     data.ClientName,
+		"total_amount":    data.TotalAmount,
+		"currency":        data.Currency,
+		"completion_date": data.CompletionDate,
+		"rating":          data.Rating,
+	})
+
+	stats["completed_contracts"] = contracts
+
+	// Update projects done count
+	if count, ok := stats["no_of_projects_done"].(float64); ok {
+		stats["no_of_projects_done"] = count + 1
+	} else {
+		stats["no_of_projects_done"] = len(contracts)
+	}
+
+	statsJSON, err := json.Marshal(stats)
+	if err != nil {
+		return err
+	}
+
 	profile.Stats = statsJSON
 	profile.UpdatedAt = time.Now()
 

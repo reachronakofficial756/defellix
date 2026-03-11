@@ -1864,6 +1864,64 @@ curl -s -X POST http://localhost:8082/api/v1/public/contracts/TOKEN/sign \
 - [ ] Freelancer can update when pending and re-send; status goes pending → sent
 - [ ] POST sign with company_address required (Remote | address | URL) returns 200 and status signed; 409 when already signed
 
+### Phase 3.4: Wallets & blockchain on sign
+
+**Prereq:** blockchain-service running on port 8083 (default). Set `BLOCKCHAIN_SERVICE_URL=http://localhost:8083` in contract-service `.env`. Generate `WALLET_ENCRYPTION_KEY` with `openssl rand -hex 32` and set in blockchain-service `.env`.
+
+**1. Health check**
+```bash
+curl -s http://localhost:8083/health
+# Expect: "service":"blockchain-service", "status":"healthy"
+```
+
+**2. Create/get wallet (auth required)**
+```bash
+# Replace TOKEN with access token from auth-service
+curl -s -X POST http://localhost:8083/api/v1/wallets \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":1,"user_type":"freelancer"}'
+```
+**Expected:** 200; JSON has `address` (0x...), `user_id`, `user_type`, `network`. No `encrypted_private_key` (never exposed). Call again → same wallet (idempotent).
+
+**3. Get wallet**
+```bash
+curl -s -X POST http://localhost:8083/api/v1/wallets/get \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":1,"user_type":"freelancer"}'
+```
+**Expected:** 200; same wallet as above.
+
+**4. Write contract to chain (via contract sign)**
+```bash
+# Sign a contract (as in Phase 3.3 test 4)
+# This triggers contract-service → blockchain-service call (async)
+# Check contract-service logs for blockchain write result
+# Then verify contract has blockchain metadata:
+curl -s http://localhost:8082/api/v1/contracts/CONTRACT_ID \
+  -H "Authorization: Bearer TOKEN"
+```
+**Expected:** Contract response includes `blockchain_tx_hash`, `blockchain_tx_id`, `blockchain_network`, `blockchain_status` (pending or confirmed in mock mode).
+
+**5. Get contract record from blockchain-service**
+```bash
+curl -s -X POST http://localhost:8083/api/v1/blockchain/contracts/get \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"contract_id":CONTRACT_ID}'
+```
+**Expected:** 200; JSON has `transaction_hash`, `transaction_id`, `status`, `network`.
+
+**Phase 3.4 checklist**
+
+- [ ] blockchain-service health returns 200
+- [ ] Create/get wallet returns 200 with address (no private key); idempotent
+- [ ] Contract sign triggers blockchain write (check logs); contract has blockchain metadata
+- [ ] Get contract record returns tx hash and status
+
+**Note:** Current implementation uses mock/testnet mode (deterministic tx hashes). For real Base L2, set `BASE_L2_RPC_URL` and implement RPC calls in `blockchain_service.go`.
+
 ---
 
 ### 📊 Expected Test Results Summary

@@ -9,9 +9,9 @@
 ## Where we are now
 
 - **Auth:** ✅ Done (login/signup, JWT, OAuth).
-- **User:** ✅ Done (profile CRUD, skills, projects, search). Pending: `user_name`, public profile, visibility.
-- **Contract:** ✅ Create/update/list/get, save as draft, send to client, delete draft, draft auto-delete, shareable link, email trigger, **client view by token**, **send-for-review**, **sign** (status + client fields; blockchain in 3.4).  
-  ❌ Pending: wallets, blockchain on sign (3.4).
+- **User:** ✅ Done (profile CRUD, skills, projects, search, `user_name`, public profile, visibility).
+- **Contract:** ✅ Create/update/list/get, save as draft, send to client, delete draft, draft auto-delete, shareable link, email trigger, client view by token, send-for-review, sign, **wallets**, **blockchain on sign** (mock/testnet ready; **Alchemy Base Mainnet RPC configured** — see [BaseL2.md](./BaseL2.md) for integration steps).  
+  ❌ Pending: submission, review, reputation (Phase 4).
 
 ---
 
@@ -51,11 +51,21 @@ Do these in sequence so each step has a clear input/output.
 
 ---
 
-### 5. Wallets and blockchain on sign
+### 5. Wallets and blockchain on sign ✅ DONE (Phase 3.4)
 
-- **Wallets:** Backend creates and stores custodial wallets for freelancer and client (e.g. on first contract or on sign). No UI for private keys.
-- **On sign:** One service (e.g. blockchain-service) writes the contract record on-chain and returns transaction id, hash, timestamp, etc. Contract service stores these on the contract row and sets status `signed`.
-- **Rules:** [RULES_OF_BACKEND.md](./RULES_OF_BACKEND.md) — “Zero blockchain friction”, “Legalising contracts”.
+- **Wallets:** **Done:** blockchain-service `POST /api/v1/wallets` creates custodial wallets (freelancer/client) with encrypted private keys. Wallets table: user_id, user_type, address, encrypted_private_key. No UI for private keys.
+- **On sign:** **Done:** contract-service calls blockchain-service `POST /api/v1/blockchain/contracts` (async) when client signs. Blockchain-service writes contract to chain (mock/testnet mode; **Alchemy Base Mainnet RPC configured** — follow [BaseL2.md](./BaseL2.md) to enable real Base L2). Contract domain stores blockchain_tx_hash, blockchain_tx_id, blockchain_block_num, blockchain_gas_used, blockchain_network, blockchain_status.
+- **Rules:** [RULES_OF_BACKEND.md](./RULES_OF_BACKEND.md) — “Zero blockchain friction”, “Legalising contracts”. ✅ Implemented: wallets managed by backend, blockchain write off hot path, metadata persisted.
+- **Next steps for real Base L2:**
+  1. ✅ Get Base Sepolia testnet RPC from Alchemy dashboard (for testing)
+  2. ✅ Get testnet ETH from faucet
+  3. ✅ Configure `.env` files with Alchemy RPC URLs
+  4. ⏭️ Install Ethereum dependencies (`go get github.com/ethereum/go-ethereum`)
+  5. ⏭️ Update code to use real Base L2 (replace mock implementation)
+  6. ⏭️ Test on testnet first
+  7. ⏭️ Switch to mainnet when ready
+  - **See:** [BaseL2.md](./BaseL2.md) for complete step-by-step guide
+
 
 ---
 

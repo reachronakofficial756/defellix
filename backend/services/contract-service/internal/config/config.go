@@ -11,6 +11,16 @@ type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
+	SMTP     SMTPConfig
+}
+
+// SMTPConfig holds email sending credentials
+type SMTPConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	FromName string
 }
 
 // ServerConfig holds server-related configuration
@@ -29,6 +39,8 @@ type AppConfig struct {
 	ShareableLinkBaseURL      string // Base for contract links, e.g. https://app.ourdomain.com/contract
 	DraftExpiryDays           int    // Delete drafts older than this (default 14)
 	DraftCleanupIntervalMins  int    // Run draft-cleanup job every N minutes (default 360 = 6h)
+	BlockchainServiceURL      string // Base URL for blockchain-service (e.g. http://localhost:8083)
+	BlockchainServiceAPIKey   string // Optional: API key for service-to-service auth (if blockchain-service requires it)
 }
 
 // DatabaseConfig holds PostgreSQL configuration
@@ -62,17 +74,26 @@ func Load() *Config {
 			ShareableLinkBaseURL:     getEnv("SHAREABLE_LINK_BASE_URL", ""),
 			DraftExpiryDays:           getEnvAsInt("DRAFT_EXPIRY_DAYS", 14),
 			DraftCleanupIntervalMins: getEnvAsInt("DRAFT_CLEANUP_INTERVAL_MINS", 360),
+			BlockchainServiceURL:     getEnv("BLOCKCHAIN_SERVICE_URL", ""),
+			BlockchainServiceAPIKey:  getEnv("BLOCKCHAIN_SERVICE_API_KEY", ""),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),
 			User:     getEnv("DB_USER", "freelancer"),
 			Password: getEnv("DB_PASSWORD", "secret"),
-			DBName:   getEnv("DB_NAME", "freelancer_platform"),
+			DBName:   getEnv("DB_NAME", "defellix"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		JWT: JWTConfig{
 			Secret: getEnv("JWT_SECRET", ""),
+		},
+		SMTP: SMTPConfig{
+			Host:     getEnv("SMTP_HOST", "smtp.gmail.com"),
+			Port:     getEnv("SMTP_PORT", "587"),
+			User:     getEnv("SMTP_USER", ""),
+			Password: getEnv("SMTP_PASS", ""),
+			FromName: getEnv("SMTP_FROM_NAME", "Defellix Contracts"),
 		},
 	}
 }

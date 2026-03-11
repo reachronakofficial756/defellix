@@ -22,12 +22,12 @@ var (
 
 // UserRepository defines the interface for user profile data access
 type UserRepository interface {
-	Create(ctx context.Context, profile *domain.UserProfile) error
-	FindByID(ctx context.Context, id uint) (*domain.UserProfile, error)
-	FindByUserID(ctx context.Context, userID uint) (*domain.UserProfile, error)
-	FindByUserName(ctx context.Context, userName string) (*domain.UserProfile, error)
-	Update(ctx context.Context, profile *domain.UserProfile) error
-	Search(ctx context.Context, filter map[string]interface{}, page, limit int64) ([]*domain.UserProfile, int64, error)
+	Create(ctx context.Context, profile *domain.User) error
+	FindByID(ctx context.Context, id uint) (*domain.User, error)
+	FindByUserID(ctx context.Context, userID uint) (*domain.User, error)
+	FindByUserName(ctx context.Context, userName string) (*domain.User, error)
+	Update(ctx context.Context, profile *domain.User) error
+	Search(ctx context.Context, filter map[string]interface{}, page, limit int64) ([]*domain.User, int64, error)
 	AddSkill(ctx context.Context, userID uint, skill string) error
 	RemoveSkill(ctx context.Context, userID uint, skill string) error
 	AddPortfolioItem(ctx context.Context, userID uint, item *domain.PortfolioItem) error
@@ -46,7 +46,7 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 }
 
 // Create creates a new user profile
-func (r *userRepository) Create(ctx context.Context, profile *domain.UserProfile) error {
+func (r *userRepository) Create(ctx context.Context, profile *domain.User) error {
 	profile.CreatedAt = time.Now()
 	profile.UpdatedAt = time.Now()
 
@@ -60,8 +60,8 @@ func (r *userRepository) Create(ctx context.Context, profile *domain.UserProfile
 }
 
 // FindByID finds a user profile by ID
-func (r *userRepository) FindByID(ctx context.Context, id uint) (*domain.UserProfile, error) {
-	var profile domain.UserProfile
+func (r *userRepository) FindByID(ctx context.Context, id uint) (*domain.User, error) {
+	var profile domain.User
 	if err := r.db.WithContext(ctx).First(&profile, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -72,9 +72,9 @@ func (r *userRepository) FindByID(ctx context.Context, id uint) (*domain.UserPro
 }
 
 // FindByUserID finds a user profile by user ID (from auth-service)
-func (r *userRepository) FindByUserID(ctx context.Context, userID uint) (*domain.UserProfile, error) {
-	var profile domain.UserProfile
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&profile).Error; err != nil {
+func (r *userRepository) FindByUserID(ctx context.Context, userID uint) (*domain.User, error) {
+	var profile domain.User
+	if err := r.db.WithContext(ctx).Where("id = ?", userID).First(&profile).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
 		}
@@ -84,11 +84,11 @@ func (r *userRepository) FindByUserID(ctx context.Context, userID uint) (*domain
 }
 
 // FindByUserName finds a user profile by public user_name (ourdomain.com/user_name)
-func (r *userRepository) FindByUserName(ctx context.Context, userName string) (*domain.UserProfile, error) {
+func (r *userRepository) FindByUserName(ctx context.Context, userName string) (*domain.User, error) {
 	if userName == "" {
 		return nil, ErrUserNotFound
 	}
-	var profile domain.UserProfile
+	var profile domain.User
 	if err := r.db.WithContext(ctx).Where("user_name = ?", userName).First(&profile).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
@@ -99,7 +99,7 @@ func (r *userRepository) FindByUserName(ctx context.Context, userName string) (*
 }
 
 // Update updates an existing user profile
-func (r *userRepository) Update(ctx context.Context, profile *domain.UserProfile) error {
+func (r *userRepository) Update(ctx context.Context, profile *domain.User) error {
 	profile.UpdatedAt = time.Now()
 
 	if err := r.db.WithContext(ctx).Save(profile).Error; err != nil {
@@ -109,8 +109,8 @@ func (r *userRepository) Update(ctx context.Context, profile *domain.UserProfile
 }
 
 // Search searches for user profiles with filters
-func (r *userRepository) Search(ctx context.Context, filter map[string]interface{}, page, limit int64) ([]*domain.UserProfile, int64, error) {
-	query := r.db.WithContext(ctx).Model(&domain.UserProfile{})
+func (r *userRepository) Search(ctx context.Context, filter map[string]interface{}, page, limit int64) ([]*domain.User, int64, error) {
+	query := r.db.WithContext(ctx).Model(&domain.User{})
 
 	// Apply filters
 	if isActive, ok := filter["is_active"].(bool); ok {
@@ -160,7 +160,7 @@ func (r *userRepository) Search(ctx context.Context, filter map[string]interface
 
 	// Apply pagination and sorting
 	skip := (page - 1) * limit
-	var profiles []*domain.UserProfile
+	var profiles []*domain.User
 	if err := query.
 		Order("created_at DESC").
 		Offset(int(skip)).

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/saiyam0211/defellix/services/contract-service/internal/dto"
@@ -39,6 +40,7 @@ func (h *ContractHandler) RegisterRoutes(r chi.Router, authMw func(http.Handler)
 	r.Route("/api/v1/public/contracts", func(r chi.Router) {
 		r.Get("/{token}", h.GetByClientToken)
 		r.Post("/{token}/send-for-review", h.SendForReview)
+		r.Post("/{token}/send-otp", h.SendSignOTP)
 		r.Post("/{token}/sign", h.Sign)
 	})
 }
@@ -120,7 +122,11 @@ func (h *ContractHandler) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if err == service.ErrNotDraft {
-			respondError(w, http.StatusBadRequest, "Only draft contracts can be updated", "NOT_DRAFT")
+			respondError(w, http.StatusBadRequest, "Only draft or pending contracts can be updated", "NOT_DRAFT")
+			return
+		}
+		if strings.Contains(err.Error(), "does not match total amount") {
+			respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "Failed to update contract", "INTERNAL_ERROR")
@@ -252,4 +258,27 @@ func (h *ContractHandler) Sign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondSuccess(w, http.StatusOK, out, "Contract signed")
+}
+
+// SendSignOTP handles generating and emailing an OTP to the client for signature verification
+func (h *ContractHandler) SendSignOTP(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	if token == "" {
+		respondError(w, http.StatusBadRequest, "Missing token", "BAD_REQUEST")
+		return
+	}
+	var req dto.SendOTPRequest
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+	if err := h.svc.SendSignOTP(r.Context(), token, &req); err != nil {
+		if errors.Is(err, repository.ErrContractNotFound) {
+			respondError(w, http.StatusNotFound, "Contract not found", "NOT_FOUND")
+			return
+		}
+		respondError(w, http.StatusBadRequest, err.Error(), "BAD_REQUEST")
+		return
+	}
+	respondSuccess(w, http.StatusOK, map[string]string{"message": "OTP sent successfully"}, "OTP_SENT")
 }

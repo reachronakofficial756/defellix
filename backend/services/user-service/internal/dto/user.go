@@ -43,10 +43,9 @@ type SearchRequest struct {
 	Limit       int      `json:"limit,omitempty"`        // Results per page (default: 20, max: 100)
 }
 
-// UserProfileResponse represents the user profile response
-type UserProfileResponse struct {
+// UserResponse represents the user profile response
+type UserResponse struct {
 	ID            string          `json:"id"`
-	UserID        uint            `json:"user_id"`
 	Email         string          `json:"email"`
 	UserName      string          `json:"user_name,omitempty"` // for ourdomain.com/user_name
 	FullName      string          `json:"full_name"`
@@ -116,8 +115,9 @@ type PublicProfileResponse struct {
 	InstagramLink string               `json:"instagram_link,omitempty"`
 	Skills        []string             `json:"skills,omitempty"`
 	HourlyRate    *float64             `json:"hourly_rate,omitempty"`
-	Availability  string               `json:"availability,omitempty"`
-	Projects      []ProjectResponse    `json:"projects,omitempty"` // only if show_projects
+	Availability             string               `json:"availability,omitempty"`
+	AggregateReputationScore int                  `json:"aggregate_reputation_score,omitempty"`
+	Projects                 []ProjectResponse    `json:"projects,omitempty"` // only if show_projects
 	// Contracts     []ContractSummary   `json:"contracts,omitempty"` // when integrated
 }
 
@@ -163,7 +163,7 @@ type PortfolioItem struct {
 
 // SearchResponse represents the search results
 type SearchResponse struct {
-	Users      []UserProfileResponse `json:"users"`
+	Users      []UserResponse `json:"users"`
 	Total      int64                 `json:"total"`
 	Page       int                   `json:"page"`
 	Limit      int                   `json:"limit"`

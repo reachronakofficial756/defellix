@@ -2,14 +2,18 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math/big"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/saiyam0211/defellix/services/contract-service/internal/blockchain"
 	"github.com/saiyam0211/defellix/services/contract-service/internal/domain"
 	"github.com/saiyam0211/defellix/services/contract-service/internal/dto"
 	"github.com/saiyam0211/defellix/services/contract-service/internal/notification"
@@ -29,11 +33,13 @@ type ContractService struct {
 	shareableLinkBaseURL string
 	notifier             notification.ContractNotifier
 	draftExpiryDays      int
+	blockchainClient     blockchain.Client
 }
 
 // NewContractService creates the contract service. shareableLinkBaseURL is used for shareable_link when status is sent (e.g. https://app.ourdomain.com/contract).
 // draftExpiryDays is used by DeleteExpiredDrafts; if <= 0, 14 is used.
-func NewContractService(repo repository.ContractRepository, shareableLinkBaseURL string, notifier notification.ContractNotifier, draftExpiryDays int) *ContractService {
+// blockchainClient is used to write contracts to chain on sign; can be nil if blockchain-service not configured.
+func NewContractService(repo repository.ContractRepository, shareableLinkBaseURL string, notifier notification.ContractNotifier, draftExpiryDays int, blockchainClient blockchain.Client) *ContractService {
 	if draftExpiryDays <= 0 {
 		draftExpiryDays = 14
 	}
@@ -42,6 +48,7 @@ func NewContractService(repo repository.ContractRepository, shareableLinkBaseURL
 		shareableLinkBaseURL: strings.TrimSuffix(shareableLinkBaseURL, "/"),
 		notifier:             notifier,
 		draftExpiryDays:      draftExpiryDays,
+		blockchainClient:     blockchainClient,
 	}
 }
 
@@ -49,6 +56,16 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 	currency := req.Currency
 	if currency == "" {
 		currency = "INR"
+	}
+
+	// Validate milestone amounts sum to total amount
+	var sum float64
+	for _, m := range req.Milestones {
+		sum += m.Amount
+	}
+	// Use small epsilon for float comparison
+	if stringifyAmount(sum) != stringifyAmount(req.TotalAmount) {
+		return nil, fmt.Errorf("sum of milestone amounts (%f) does not match total amount (%f)", sum, req.TotalAmount)
 	}
 	c := &domain.Contract{
 		FreelancerUserID:   freelancerUserID,
@@ -66,6 +83,7 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 		ClientPhone:        req.ClientPhone,
 		TermsAndConditions: req.TermsAndConditions,
 		Status:             domain.ContractStatusDraft,
+		ClientViewToken:    uuid.New().String(),
 	}
 	ms := milestonesFromInput(req.Milestones)
 	if err := s.repo.Create(ctx, c, ms); err != nil {
@@ -80,6 +98,11 @@ func (s *ContractService) GetByID(ctx context.Context, id uint, freelancerUserID
 		return nil, err
 	}
 	return s.contractToResponse(c), nil
+}
+
+// GetRawContract returns the raw domain contract for internal use (e.g. certificate generation).
+func (s *ContractService) GetRawContract(ctx context.Context, id uint, freelancerUserID uint) (*domain.Contract, error) {
+	return s.repo.GetByID(ctx, id, freelancerUserID)
 }
 
 func (s *ContractService) List(ctx context.Context, freelancerUserID uint, status string, page, limit int) ([]*dto.ContractResponse, int64, error) {
@@ -108,13 +131,104 @@ func (s *ContractService) Update(ctx context.Context, id uint, freelancerUserID 
 	if c.Status != domain.ContractStatusDraft && c.Status != domain.ContractStatusPending {
 		return nil, ErrNotDraft
 	}
+	
+	// If the contract was pending client review, and freelancer updates it, flag it as revised
+	if c.Status == domain.ContractStatusPending {
+		c.IsRevised = true
+	}
+
 	applyUpdate(c, req)
+
+	var finalMilestones []domain.ContractMilestone
 	if len(req.Milestones) > 0 {
-		ms := milestonesFromInput(req.Milestones)
-		if err := s.repo.Update(ctx, c, ms); err != nil {
+		existingMap := make(map[uint]domain.ContractMilestone)
+		for _, em := range c.Milestones {
+			existingMap[em.ID] = em
+		}
+
+		for _, mReq := range req.Milestones {
+			var m domain.ContractMilestone
+			if mReq.ID != nil && *mReq.ID > 0 {
+				existing, exists := existingMap[*mReq.ID]
+				if !exists {
+					return nil, fmt.Errorf("milestone ID %d does not belong to this contract", *mReq.ID)
+				}
+				m = existing
+
+				if mReq.Title != nil {
+					m.Title = *mReq.Title
+				}
+				if mReq.Description != nil {
+					m.Description = *mReq.Description
+				}
+				if mReq.Amount != nil {
+					m.Amount = *mReq.Amount
+				}
+				if mReq.DueDate != nil {
+					m.DueDate = mReq.DueDate
+				}
+				if mReq.IsInitialPayment != nil {
+					m.IsInitialPayment = *mReq.IsInitialPayment
+				}
+				if mReq.SubmissionCriteria != nil {
+					if b, err := json.Marshal(mReq.SubmissionCriteria); err == nil {
+						m.SubmissionCriteria = string(b)
+					}
+				}
+				if mReq.CompletionCriteriaTC != nil {
+					m.CompletionCriteriaTC = *mReq.CompletionCriteriaTC
+				}
+			} else {
+				// New milestone, require Title and Amount
+				if mReq.Title == nil {
+					return nil, errors.New("title is required for new milestones")
+				}
+				if mReq.Amount == nil {
+					return nil, errors.New("amount is required for new milestones")
+				}
+				m.Title = *mReq.Title
+				m.Amount = *mReq.Amount
+				if mReq.Description != nil {
+					m.Description = *mReq.Description
+				}
+				m.DueDate = mReq.DueDate
+				if mReq.IsInitialPayment != nil {
+					m.IsInitialPayment = *mReq.IsInitialPayment
+				}
+				if mReq.SubmissionCriteria != nil {
+					if b, err := json.Marshal(mReq.SubmissionCriteria); err == nil {
+						m.SubmissionCriteria = string(b)
+					}
+				} else {
+					m.SubmissionCriteria = "null"
+				}
+				if mReq.CompletionCriteriaTC != nil {
+					m.CompletionCriteriaTC = *mReq.CompletionCriteriaTC
+				}
+				m.Status = "pending"
+			}
+			finalMilestones = append(finalMilestones, m)
+		}
+	} else {
+		finalMilestones = c.Milestones
+	}
+
+	// Validate milestone amounts if milestones are updated or total amount is updated
+	if len(req.Milestones) > 0 || req.TotalAmount != nil {
+		var sum float64
+		for _, m := range finalMilestones {
+			sum += m.Amount
+		}
+		if stringifyAmount(sum) != stringifyAmount(c.TotalAmount) {
+			return nil, fmt.Errorf("sum of milestone amounts (%f) does not match total amount (%f)", sum, c.TotalAmount)
+		}
+	}
+
+	if len(req.Milestones) > 0 {
+		if err := s.repo.Update(ctx, c, finalMilestones); err != nil {
 			return nil, err
 		}
-		c.Milestones = ms
+		c.Milestones = finalMilestones
 	} else {
 		if err := s.repo.UpdateContractOnly(ctx, c); err != nil {
 			return nil, err
@@ -149,6 +263,11 @@ func (s *ContractService) Send(ctx context.Context, id uint, freelancerUserID ui
 		}
 		c.Status = domain.ContractStatusSent
 		c.SentAt = &now
+		
+		// Ensure the client receives the updated contract notification
+		shareableLink := s.buildShareableLinkForContract(c)
+		go s.notifier.NotifyContractSent(context.Background(), id, c.ClientEmail, shareableLink)
+		
 		return s.contractToResponse(c), nil
 	default:
 		return nil, ErrNotDraft
@@ -179,7 +298,39 @@ func (s *ContractService) SendForReview(ctx context.Context, token string, req *
 	return s.repo.UpdateToPendingByToken(ctx, token, strings.TrimSpace(req.Comment))
 }
 
-// Sign records client sign with required company_address and optional metadata. Allowed only when status is sent. No blockchain here (3.4).
+// SendSignOTP generates and emails a 6-digit OTP to the client for signature verification.
+func (s *ContractService) SendSignOTP(ctx context.Context, token string, req *dto.SendOTPRequest) error {
+	c, err := s.repo.FindByClientViewToken(ctx, token)
+	if err != nil {
+		return err
+	}
+	if c.Status != domain.ContractStatusSent {
+		return repository.ErrContractNotFound
+	}
+	if !strings.EqualFold(strings.TrimSpace(c.ClientEmail), strings.TrimSpace(req.Email)) {
+		return errors.New("email does not match the registered client email for this contract")
+	}
+
+	if c.LastOTPSentAt != nil && time.Since(*c.LastOTPSentAt) < 60*time.Second {
+		return errors.New("OTP cooldown in effect, please wait 60 seconds before requesting a new one")
+	}
+
+	max := big.NewInt(1000000)
+	n, _ := rand.Int(rand.Reader, max)
+	otp := fmt.Sprintf("%06d", n.Int64())
+	expiresAt := time.Now().Add(10 * time.Minute)
+
+	if err := s.repo.SaveSignOTP(ctx, token, otp, expiresAt); err != nil {
+		return err
+	}
+
+	s.notifier.SendSigningOTP(context.Background(), c.ClientEmail, otp, c.ProjectName)
+	return nil
+}
+
+// Sign records client sign with required company_address and optional metadata. Allowed only when status is sent.
+// Requires OTP validation.
+// After sign, writes contract to blockchain (async) and updates blockchain metadata.
 func (s *ContractService) Sign(ctx context.Context, token string, req *dto.SignRequest) (*dto.PublicContractViewResponse, error) {
 	if err := validateCompanyAddress(req.CompanyAddress); err != nil {
 		return nil, err
@@ -194,16 +345,98 @@ func (s *ContractService) Sign(ctx context.Context, token string, req *dto.SignR
 	if c.Status != domain.ContractStatusSent {
 		return nil, repository.ErrContractNotFound
 	}
+	
+	if c.SignOTP == "" {
+		return nil, errors.New("please request an OTP before signing")
+	}
+	if c.SignOTP != req.OTP {
+		return nil, errors.New("invalid OTP")
+	}
+	if c.OTPExpiresAt == nil || time.Now().After(*c.OTPExpiresAt) {
+		return nil, errors.New("OTP has expired, please request a new one")
+	}
+
 	meta := signMetadataFromRequest(req)
+	meta["otp_verified"] = true
 	metaJSON, _ := json.Marshal(meta)
 	now := time.Now()
-	if err := s.repo.UpdateToSignedByToken(ctx, token, &now, strings.TrimSpace(req.CompanyAddress), string(metaJSON)); err != nil {
+	if err := s.repo.UpdateToSigned(ctx, c.ID, &now, strings.TrimSpace(req.CompanyAddress), string(metaJSON)); err != nil {
 		return nil, err
 	}
 	c.Status = domain.ContractStatusSigned
 	c.ClientSignedAt = &now
 	c.ClientCompanyAddress = strings.TrimSpace(req.CompanyAddress)
+
 	return toPublicViewResponse(c), nil
+}
+
+// ProcessOutbox processes pending blockchain write tasks. Designed to be called by a cron job.
+func (s *ContractService) ProcessOutbox(ctx context.Context) {
+	if s.blockchainClient == nil {
+		return
+	}
+
+	tasks, err := s.repo.FetchPendingOutboxTasks(ctx, 10)
+	if err != nil || len(tasks) == 0 {
+		return
+	}
+
+	for _, task := range tasks {
+		// Mark as processing
+		if err := s.repo.MarkOutboxTaskProcessing(ctx, task.ID); err != nil {
+			continue
+		}
+
+		c, err := s.repo.GetContractInternal(ctx, task.ContractID)
+		if err != nil {
+			_ = s.repo.UpdateOutboxTaskResult(ctx, task.ID, domain.OutboxStatusFailed, fmt.Sprintf("fetch contract: %v", err), task.RetryCount+1)
+			continue
+		}
+
+		contractHash := blockchain.ComputeContractHash(
+			c.ID,
+			"", // freelancer email not stored on contract; would need to fetch from user-service
+			c.ClientEmail,
+			c.TotalAmount,
+			c.Currency,
+			c.ProjectName,
+			c.DueDate,
+		)
+
+		req := blockchain.WriteContractRequest{
+			ContractID:      c.ID,
+			FreelancerID:    c.FreelancerUserID,
+			ClientID:        0, // Client may not be a platform user
+			FreelancerEmail: "", // Would need to fetch from user-service
+			ClientEmail:     c.ClientEmail,
+			TotalAmount:     c.TotalAmount,
+			Currency:        c.Currency,
+			ProjectName:     c.ProjectName,
+			ContractHash:    contractHash,
+		}
+		if c.DueDate != nil {
+			req.DueDate = c.DueDate.Format(time.RFC3339)
+		}
+
+		resp, err := s.blockchainClient.WriteContract(ctx, req)
+		if err != nil {
+			_ = s.repo.UpdateOutboxTaskResult(ctx, task.ID, domain.OutboxStatusFailed, err.Error(), task.RetryCount+1)
+			continue
+		}
+
+		// Success
+		_ = s.repo.UpdateBlockchainMetadata(
+			ctx,
+			c.ID,
+			resp.TransactionHash,
+			resp.TransactionID,
+			resp.Network,
+			resp.Status,
+			resp.BlockNumber,
+			resp.GasUsed,
+		)
+		_ = s.repo.UpdateOutboxTaskResult(ctx, task.ID, domain.OutboxStatusSuccess, "", task.RetryCount+1)
+	}
 }
 
 func validateCompanyAddress(s string) error {
@@ -226,8 +459,8 @@ func validateCompanyAddress(s string) error {
 	return nil
 }
 
-func signMetadataFromRequest(req *dto.SignRequest) map[string]string {
-	m := make(map[string]string)
+func signMetadataFromRequest(req *dto.SignRequest) map[string]interface{} {
+	m := make(map[string]interface{})
 	if req.Email != "" {
 		m["email"] = strings.TrimSpace(req.Email)
 	}
@@ -269,6 +502,7 @@ func toPublicViewResponse(c *domain.Contract) *dto.PublicContractViewResponse {
 		ClientPhone:         c.ClientPhone,
 		TermsAndConditions:  c.TermsAndConditions,
 		Status:              c.Status,
+		IsRevised:           c.IsRevised,
 		SentAt:              c.SentAt,
 		ClientReviewComment: c.ClientReviewComment,
 		Milestones:          milestonesToResponse(c.Milestones),
@@ -316,13 +550,23 @@ func (s *ContractService) buildShareableLinkForContract(c *domain.Contract) stri
 func milestonesFromInput(in []dto.MilestoneInput) []domain.ContractMilestone {
 	out := make([]domain.ContractMilestone, len(in))
 	for i := range in {
+		subCriteriaStr := "null"
+		if in[i].SubmissionCriteria != nil {
+			if b, err := json.Marshal(in[i].SubmissionCriteria); err == nil {
+				subCriteriaStr = string(b)
+			}
+		}
+
 		out[i] = domain.ContractMilestone{
-			Title:             in[i].Title,
-			Description:       in[i].Description,
-			Amount:            in[i].Amount,
-			DueDate:           in[i].DueDate,
-			IsInitialPayment:  in[i].IsInitialPayment,
-			Status:            "pending",
+			OrderIndex:           i,
+			Title:                in[i].Title,
+			Description:          in[i].Description,
+			Amount:               in[i].Amount,
+			DueDate:              in[i].DueDate,
+			IsInitialPayment:     in[i].IsInitialPayment,
+			SubmissionCriteria:   subCriteriaStr,
+			CompletionCriteriaTC: in[i].CompletionCriteriaTC,
+			Status:               "pending",
 		}
 	}
 	return out
@@ -375,6 +619,11 @@ func (s *ContractService) toResponse(c *domain.Contract, ms []domain.ContractMil
 	return s.toResponseWithShareable(c, ms, shareable)
 }
 
+// stringifyAmount helps compare floats safely with 2 decimals
+func stringifyAmount(v float64) string {
+	return fmt.Sprintf("%.2f", v)
+}
+
 func (s *ContractService) toResponseWithShareable(c *domain.Contract, ms []domain.ContractMilestone, shareableLink string) *dto.ContractResponse {
 	return &dto.ContractResponse{
 		ID:                 c.ID,
@@ -393,8 +642,10 @@ func (s *ContractService) toResponseWithShareable(c *domain.Contract, ms []domai
 		ClientPhone:        c.ClientPhone,
 		TermsAndConditions: c.TermsAndConditions,
 		Status:             c.Status,
+		IsRevised:          c.IsRevised,
 		SentAt:             c.SentAt,
 		ShareableLink:      shareableLink,
+		ClientReviewComment: c.ClientReviewComment,
 		Milestones:         milestonesToResponse(ms),
 		CreatedAt:          c.CreatedAt,
 		UpdatedAt:          c.UpdatedAt,

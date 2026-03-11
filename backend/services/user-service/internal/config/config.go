@@ -63,7 +63,7 @@ func Load() *Config {
 			Port:     getEnv("DB_PORT", "5432"),
 			User:     getEnv("DB_USER", "freelancer"),
 			Password: getEnv("DB_PASSWORD", "secret"),
-			DBName:   getEnv("DB_NAME", "freelancer_platform"), // Same database as auth-service
+			DBName:   getEnv("DB_NAME", "defellix"), // Same database as auth-service
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		Auth: AuthConfig{

@@ -58,7 +58,7 @@ func NewUserService(userRepo repository.UserRepository) *UserService {
 }
 
 // GetProfile retrieves a user profile by ID
-func (s *UserService) GetProfile(ctx context.Context, id string) (*dto.UserProfileResponse, error) {
+func (s *UserService) GetProfile(ctx context.Context, id string) (*dto.UserResponse, error) {
 	profileID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
 		return nil, ErrProfileNotFound
@@ -71,7 +71,7 @@ func (s *UserService) GetProfile(ctx context.Context, id string) (*dto.UserProfi
 }
 
 // GetProfileByUserID retrieves a user profile by user ID
-func (s *UserService) GetProfileByUserID(ctx context.Context, userID uint) (*dto.UserProfileResponse, error) {
+func (s *UserService) GetProfileByUserID(ctx context.Context, userID uint) (*dto.UserResponse, error) {
 	profile, err := s.userRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -97,14 +97,14 @@ func (s *UserService) GetPublicProfileByUserName(ctx context.Context, userName s
 }
 
 // UpdateProfile updates a user profile
-func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.UpdateProfileRequest) (*dto.UserProfileResponse, error) {
+func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.UpdateProfileRequest) (*dto.UserResponse, error) {
 	// Get existing profile
 	profile, err := s.userRepo.FindByUserID(ctx, userID)
 	if err != nil {
 		// If profile doesn't exist, create a new one
 		if err == repository.ErrUserNotFound {
-			profile = &domain.UserProfile{
-				UserID: userID,
+			profile = &domain.User{
+				ID: userID,
 				Role:   domain.RoleFreelancer, // Default role
 			}
 		} else {
@@ -113,9 +113,7 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 	}
 
 	// Update fields
-	if req.FullName != "" {
-		profile.FullName = req.FullName
-	}
+
 	if req.Bio != "" {
 		profile.Bio = req.Bio
 	}
@@ -146,33 +144,10 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 	if req.Timezone != "" {
 		profile.Timezone = req.Timezone
 	}
-	if req.Phone != "" {
-		profile.Phone = req.Phone
-	}
-	if req.HourlyRate != nil {
-		profile.HourlyRate = req.HourlyRate
-	}
-	if req.Availability != "" {
-		profile.Availability = req.Availability
-	}
 	if req.CompanyName != "" {
 		profile.CompanyName = req.CompanyName
 	}
-	if req.CompanySize != "" {
-		profile.CompanySize = req.CompanySize
-	}
-	if req.UserName != "" {
-		normalised, err := normaliseUserName(req.UserName)
-		if err != nil {
-			return nil, err
-		}
-		profile.UserName = normalised
-		// Uniqueness: must not be taken by another profile
-		existing, _ := s.userRepo.FindByUserName(ctx, normalised)
-		if existing != nil && existing.UserID != userID {
-			return nil, repository.ErrUserNameTaken
-		}
-	}
+
 	if req.ShowProfile != nil {
 		profile.ShowProfile = *req.ShowProfile
 	}
@@ -227,9 +202,7 @@ func (s *UserService) SearchProfiles(ctx context.Context, req *dto.SearchRequest
 	}
 
 	// Availability filter
-	if req.Availability != "" {
-		filter["availability"] = req.Availability
-	}
+	// Removed availability filter
 
 	// Text search
 	if req.Query != "" {
@@ -253,7 +226,7 @@ func (s *UserService) SearchProfiles(ctx context.Context, req *dto.SearchRequest
 	}
 
 	// Convert to response
-	profileResponses := make([]dto.UserProfileResponse, len(profiles))
+	profileResponses := make([]dto.UserResponse, len(profiles))
 	for i, p := range profiles {
 		profileResponses[i] = *s.toProfileResponse(p)
 	}
@@ -348,7 +321,7 @@ func (s *UserService) DeletePortfolioItem(ctx context.Context, userID uint, item
 }
 
 // Helper methods
-func (s *UserService) toProfileResponse(profile *domain.UserProfile) *dto.UserProfileResponse {
+func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse {
 	// Parse skills from JSONB
 	var skills []string
 	if len(profile.Skills) > 0 {
@@ -409,9 +382,8 @@ func (s *UserService) toProfileResponse(profile *domain.UserProfile) *dto.UserPr
 		}
 	}
 
-	return &dto.UserProfileResponse{
+	return &dto.UserResponse{
 		ID:                fmt.Sprintf("%d", profile.ID),
-		UserID:            profile.UserID,
 		Email:             profile.Email,
 		UserName:          profile.UserName,
 		FullName:          profile.FullName,
@@ -430,14 +402,11 @@ func (s *UserService) toProfileResponse(profile *domain.UserProfile) *dto.UserPr
 		Skills:            skills,
 		Portfolio:         portfolioItems,
 		Projects:         projects,
-		HourlyRate:        profile.HourlyRate,
-		Availability:      profile.Availability,
 		NoOfProjectsDone: noOfProjectsDone,
 		OnTimeCompletion: onTimeCompletion,
 		ReputationScore:   reputationScore,
 		Testimonials:      testimonials,
 		CompanyName:       profile.CompanyName,
-		CompanySize:       profile.CompanySize,
 		ShowProfile:       profile.ShowProfile,
 		ShowProjects:      profile.ShowProjects,
 		ShowContracts:     profile.ShowContracts,
@@ -449,9 +418,10 @@ func (s *UserService) toProfileResponse(profile *domain.UserProfile) *dto.UserPr
 	}
 }
 
-func (s *UserService) toPublicProfileResponse(profile *domain.UserProfile) *dto.PublicProfileResponse {
+func (s *UserService) toPublicProfileResponse(profile *domain.User) *dto.PublicProfileResponse {
 	out := &dto.PublicProfileResponse{
-		UserName: profile.UserName,
+		UserName:                 profile.UserName,
+		AggregateReputationScore: profile.AggregateReputationScore,
 	}
 	if profile.ShowProfile {
 		out.FullName = profile.FullName
@@ -465,8 +435,6 @@ func (s *UserService) toPublicProfileResponse(profile *domain.UserProfile) *dto.
 		out.LinkedInLink = profile.LinkedInLink
 		out.PortfolioLink = profile.PortfolioLink
 		out.InstagramLink = profile.InstagramLink
-		out.HourlyRate = profile.HourlyRate
-		out.Availability = profile.Availability
 		var skills []string
 		if len(profile.Skills) > 0 {
 			_ = json.Unmarshal(profile.Skills, &skills)

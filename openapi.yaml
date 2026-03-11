@@ -1,0 +1,980 @@
+openapi: 3.0.3
+info:
+  title: Defellix API
+  description: >
+    API Documentation for the Defellix Decentralized Freelancer Trust Platform.
+    This API gateway routes requests to underlying microservices: Auth, User, Contract, and Blockchain.
+  version: 1.0.0
+servers:
+  - url: https://api.defellix.com
+    description: Production API via Cloudflare Tunnels
+  - url: http://localhost:8080
+    description: Local development via Nginx API Gateway
+tags:
+  - name: Auth
+    description: Authentication and User Registration
+  - name: User
+    description: User Profile and Portfolio Management
+  - name: Contract
+    description: Freelancer Contract Creation and Lifecycle
+  - name: Client
+    description: Public endpoints for Clients to review and sign contracts
+  - name: Submission
+    description: Work submission and review process
+  - name: Wallet
+    description: Custodial Wallet Management
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your JWT token in the format **Bearer &lt;token&gt;**
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+
+    # --- AUTH MODULE SCHEMAS ---
+    RegisterRequest:
+      type: object
+      required: [email, password, full_name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        full_name:
+          type: string
+          minLength: 2
+          maxLength: 100
+    
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        user_id:
+          type: integer
+        email:
+          type: string
+
+    # --- USER MODULE SCHEMAS ---
+    CreateProfileRequest:
+      type: object
+      required: [phone, user_name, short_headline, skills]
+      properties:
+        phone:
+          type: string
+        user_name:
+          type: string
+          description: Unique username for the public profile URL
+        photo:
+          type: string
+        short_headline:
+          type: string
+        location:
+          type: string
+        experience:
+          type: string
+        github_link:
+          type: string
+        linkedin_link:
+          type: string
+        portfolio_link:
+          type: string
+        instagram_link:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        photo:
+          type: string
+        short_headline:
+          type: string
+        bio:
+          type: string
+        location:
+          type: string
+        experience:
+          type: string
+        timezone:
+          type: string
+        github_link:
+          type: string
+        linkedin_link:
+          type: string
+        portfolio_link:
+          type: string
+        instagram_link:
+          type: string
+        company_name:
+          type: string
+        show_profile:
+          type: boolean
+        show_projects:
+          type: boolean
+        show_contracts:
+          type: boolean
+
+    PublicProfileResponse:
+      type: object
+      properties:
+        user_name:
+          type: string
+        full_name:
+          type: string
+        headline:
+          type: string
+        bio:
+          type: string
+        skills:
+          type: array
+          items:
+            type: string
+        aggregate_reputation_score:
+          type: integer
+          description: Total Reputation Points earned on the platform
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        stats:
+          type: object
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        demo_url:
+          type: string
+        github_url:
+          type: string
+
+    # --- CONTRACT MODULE SCHEMAS ---
+    CreateContractRequest:
+      type: object
+      required: [project_category, project_name, total_amount, client_name, client_email, milestones]
+      properties:
+        project_category:
+          type: string
+        project_name:
+          type: string
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        total_amount:
+          type: number
+        currency:
+          type: string
+          default: INR
+        prd_file_url:
+          type: string
+        submission_criteria:
+          type: string
+          description: Contract-level submission criteria (optional).
+          example: "Video URL"
+        client_name:
+          type: string
+        client_company_name:
+          type: string
+        client_email:
+          type: string
+          format: email
+        client_phone:
+          type: string
+        terms_and_conditions:
+          type: string
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/MilestoneInput'
+
+    UpdateContractRequest:
+      type: object
+      properties:
+        project_category:
+          type: string
+        project_name:
+          type: string
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        total_amount:
+          type: number
+        currency:
+          type: string
+        prd_file_url:
+          type: string
+        submission_criteria:
+          type: string
+          description: Contract-level submission criteria (optional).
+          example: "Video URL"
+        client_name:
+          type: string
+        client_company_name:
+          type: string
+        client_email:
+          type: string
+          format: email
+        client_phone:
+          type: string
+        terms_and_conditions:
+          type: string
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpdateMilestoneInput'
+
+    UpdateMilestoneInput:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: If provided, will update the existing milestone. If omitted, will create a new milestone.
+        title:
+          type: string
+          description: Required if creating a new milestone.
+        description:
+          type: string
+        amount:
+          type: number
+          description: Required if creating a new milestone.
+        due_date:
+          type: string
+          format: date-time
+        is_initial_payment:
+          type: boolean
+        submission_criteria:
+          description: Dynamic JSON, array, or string determining what specific deliverables (urls, files) are needed for this milestone.
+          example: "Video URL"
+        completion_criteria_tc:
+          type: string
+          description: Strict Terms & Conditions for milestone approval.
+            
+    MilestoneInput:
+      type: object
+      required: [title, amount]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        amount:
+          type: number
+        due_date:
+          type: string
+          format: date-time
+        is_initial_payment:
+          type: boolean
+        submission_criteria:
+          description: Flexible string or JSON object defining what deliverables are needed.
+          example: "Video URL"
+        completion_criteria_tc:
+          type: string
+
+    ContractResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        is_revised:
+          type: boolean
+          description: True if the freelancer has updated the contract after the client requested revisions.
+        
+    WalletResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        user_id:
+          type: integer
+        user_type:
+          type: string
+        address:
+          type: string
+          description: The Base L2 public cryptographic wallet address automatically generated for the user.
+        network:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          
+    ContractRecordResponse:
+      type: object
+      properties:
+        contract_id:
+          type: integer
+        transaction_hash:
+          type: string
+        transaction_id:
+          type: string
+        block_number:
+          type: integer
+        gas_used:
+          type: integer
+        status:
+          type: string
+        network:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        project_name:
+          type: string
+        total_amount:
+          type: number
+        shareable_link:
+          type: string
+          description: Unique URL to send to the client (available when status is sent or higher)
+        client_review_comment:
+          type: string
+          description: Comment from the client if they requested revisions before signing.
+
+    ClientSignRequest:
+      type: object
+      required: [otp, company_address]
+      properties:
+        otp:
+          type: string
+          description: Required 6-digit PIN securely sent to the client's registered email. Use the /send-otp endpoint to generate this code.
+        company_address:
+          type: string
+          description: Required. Can be 'Remote', a full physical address, or a Google Maps URL.
+        email:
+          type: string
+        phone:
+          type: string
+        company_name:
+          type: string
+        gst_number:
+          type: string
+          description: Optional for Indian businesses. Validator to be added in Phase 6.
+
+    SendOTPRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Must exactly match the client_email registered on the contract.
+
+    # --- SUBMISSION MODULE SCHEMAS ---
+    SubmissionRequest:
+      type: object
+      required: [submitted_data, description]
+      properties:
+        status:
+          type: string
+          enum: [draft, pending_review]
+        milestone_id:
+          type: integer
+          description: Optional. Set to link this submission to a specific milestone.
+        submitted_data:
+          type: object
+          description: Dynamic JSON mapping fulfilling the exact 'submission_criteria' previously defined.
+        description:
+          type: string
+          description: Free-form description of the delivered work and any links to files/repo.
+          
+    UpdateSubmissionRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [draft, pending_review]
+        submitted_data:
+          type: object
+          description: Dynamic JSON mapping fulfilling the exact 'submission_criteria' previously defined.
+        description:
+          type: string
+          description: Free-form description of the delivered work and any links to files/repo.
+          
+    ClientReviewRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [accept, revision]
+          description: Use "accept" to approve and finalize the work. Use "revision" to reject it back to the freelancer with mandatory feedback.
+        comment:
+          type: string
+          description: Required if action is 'revision'. Optional feedback if 'accept'.
+
+paths:
+  # ==========================================
+  # AUTH SERVICE
+  # ==========================================
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /api/v1/auth/oauth/google:
+    get:
+      tags: [Auth]
+      summary: Login with Google (OAuth 2.0)
+      description: Redirects the user to Google's consent screen. Set the `role` parameter to determine the account type for new registrations.
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [freelancer, client]
+            default: freelancer
+      responses:
+        '307':
+          description: Temporary redirect to Google Identity Provider
+  
+  /api/v1/auth/oauth/linkedin:
+    get:
+      tags: [Auth]
+      summary: Login with LinkedIn (OAuth 2.0)
+      description: Redirects the user to LinkedIn's consent screen. Set the `role` parameter to determine the account type for new registrations.
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [freelancer, client]
+            default: freelancer
+      responses:
+        '307':
+          description: Temporary redirect to LinkedIn Identity Provider
+
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User details returned
+
+  # ==========================================
+  # USER SERVICE
+  # ==========================================
+  /api/v1/users/me:
+    get:
+      tags: [User]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+    put:
+      tags: [User]
+      summary: Update user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+
+  /api/v1/users/me/profile:
+    post:
+      tags: [User]
+      summary: Create or update freelancer profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated
+
+  /api/v1/public/profile/{user_name}:
+    get:
+      tags: [User]
+      summary: View public profile by username
+      description: This is a public, unauthenticated endpoint to display the freelancer's portfolio, skills, and Reputation Score.
+      parameters:
+        - name: user_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Profile details returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicProfileResponse'
+
+  # ==========================================
+  # CONTRACT SERVICE (Freelancer)
+  # ==========================================
+  /api/v1/contracts:
+    post:
+      tags: [Contract]
+      summary: Create a new draft contract
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContractRequest'
+      responses:
+        '201':
+          description: Draft created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractResponse'
+    get:
+      tags: [Contract]
+      summary: List freelancer's contracts
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Contracts returned
+
+  /api/v1/contracts/{id}:
+    get:
+      tags: [Contract]
+      summary: Get contract by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contract details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractResponse'
+        '404':
+          description: Contract not found
+    put:
+      tags: [Contract]
+      summary: Update a draft or pending contract
+      description: Allows a freelancer to edit contract terms and milestones. Only allowed if the contract status is `draft` or `pending` (client requested revisions).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateContractRequest'
+      responses:
+        '200':
+          description: Contract updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContractResponse'
+        '403':
+          description: Only draft or pending contracts can be edited
+        '404':
+          description: Contract not found
+    delete:
+      tags: [Contract]
+      summary: Delete a draft contract
+      description: Deletes a contract entirely. Only allowed if the status is `draft`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Contract deleted successfully
+        '403':
+          description: Only draft contracts can be deleted
+        '404':
+          description: Contract not found
+
+  /api/v1/contracts/{id}/send:
+    post:
+      tags: [Contract]
+      summary: Send contract to client
+      description: Transitions contract from `draft` to `sent`, generates a shareable link token, and triggers an email notification to the client.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Contract sent successfully. Returns the shareable link.
+
+  /api/v1/contracts/{id}/submissions:
+    get:
+      tags: [Submission]
+      summary: List submissions for a contract
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of submissions returned.
+    post:
+      tags: [Submission]
+      summary: Submit work against a signed contract
+      description: Freelancers submit structured JSON (`submitted_data`) mapped to the explicit `submission_criteria` in the Milestone. Defaults to `draft` state unless strictly specified as `pending_review`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmissionRequest'
+      responses:
+        '201':
+          description: Work submitted and client notified via email.
+
+  /api/v1/contracts/{id}/submissions/{sub_id}:
+    put:
+      tags: [Submission]
+      summary: Update a drafted or revision-requested submission
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: sub_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSubmissionRequest'
+      responses:
+        '200':
+          description: Submission updated successfully.
+
+  /api/v1/contracts/{id}/certificate:
+    get:
+      tags: [Contract]
+      summary: GET Section 65B Certificate
+      description: Auto-generates a court-admissible HTML/PDF document citing blockchain proof and contract terms. Only available for `signed` or `completed` contracts.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: HTML document returned for printing to PDF.
+
+  # ==========================================
+  # WEb3 WALLET & BLOCKCHAIN SERVICES
+  # ==========================================
+  /api/v1/wallets/get:
+    post:
+      tags: [Wallet]
+      summary: Get user wallet details
+      description: Retrieves the public keys and on-chain details for the currently logged in user. Used to verify the identity of the signer.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, user_type]
+              properties:
+                user_id:
+                  type: integer
+                user_type:
+                  type: string
+                  enum: [freelancer, client]
+      responses:
+        '200':
+          description: Wallet Details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WalletResponse'
+
+  /api/v1/blockchain/contracts/get:
+    post:
+      tags: [Blockchain]
+      summary: Get contract blockchain record
+      description: Retrieves the on-chain metadata (transaction hashes, blocks) for a confirmed contract.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contract_id]
+              properties:
+                contract_id:
+                  type: integer
+      responses:
+        '200':
+          description: Blockchain metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ContractRecordResponse'
+
+  # ==========================================
+  # CONTRACT SERVICE (Client Review - Public)
+  # ==========================================
+  /api/v1/public/contracts/{token}:
+    get:
+      tags: [Client]
+      summary: View contract (Client)
+      description: Public endpoint for clients to view the contract using the shareable link token. No auth required.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Contract details returned.
+
+  /api/v1/public/contracts/{token}/send-otp:
+    post:
+      tags: [Client]
+      summary: Send OTP (Client)
+      description: Generates a 6-digit PIN and sends it securely to the client's email via SMTP if the email matches the contract's registered address. Required before signing.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOTPRequest'
+      responses:
+        '200':
+          description: OTP sent successfully
+        '400':
+          description: Bad request or validation error
+        '404':
+          description: Contract not found
+
+  /api/v1/public/contracts/{token}/sign:
+    post:
+      tags: [Client]
+      summary: Sign contract (Client)
+      description: Client submits their address, demographic information, and the 6-digit OTP code sent to their email. Validating this OTP cryptographically embeds identity trust into the blockchain.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientSignRequest'
+      responses:
+        '200':
+          description: Contract signed and recorded on blockchain.
+
+  /api/v1/public/contracts/{token}/send-for-review:
+    post:
+      tags: [Client]
+      summary: Send contract back for revision (Client)
+      description: Allows a client to request changes or add feedback to a `sent` contract before signing it. Changes the status to `pending`.
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema:
+            type: string
+          description: Client view token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment:
+                  type: string
+                  description: Client feedback/revision request
+      responses:
+        '200':
+          description: Sent for review successfully
+        '400':
+          description: Bad request or validation error
+        '404':
+          description: Contract not found
+        '409':
+          description: Contract is already pending review
+
+  /api/v1/public/contracts/{token}/submissions/{sub_id}/review:
+    post:
+      tags: [Submission, Client]
+      summary: Review submitted work (Client)
+      description: Client can accept or reject the deliverable. If accepted (action=accept), the contract completes, Reputation Points are sent, and the contract is saved to the public profile. If rejected (action=revision), the comment is permanently injected into the JSONB revision_history audit trail.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sub_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientReviewRequest'
+      responses:
+        '200':
+          description: Review processed.
+
+  # ==========================================
+  # BLOCKCHAIN SERVICE
+  # ==========================================
+  /api/v1/wallets:
+    post:
+      tags: [Wallet]
+      summary: Create Custodial Wallet
+      description: Automatically generates an AES-256 encrypted EVM wallet for the user to interact with the Base L2 chain.
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Wallet created/returned.

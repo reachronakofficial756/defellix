@@ -38,6 +38,9 @@ func InitDB(cfg *Config) (*gorm.DB, error) {
 
 // AutoMigrate runs database migrations for all domain models
 func AutoMigrate(db *gorm.DB, models ...interface{}) error {
+	// Drop the auto-generated unique index if it exists, so our partial index takes precedence
+	db.Exec("DROP INDEX IF EXISTS idx_users_user_name CASCADE")
+	
 	if err := db.AutoMigrate(models...); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
@@ -48,23 +51,23 @@ func AutoMigrate(db *gorm.DB, models ...interface{}) error {
 func CreateIndexes(db *gorm.DB) error {
 	// Text search index (using GIN index for JSONB)
 	if err := db.Exec(`
-		CREATE INDEX IF NOT EXISTS idx_user_profiles_skills_gin 
-		ON user_profiles USING GIN (skills);
+		CREATE INDEX IF NOT EXISTS idx_users_skills_gin 
+		ON users USING GIN (skills);
 	`).Error; err != nil {
 		return fmt.Errorf("failed to create skills index: %w", err)
 	}
 
 	if err := db.Exec(`
-		CREATE INDEX IF NOT EXISTS idx_user_profiles_projects_gin 
-		ON user_profiles USING GIN (projects);
+		CREATE INDEX IF NOT EXISTS idx_users_projects_gin 
+		ON users USING GIN (projects);
 	`).Error; err != nil {
 		return fmt.Errorf("failed to create projects index: %w", err)
 	}
 
 	// Full-text search index
 	if err := db.Exec(`
-		CREATE INDEX IF NOT EXISTS idx_user_profiles_fulltext 
-		ON user_profiles USING GIN (
+		CREATE INDEX IF NOT EXISTS idx_users_fulltext 
+		ON users USING GIN (
 			to_tsvector('english', 
 				COALESCE(full_name, '') || ' ' || 
 				COALESCE(short_headline, '') || ' ' || 
@@ -77,8 +80,8 @@ func CreateIndexes(db *gorm.DB) error {
 
 	// user_name unique when non-empty (allows many profiles with no public URL yet)
 	if err := db.Exec(`
-		CREATE UNIQUE INDEX IF NOT EXISTS idx_user_profiles_user_name_unique 
-		ON user_profiles (user_name) WHERE user_name != '' AND user_name IS NOT NULL;
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_users_user_name_unique 
+		ON users (user_name) WHERE user_name != '' AND user_name IS NOT NULL;
 	`).Error; err != nil {
 		return fmt.Errorf("failed to create user_name unique index: %w", err)
 	}

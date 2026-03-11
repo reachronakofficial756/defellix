@@ -1205,7 +1205,22 @@ All except health require `Authorization: Bearer <access_token>` (same token as 
 
 ---
 
+### Phase 3.4: Wallets & blockchain on sign
+
+**Scope:** Separate blockchain-service microservice for wallet management and Base L2 contract writing. Wallets created on-demand; blockchain write triggered async on contract sign.
+
+**Where:** blockchain-service (new microservice). **Domain:** `wallets` (user_id, user_type, address, encrypted_private_key), `contract_records` (contract_id, transaction_hash, block_number, gas_used, status). **Wallet service:** `CreateOrGetWallet`, `GetWallet`; key generation via `pkg/wallet` (ECDSA, encrypted with AES-256-GCM). **Blockchain service:** `WriteContractToChain` (mock/testnet mode; generates deterministic tx hashes; ready for real Base L2 RPC). **Integration:** contract-service `internal/blockchain/client.go` calls blockchain-service on sign (async, off hot path); updates contract with blockchain metadata via `UpdateBlockchainMetadata`.
+
+**Decisions:**  
+- Separate microservice for clear ownership and scale.  
+- Wallets encrypted at rest; master key (`WALLET_ENCRYPTION_KEY`) must be kept secret.  
+- Blockchain write is async to keep sign API fast; errors logged but don't fail sign.  
+- Mock/testnet mode allows development without Base L2 access; replace `generateMockTransactionHash` and implement `submitToBaseL2` when RPC is available.  
+- Contract domain stores blockchain metadata for querying and display.
+
+---
+
 **Document Version:** 4.0  
 **Last Updated:** January 24, 2026  
-**Next Update:** After Phase 3.4 (wallets, blockchain on sign)
+**Next Update:** After Phase 4 (submission, review, reputation)
 

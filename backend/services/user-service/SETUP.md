@@ -30,8 +30,8 @@ brew services start postgresql  # macOS
 # Create database and user (if not exists)
 sudo -u postgres psql
 CREATE USER freelancer WITH PASSWORD 'secret';
-CREATE DATABASE freelancer_platform OWNER freelancer;
-GRANT ALL PRIVILEGES ON DATABASE freelancer_platform TO freelancer;
+CREATE DATABASE defellix OWNER freelancer;
+GRANT ALL PRIVILEGES ON DATABASE defellix TO freelancer;
 \q
 ```
 
@@ -63,13 +63,13 @@ export DB_HOST=ep-xxx-xxx.us-east-2.aws.neon.tech
 export DB_PORT=5432
 export DB_USER=your-neon-user
 export DB_PASSWORD=your-neon-password
-export DB_NAME=freelancer_platform  # Same as Auth Service!
+export DB_NAME=defellix  # Same as Auth Service!
 export DB_SSLMODE=require  # IMPORTANT: Required for Neon
 ```
 
 **Connection String Format:**
 ```
-postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/freelancer_platform?sslmode=require
+postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/defellix?sslmode=require
 ```
 
 ---
@@ -80,7 +80,7 @@ postgresql://user:password@ep-xxx-xxx.us-east-2.aws.neon.tech/freelancer_platfor
 
 1. **Use Same RDS Instance as Auth Service:**
    - Use the same endpoint, username, and password
-   - Use the same database name: `freelancer_platform`
+   - Use the same database name: `defellix`
 
 **Environment Variables:**
 ```bash
@@ -88,7 +88,7 @@ export DB_HOST=your-db.region.rds.amazonaws.com
 export DB_PORT=5432
 export DB_USER=your-rds-username
 export DB_PASSWORD=your-rds-password
-export DB_NAME=freelancer_platform  # Same as Auth Service!
+export DB_NAME=defellix  # Same as Auth Service!
 export DB_SSLMODE=require  # Recommended for RDS
 ```
 
@@ -122,7 +122,7 @@ export DB_SSLMODE=require  # Recommended for RDS
    DB_PORT=5432
    DB_USER=freelancer
    DB_PASSWORD=secret
-   DB_NAME=freelancer_platform  # Same database!
+   DB_NAME=defellix  # Same database!
    DB_SSLMODE=disable
    
    # Auth Service (for gRPC - future)
@@ -162,7 +162,7 @@ export DB_HOST=localhost
 export DB_PORT=5432
 export DB_USER=freelancer
 export DB_PASSWORD=secret
-export DB_NAME=freelancer_platform  # Same as Auth Service!
+export DB_NAME=defellix  # Same as Auth Service!
 export DB_SSLMODE=disable
 ```
 
@@ -172,7 +172,7 @@ $env:DB_HOST="localhost"
 $env:DB_PORT="5432"
 $env:DB_USER="freelancer"
 $env:DB_PASSWORD="secret"
-$env:DB_NAME="freelancer_platform"
+$env:DB_NAME="defellix"
 $env:DB_SSLMODE="disable"
 ```
 
@@ -184,7 +184,7 @@ $env:DB_SSLMODE="disable"
 
 **Check if Auth Service created the database:**
 ```bash
-psql -h localhost -U freelancer -d freelancer_platform -c "\dt"
+psql -h localhost -U freelancer -d defellix -c "\dt"
 ```
 
 **You should see:**
@@ -202,7 +202,7 @@ export DB_HOST=localhost
 export DB_PORT=5432
 export DB_USER=freelancer
 export DB_PASSWORD=secret
-export DB_NAME=freelancer_platform
+export DB_NAME=defellix
 export DB_SSLMODE=disable
 
 # Run
@@ -224,7 +224,7 @@ Environment: development
 
 ```bash
 # Using psql
-psql -h localhost -U freelancer -d freelancer_platform
+psql -h localhost -U freelancer -d defellix
 
 # Check tables
 \dt
@@ -277,7 +277,7 @@ curl -X POST http://localhost:8081/api/v1/users/me/profile \
 
 ## 📊 Database Tables
 
-### Shared Database: `freelancer_platform`
+### Shared Database: `defellix`
 
 **Tables Created by Auth Service:**
 - `users` - User accounts
@@ -321,7 +321,7 @@ curl -X POST http://localhost:8081/api/v1/users/me/profile \
 - `DB_PORT` - Database port (default: 5432)
 - `DB_USER` - Database username (same as Auth Service)
 - `DB_PASSWORD` - Database password (same as Auth Service)
-- `DB_NAME` - Database name: `freelancer_platform` (same as Auth Service!)
+- `DB_NAME` - Database name: `defellix` (same as Auth Service!)
 - `DB_SSLMODE` - SSL mode (disable for local, require for cloud)
 
 **Optional Variables:**
@@ -336,7 +336,7 @@ curl -X POST http://localhost:8081/api/v1/users/me/profile \
 
 ## 🚨 Important Notes
 
-1. **Same Database:** User Service uses the **same PostgreSQL database** as Auth Service (`freelancer_platform`)
+1. **Same Database:** User Service uses the **same PostgreSQL database** as Auth Service (`defellix`)
 
 2. **Run Auth Service First:** Make sure Auth Service is running and has created the database before starting User Service
 
@@ -350,7 +350,7 @@ curl -X POST http://localhost:8081/api/v1/users/me/profile \
 
 ### Error: "database does not exist"
 - Make sure Auth Service has created the database
-- Or create it manually: `createdb freelancer_platform`
+- Or create it manually: `createdb defellix`
 
 ### Error: "relation 'user_profiles' already exists"
 - This is normal if you've run the service before
@@ -362,4 +362,4 @@ curl -X POST http://localhost:8081/api/v1/users/me/profile \
 
 ### Error: "permission denied"
 - Check database user permissions
-- Grant privileges: `GRANT ALL PRIVILEGES ON DATABASE freelancer_platform TO freelancer;`
+- Grant privileges: `GRANT ALL PRIVILEGES ON DATABASE defellix TO freelancer;`

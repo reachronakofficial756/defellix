@@ -22,12 +22,22 @@ type ContractRepository interface {
 	UpdateStatus(ctx context.Context, id uint, freelancerUserID uint, status string) error
 	UpdateStatusAndSentAt(ctx context.Context, id uint, freelancerUserID uint, status string, sentAt *time.Time) error
 	UpdateStatusSentAtAndClientToken(ctx context.Context, id uint, freelancerUserID uint, status string, sentAt *time.Time, clientToken string) error
+	UpdateMilestoneStatus(ctx context.Context, milestoneID uint, status string) error
 	Delete(ctx context.Context, id uint, freelancerUserID uint) error
 	ReplaceMilestones(ctx context.Context, contractID uint, milestones []domain.ContractMilestone) error
 	DeleteDraftsOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 	FindByClientViewToken(ctx context.Context, token string) (*domain.Contract, error)
 	UpdateToPendingByToken(ctx context.Context, token, comment string) error
-	UpdateToSignedByToken(ctx context.Context, token string, signedAt *time.Time, companyAddress, signMetadata string) error
+	UpdateToSigned(ctx context.Context, contractID uint, signedAt *time.Time, companyAddress, signMetadata string) error
+	UpdateBlockchainMetadata(ctx context.Context, contractID uint, txHash, txID, network, status string, blockNum, gasUsed *uint64) error
+	SaveSignOTP(ctx context.Context, token, otp string, expiresAt time.Time) error
+	CountUnapprovedMilestones(ctx context.Context, contractID uint) (int64, error)
+
+	// Outbox methods
+	FetchPendingOutboxTasks(ctx context.Context, limit int) ([]*domain.BlockchainOutbox, error)
+	MarkOutboxTaskProcessing(ctx context.Context, id uint) error
+	UpdateOutboxTaskResult(ctx context.Context, id uint, status, errorLog string, retryCount int) error
+	GetContractInternal(ctx context.Context, id uint) (*domain.Contract, error)
 }
 
 type contractRepository struct {
@@ -52,6 +62,42 @@ func (r *contractRepository) Create(ctx context.Context, c *domain.Contract, mil
 		}
 		return nil
 	})
+}
+
+func (r *contractRepository) CountUnapprovedMilestones(ctx context.Context, contractID uint) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.ContractMilestone{}).Where("contract_id = ? AND status != ?", contractID, "approved").Count(&count).Error
+	return count, err
+}
+
+func (r *contractRepository) FetchPendingOutboxTasks(ctx context.Context, limit int) ([]*domain.BlockchainOutbox, error) {
+	var tasks []*domain.BlockchainOutbox
+	err := r.db.WithContext(ctx).Where("status = ?", domain.OutboxStatusPending).Limit(limit).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *contractRepository) MarkOutboxTaskProcessing(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Model(&domain.BlockchainOutbox{}).Where("id = ?", id).Update("status", domain.OutboxStatusProcessing).Error
+}
+
+func (r *contractRepository) UpdateOutboxTaskResult(ctx context.Context, id uint, status, errorLog string, retryCount int) error {
+	return r.db.WithContext(ctx).Model(&domain.BlockchainOutbox{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":      status,
+		"error_log":   errorLog,
+		"retry_count": retryCount,
+	}).Error
+}
+
+func (r *contractRepository) GetContractInternal(ctx context.Context, id uint) (*domain.Contract, error) {
+	var c domain.Contract
+	err := r.db.WithContext(ctx).Preload("Milestones").First(&c, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrContractNotFound
+		}
+		return nil, err
+	}
+	return &c, nil
 }
 
 func (r *contractRepository) GetByID(ctx context.Context, id uint, freelancerUserID uint) (*domain.Contract, error) {
@@ -85,9 +131,7 @@ func (r *contractRepository) ListByFreelancer(ctx context.Context, freelancerUse
 	if limit <= 0 {
 		limit = 20
 	}
-	err := q.Preload("Milestones", func(db *gorm.DB) *gorm.DB {
-		return db.Order("order_index ASC")
-	}).Order("updated_at DESC").Offset(offset).Limit(limit).Find(&list).Error
+	err := q.Order("updated_at DESC").Offset(offset).Limit(limit).Find(&list).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -99,14 +143,36 @@ func (r *contractRepository) Update(ctx context.Context, c *domain.Contract, mil
 		if err := tx.Save(c).Error; err != nil {
 			return err
 		}
-		if err := tx.Where("contract_id = ?", c.ID).Delete(&domain.ContractMilestone{}).Error; err != nil {
-			return err
+		
+		var incomingIDs []uint
+		for _, m := range milestones {
+			if m.ID > 0 {
+				incomingIDs = append(incomingIDs, m.ID)
+			}
 		}
+
+		if len(incomingIDs) > 0 {
+			if err := tx.Where("contract_id = ? AND id NOT IN ?", c.ID, incomingIDs).Delete(&domain.ContractMilestone{}).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Where("contract_id = ?", c.ID).Delete(&domain.ContractMilestone{}).Error; err != nil {
+				return err
+			}
+		}
+
 		for i := range milestones {
 			milestones[i].ContractID = c.ID
 			milestones[i].OrderIndex = i
-			if err := tx.Create(&milestones[i]).Error; err != nil {
-				return err
+			
+			if milestones[i].ID > 0 {
+				if err := tx.Save(&milestones[i]).Error; err != nil {
+					return err
+				}
+			} else {
+				if err := tx.Create(&milestones[i]).Error; err != nil {
+					return err
+				}
 			}
 		}
 		return nil
@@ -177,13 +243,27 @@ func (r *contractRepository) Delete(ctx context.Context, id uint, freelancerUser
 
 func (r *contractRepository) ReplaceMilestones(ctx context.Context, contractID uint, milestones []domain.ContractMilestone) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("contract_id = ?", contractID).Delete(&domain.ContractMilestone{}).Error; err != nil {
-			return err
+		incomingIDs := []uint{}
+		for _, m := range milestones {
+			if m.ID > 0 {
+				incomingIDs = append(incomingIDs, m.ID)
+			}
 		}
+
+		if len(incomingIDs) > 0 {
+			if err := tx.Where("contract_id = ? AND id NOT IN ?", contractID, incomingIDs).Delete(&domain.ContractMilestone{}).Error; err != nil {
+				return err
+			}
+		} else {
+			if err := tx.Where("contract_id = ?", contractID).Delete(&domain.ContractMilestone{}).Error; err != nil {
+				return err
+			}
+		}
+
 		for i := range milestones {
 			milestones[i].ContractID = contractID
 			milestones[i].OrderIndex = i
-			if err := tx.Create(&milestones[i]).Error; err != nil {
+			if err := tx.Save(&milestones[i]).Error; err != nil {
 				return err
 			}
 		}
@@ -244,14 +324,84 @@ func (r *contractRepository) UpdateToPendingByToken(ctx context.Context, token, 
 	return nil
 }
 
-func (r *contractRepository) UpdateToSignedByToken(ctx context.Context, token string, signedAt *time.Time, companyAddress, signMetadata string) error {
-	updates := map[string]interface{}{"status": domain.ContractStatusSigned, "client_company_address": companyAddress, "client_sign_metadata": signMetadata}
-	if signedAt != nil {
-		updates["client_signed_at"] = signedAt
+func (r *contractRepository) UpdateToSigned(ctx context.Context, contractID uint, signedAt *time.Time, companyAddress, signMetadata string) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		updates := map[string]interface{}{
+			"status":                 domain.ContractStatusSigned,
+			"client_company_address": companyAddress,
+			"client_sign_metadata":   signMetadata,
+			"sign_otp":               "",
+			"otp_expires_at":         nil,
+			"last_otp_sent_at":       nil,
+		}
+		if signedAt != nil {
+			updates["client_signed_at"] = signedAt
+		}
+		res := tx.Model(&domain.Contract{}).Where("id = ? AND status = ?", contractID, domain.ContractStatusSent).Updates(updates)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return ErrContractNotFound
+		}
+
+		outbox := &domain.BlockchainOutbox{
+			ContractID: contractID,
+			Status:     domain.OutboxStatusPending,
+		}
+		if err := tx.Create(outbox).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (r *contractRepository) UpdateBlockchainMetadata(ctx context.Context, contractID uint, txHash, txID, network, status string, blockNum, gasUsed *uint64) error {
+	updates := map[string]interface{}{
+		"blockchain_tx_hash":  txHash,
+		"blockchain_tx_id":     txID,
+		"blockchain_network":   network,
+		"blockchain_status":    status,
+	}
+	if blockNum != nil {
+		updates["blockchain_block_num"] = blockNum
+	}
+	if gasUsed != nil {
+		updates["blockchain_gas_used"] = gasUsed
 	}
 	res := r.db.WithContext(ctx).Model(&domain.Contract{}).
-		Where("client_view_token = ? AND status = ?", token, domain.ContractStatusSent).
+		Where("id = ?", contractID).
 		Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrContractNotFound
+	}
+	return nil
+}
+
+func (r *contractRepository) UpdateMilestoneStatus(ctx context.Context, milestoneID uint, status string) error {
+	res := r.db.WithContext(ctx).Model(&domain.ContractMilestone{}).Where("id = ?", milestoneID).Update("status", status)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return errors.New("milestone not found")
+	}
+	return nil
+}
+
+func (r *contractRepository) SaveSignOTP(ctx context.Context, token, otp string, expiresAt time.Time) error {
+	now := time.Now()
+	res := r.db.WithContext(ctx).Model(&domain.Contract{}).
+		Where("client_view_token = ? AND status = ?", token, domain.ContractStatusSent).
+		Updates(map[string]interface{}{
+			"sign_otp":         otp,
+			"otp_expires_at":   expiresAt,
+			"last_otp_sent_at": now,
+		})
 	if res.Error != nil {
 		return res.Error
 	}

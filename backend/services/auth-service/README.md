@@ -1,6 +1,6 @@
 # Auth Service
 
-Authentication microservice for the Decentralized Freelancer Trust Platform.
+Authentication microservice for the Defellix.
 
 ## 🚀 Quick Start
 
@@ -233,5 +233,5 @@ go build -o bin/auth-service ./cmd/server
 
 ## 📝 License
 
-Part of the Decentralized Freelancer Trust Platform.
+Part of the Defellix.
 

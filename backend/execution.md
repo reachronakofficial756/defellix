@@ -1,12 +1,12 @@
 # Backend Execution Plan
-## Decentralized Freelancer Trust Platform
+## Defellix
 
 **Mission:** Legalise freelancer contracts through blockchain and build lasting freelancer trust.  
 **Principles:** Speed, security, scale. **Rules:** See [RULES_OF_BACKEND.md](./RULES_OF_BACKEND.md) — attach to every backend prompt.
 
 **Created:** January 24, 2026  
 **Technology:** Go microservices + PostgreSQL + Base L2  
-**Where we are:** Phase 3 (Contract service) — draft/send done; user_name, public profile by user_name, and visibility (profile/projects/contracts) are done in user-service. Next: draft auto-delete, send→blockchain/email/link, client sign, wallets, submission, reputation.
+**Where we are:** Phase 3 (Contract service) ✅ Complete — draft/send, auto-delete, shareable link, email trigger, client view/sign/send-for-review, wallets, blockchain on sign (mock/testnet ready; real Base L2 RPC pending). Phase 4 (submission, review, reputation) is next.
 
 ---
 
@@ -75,7 +75,7 @@ This section is the canonical user journey. Backend phases and deliverables are 
 11. **On sign:** Contract is recorded on the **blockchain network** with at least: transaction id, hashed details, timestamp, deadline, amount, gas fee, and any other data needed for legal/audit. Contract status becomes **signed**.
 
 **Backend:** Contract service (client sign payload, validation, optional GST validator), Wallet/Blockchain service (create custodial wallets, submit contract record on-chain, return tx id/hash etc.).  
-**Status:** ❌ Not started.
+**Status:** ✅ Done: contract-service validates sign payload; blockchain-service creates wallets and writes to chain (mock/testnet ready; real Base L2 RPC pending). GST validator deferred.
 
 ---
 
@@ -212,14 +212,25 @@ This section is the canonical user journey. Backend phases and deliverables are 
 - [x] Update/Put draft allowed when status = pending (freelancer edits before re-send); Send allowed when pending (re-send)  
 - [x] Domain: status `pending`; columns client_view_token, client_review_comment, client_signed_at, client_company_address, client_sign_metadata  
 
-#### 3.4 Wallets & blockchain on sign ❌ NOT STARTED
+#### 3.4 Wallets & blockchain on sign ✅ DONE (mock/testnet ready; real Base L2 pending)
 
 | Item | Status | Notes |
 |------|--------|--------|
-| Auto-create custodial wallet (freelancer) | ❌ | On sign or earlier; no user key handling |
-| Auto-create custodial wallet (client) | ❌ | Same |
-| On client sign → write contract to chain | ❌ | tx id, hash, timestamp, deadline, amount, gas, etc. |
-| Persist blockchain metadata on contract | ❌ | Link contract row to on-chain record |
+| Auto-create custodial wallet (freelancer) | ✅ | blockchain-service `POST /api/v1/wallets`; wallets table; encrypted private keys |
+| Auto-create custodial wallet (client) | ✅ | Same; created on-demand when contract is signed |
+| On client sign → write contract to chain | ✅ | contract-service calls blockchain-service async; mock/testnet mode (real Base L2 RPC pending) |
+| Persist blockchain metadata on contract | ✅ | Contract domain: blockchain_tx_hash, blockchain_tx_id, blockchain_block_num, blockchain_gas_used, blockchain_network, blockchain_status |
+
+**Deliverables:**  
+- [x] blockchain-service microservice (separate from contract-service)  
+- [x] `wallets` table: user_id, user_type, address, encrypted_private_key  
+- [x] `contract_records` table: contract_id, transaction_hash, block_number, gas_used, status  
+- [x] `POST /api/v1/wallets` — create or get wallet (auth required)  
+- [x] `POST /api/v1/blockchain/contracts` — write contract to chain (auth required)  
+- [x] Contract domain: blockchain metadata fields  
+- [x] Contract-service integration: calls blockchain-service on sign (async)  
+- [x] Wallet encryption: AES-256-GCM with master key (`WALLET_ENCRYPTION_KEY`)  
+- [x] Mock/testnet mode: generates deterministic tx hashes; ready for real Base L2 RPC integration
 
 ---
 
@@ -250,8 +261,11 @@ This section is the canonical user journey. Backend phases and deliverables are 
 
 ### Phase 6: API gateway, production, observability
 
-**Goal:** Single entrypoint, rate limiting, auth, logging, deployment.  
-Deferred until core contract + reputation + profile flow is stable.
+**Goal:** Single entrypoint, rate limiting, auth, logging, deployment, API documentation.  
+
+- ✅ Nginx API Gateway routing to all 4 microservices
+- ✅ Swagger UI documentation deployed at `/api-docs/`
+- ⏳ Rate limiting and advanced observability deferred until core is stable.
 
 ---
 
@@ -280,7 +294,7 @@ Deferred until core contract + reputation + profile flow is stable.
 
 ## 4. Technology and layout (aligned with RULES_OF_BACKEND)
 
-- **Stack:** Go, Chi, PostgreSQL (shared `freelancer_platform`), GORM. JWT validated with same secret as auth.
+- **Stack:** Go, Chi, PostgreSQL (shared `defellix`), GORM. JWT validated with same secret as auth.
 - **Layout per service:** `cmd/server`, `internal/{config,domain,dto,handler,middleware,repository,service}`. See [RULES_OF_BACKEND.md](./RULES_OF_BACKEND.md).
 - **DB:** Auth, user, contract (and later reputation, etc.) use the same PostgreSQL instance unless the plan explicitly splits them.
 

@@ -50,7 +50,7 @@ func (s *AuthService) Register(req *dto.RegisterRequest) (*dto.AuthResponse, err
 		Email:    req.Email,
 		Password: string(hashedPassword),
 		FullName: req.FullName,
-		Role:     domain.RoleUser,
+		Role:     domain.RoleFreelancer,
 		IsActive: true,
 	}
 
@@ -158,4 +158,55 @@ func (s *AuthService) RefreshToken(refreshToken string) (*dto.AuthResponse, erro
 // GetUserByID retrieves a user by ID
 func (s *AuthService) GetUserByID(userID uint) (*domain.User, error) {
 	return s.userRepo.FindByID(userID)
+}
+
+// OAuthLoginAndRegister handles users returning from Google or LinkedIn callbacks
+func (s *AuthService) OAuthLoginAndRegister(email, fullName, provider, providerID string, defaultRole string) (*dto.AuthResponse, error) {
+	user, err := s.userRepo.FindByEmail(email)
+	if err != nil && !errors.Is(err, repository.ErrUserNotFound) {
+		return nil, err
+	}
+
+	if user == nil {
+		// Auto-Register the new user
+		user = &domain.User{
+			Email:        email,
+			FullName:     fullName,
+			Role:         defaultRole,
+			IsActive:     true,
+			AuthProvider: provider,
+			ProviderID:   providerID,
+		}
+		if err := s.userRepo.Create(user); err != nil {
+			return nil, err
+		}
+	} else if user.AuthProvider == "local" {
+		// User previously registered manually, link the OAuth provider
+		user.AuthProvider = provider
+		user.ProviderID = providerID
+		if err := s.userRepo.Update(user); err != nil {
+			return nil, err
+		}
+	}
+
+	if !user.IsActive {
+		return nil, ErrUserInactive
+	}
+
+	// Sign the standard system JWTs
+	accessToken, err := s.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+	refreshToken, err := s.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    int(s.jwtManager.GetAccessTokenTTL().Hours() * 3600),
+	}, nil
 }

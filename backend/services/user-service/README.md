@@ -1,6 +1,6 @@
 # User Service
 
-User profile management microservice for the Decentralized Freelancer Trust Platform.
+User profile management microservice for the Defellix.
 
 ## 🚀 Quick Start
 
@@ -22,7 +22,7 @@ brew install postgresql
 brew services start postgresql
 
 # Create database (if not already created by auth-service)
-createdb freelancer_platform
+createdb defellix
 ```
 
 #### Option 2: Neon DB (Cloud) - Recommended
@@ -44,7 +44,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=freelancer
 DB_PASSWORD=secret
-DB_NAME=freelancer_platform
+DB_NAME=defellix
 DB_SSLMODE=disable
 
 # For Neon DB / AWS RDS:
@@ -52,7 +52,7 @@ DB_SSLMODE=disable
 # DB_PORT=5432
 # DB_USER=your-user
 # DB_PASSWORD=your-password
-# DB_NAME=freelancer_platform
+# DB_NAME=defellix
 # DB_SSLMODE=require
 
 # Auth Service (for gRPC - future)
@@ -151,5 +151,5 @@ go build -o bin/user-service ./cmd/server
 
 ## 📝 License
 
-Part of the Decentralized Freelancer Trust Platform.
+Part of the Defellix.
 
