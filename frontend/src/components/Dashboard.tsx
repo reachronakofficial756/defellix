@@ -241,7 +241,7 @@ const Dashboard = () => {
 
     return (
         <div
-            className="flex-1 bg-[#0d140d] min-h-screen text-white scrBar overflow-y-auto"
+            className="flex-1 bg-[#0f1117] min-h-screen text-white scrBar overflow-y-auto"
             onScroll={(e) => setScrollY(e.currentTarget.scrollTop)}
         >
             {/* --- TOP SECTION (fixed hero) --- */}
