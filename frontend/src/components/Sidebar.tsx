@@ -9,7 +9,7 @@ const Sidebar = () => {
   
   const mainLinks = [
     { icon: IoGridOutline, label: 'Dashboard', path: '/' },
-    { icon: IoFolderOutline, label: 'Projects', path: '/projects' },
+    { icon: IoFolderOutline, label: 'Contracts', path: '/contracts' },
     { icon: IoPeopleOutline, label: 'Team', path: '/team' },
   ]
 

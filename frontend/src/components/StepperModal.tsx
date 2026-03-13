@@ -3,12 +3,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Sparkles, Upload, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { Calendar } from 'lucide-react';
 
-interface ProjectModalProps {
+interface ContractModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface ProjectData {
+interface ContractData {
   category: string;
   name: string;
   description: string;
@@ -32,10 +32,10 @@ interface Milestone {
   description: string;
 }
 
-const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
+const ContractModal: React.FC<ContractModalProps> = ({ isOpen, onClose }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
-  const [projectData, setProjectData] = useState<ProjectData>({
+  const [contractData, setContractData] = useState<ContractData>({
     category: '',
     name: '',
     description: '',
@@ -166,7 +166,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
 
   const handleCategorySelect = (category: string) => {
     setCategoryInput(category);
-    setProjectData(prev => ({ ...prev, category: category }));
+    setContractData(prev => ({ ...prev, category: category }));
     setShowCategoryDropdown(false);
   };
 
@@ -185,8 +185,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
     setFilteredCategories(allCategories);
   }, []);
 
-  const handleProjectChange = (field: keyof ProjectData, value: string) => {
-    setProjectData(prev => ({ ...prev, [field]: value }));
+  const handleContractChange = (field: keyof ContractData, value: string) => {
+    setContractData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleClientChange = (field: keyof ClientData, value: string) => {
@@ -221,15 +221,15 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
 
   const handleDateClick = (day: number) => {
     const newDate = new Date(viewYear, viewMonth, day);
-    setProjectData(prev => ({ ...prev, deadline: newDate }));
+    setContractData(prev => ({ ...prev, deadline: newDate }));
     setIsCalendarOpen(false);
   };
 
   const isDateSelected = (day: number) => {
-    if (!projectData.deadline) return false;
-    return day === projectData.deadline.getDate() &&
-      viewMonth === projectData.deadline.getMonth() &&
-      viewYear === projectData.deadline.getFullYear();
+    if (!contractData.deadline) return false;
+    return day === contractData.deadline.getDate() &&
+      viewMonth === contractData.deadline.getMonth() &&
+      viewYear === contractData.deadline.getFullYear();
   };
 
   useEffect(() => {
@@ -267,7 +267,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleFinish = () => {
-    console.log('Project Data:', projectData);
+    console.log('Contract Data:', contractData);
     console.log('Client Data:', clientData);
     console.log('Milestones:', milestones);
 
@@ -281,7 +281,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
       <div className="bg-[#fbf9f1] rounded-lg w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-semibold text-gray-800">Create New Project</h2>
+          <h2 className="text-2xl font-semibold text-gray-800">Create New Contract</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700 transition-colors">
             <X size={24} />
           </button>
@@ -299,7 +299,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
 
             <ol className="flex items-center justify-between relative">
               {[
-                { num: 1, label: 'Project Details' },
+                { num: 1, label: 'Contract Details' },
                 { num: 2, label: 'Client Details' },
                 { num: 3, label: 'Milestones' }
               ].map((step) => (
@@ -333,13 +333,13 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
         {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto px-8 pb-6">
           <div className="min-h-[400px]">
-            {/* Step 1: Project Details */}
+            {/* Step 1: Contract Details */}
             <div className={`transition-all duration-300 ${currentStep === 1 ? 'opacity-100 block' : 'opacity-0 hidden'}`}>
               <div className="space-y-5">
                 <div className="grid grid-cols-2 gap-5">
                   <div className="relative" ref={categoryRef}>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Project Category <span className="text-red-500">*</span>
+                      Contract Category <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <input
@@ -374,12 +374,12 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Project Name <span className="text-red-500">*</span>
+                      Contract Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      value={projectData.name}
-                      onChange={(e) => handleProjectChange('name', e.target.value)}
+                      value={contractData.name}
+                      onChange={(e) => handleContractChange('name', e.target.value)}
                       placeholder="E-commerce Platform Redesign"
                       className="w-full px-4 py-3 border text-gray-800 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
                     />
@@ -396,8 +396,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
                       onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                       className="flex items-center justify-between px-4 py-3 border border-gray-300 rounded-lg cursor-pointer hover:border-teal-500 bg-white transition-all"
                     >
-                      <span className={projectData.deadline ? 'text-gray-800' : 'text-gray-400'}>
-                        {projectData.deadline ? formatDate(projectData.deadline) : 'Select a date'}
+                      <span className={contractData.deadline ? 'text-gray-800' : 'text-gray-400'}>
+                        {contractData.deadline ? formatDate(contractData.deadline) : 'Select a date'}
                       </span>
                       <Calendar className="w-5 h-5 text-gray-400" />
                     </div>
@@ -458,8 +458,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
                     </p>
                     <input
                       type="text"
-                      value={projectData.amount}
-                      onChange={(e) => handleProjectChange('amount', e.target.value)}
+                      value={contractData.amount}
+                      onChange={(e) => handleContractChange('amount', e.target.value)}
                       placeholder="Enter the Amount"
                       className="w-full px-4 py-3 border text-gray-800 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
                     />
@@ -472,11 +472,11 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
                   </label>
                   <div className="relative">
                     <select
-                      value={projectData.submissionCriteria}
-                      onChange={(e) => handleProjectChange('submissionCriteria', e.target.value)}
+                      value={contractData.submissionCriteria}
+                      onChange={(e) => handleContractChange('submissionCriteria', e.target.value)}
                       className="w-full px-4 py-3 pr-10 border text-gray-800 border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white transition-all appearance-none cursor-pointer"
                     >
-                      <option value="" disabled>Select how you will submit the project</option>
+                      <option value="" disabled>Select how you will submit the contract</option>
                       {submissionOptions.map((option, index) => (
                         <option key={index} value={option} className="text-gray-800">
                           {option}
@@ -490,7 +490,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-semibold text-gray-700">
-                      Project Description / Scope <span className="text-red-500">*</span>
+                      Contract Description / Scope <span className="text-red-500">*</span>
                     </label>
                     <button className="flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors">
                       <Sparkles size={16} />
@@ -498,8 +498,8 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
                     </button>
                   </div>
                   <textarea
-                    value={projectData.description}
-                    onChange={(e) => handleProjectChange('description', e.target.value)}
+                    value={contractData.description}
+                    onChange={(e) => handleContractChange('description', e.target.value)}
                     placeholder="Build a scalable e-commerce platform with Next.js and Shopify integration. Requires custom checkout flow and user dashboard."
                     rows={5}
                     className="w-full px-4 py-3 border text-gray-800 border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none transition-all"
@@ -627,7 +627,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
                       <textarea
                         value={milestone.description}
                         onChange={(e) => updateMilestone(milestone.id, 'description', e.target.value)}
-                        placeholder="e.g., Payment will be done at project start"
+                        placeholder="e.g., Payment will be done at contract start"
                         rows={2}
                         className="w-full px-3 py-2.5 border text-gray-800 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none transition-all"
                       />
@@ -646,9 +646,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
                     </button>
                   </div>
                   <textarea
-                    value={projectData.termsAndConditions}
-                    onChange={(e) => handleProjectChange('termsAndConditions', e.target.value)}
-                    placeholder="Enter terms and conditions for this project. For example: payment terms, revision policy, delivery timeline, confidentiality agreements, etc."
+                    value={contractData.termsAndConditions}
+                    onChange={(e) => handleContractChange('termsAndConditions', e.target.value)}
+                    placeholder="Enter terms and conditions for this contract. For example: payment terms, revision policy, delivery timeline, confidentiality agreements, etc."
                     rows={6}
                     className="w-full px-4 py-3 border text-gray-800 bg-white border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 resize-none transition-all"
                   />
@@ -700,4 +700,4 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ isOpen, onClose }) => {
     );
 };
 
-export default ProjectModal;
+export default ContractModal;

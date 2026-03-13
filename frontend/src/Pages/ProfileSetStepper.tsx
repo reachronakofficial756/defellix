@@ -47,8 +47,8 @@ function ProfileSetStepper() {
   const [skillInput, setSkillInput] = useState('');
   const [coreHours, setCoreHours] = useState('');
 
-  // Step 4: Projects
-  interface Project {
+  // Step 4: Contracts
+  interface Contract {
     id: number;
     name: string;
     role: string;
@@ -61,8 +61,8 @@ function ProfileSetStepper() {
     images: string[];
     githubLink: string;
   }
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [currentContractIndex, setCurrentContractIndex] = useState(0);
   const [techInput, setTechInput] = useState('');
   const availableTechStack = ['React', 'TypeScript', 'Node.js', 'Next.js', 'PostgreSQL', 'TailwindCSS', 'Figma', 'Storybook', 'Vue.js', 'Angular', 'Python', 'Django', 'MongoDB', 'AWS', 'Docker'];
 
@@ -111,7 +111,7 @@ function ProfileSetStepper() {
       topSkills,
       coreHours,
       // Step 4
-      projects
+      contracts
     };
 
     localStorage.setItem('userProfile', JSON.stringify(profileData));
@@ -149,20 +149,20 @@ function ProfileSetStepper() {
     return newImages;
   };
 
-  // Handle project images upload (from file input or drag & drop)
-  const handleProjectImagesUpload = async (files: File[]) => {
-    if (projects[currentProjectIndex].images.length + files.length > 5) {
+  // Handle contract images upload (from file input or drag & drop)
+  const handleContractImagesUpload = async (files: File[]) => {
+    if (contracts[currentContractIndex].images.length + files.length > 5) {
       alert("Maximum 5 images allowed");
       return;
     }
     const newImages = await processImageFiles(files);
     if (newImages.length > 0) {
-      const updated = [...projects];
-      updated[currentProjectIndex].images = [
-        ...updated[currentProjectIndex].images,
+      const updated = [...contracts];
+      updated[currentContractIndex].images = [
+        ...updated[currentContractIndex].images,
         ...newImages,
       ].slice(0, 5);
-      setProjects(updated);
+      setContracts(updated);
     }
   };
 
@@ -264,9 +264,9 @@ function ProfileSetStepper() {
                 <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-2 sm:mb-4">Set up your profile</h1>
                 <p className="text-xs sm:text-sm text-gray-600 mt-1">
                   {currentStep === 1 && "Share your role, work, skills and availability so teammates can collaborate with you."}
-                  {currentStep === 2 && "Step 2 focuses on your day-to-day work, social links and featured projects."}
+                  {currentStep === 2 && "Step 2 focuses on your day-to-day work, social links and featured contracts."}
                   {currentStep === 3 && "Step 3 is about how you like to work and when people can best collaborate with you."}
-                  {currentStep === 4 && "Add your standout projects so people can explore your work in depth."}
+                  {currentStep === 4 && "Add your standout contracts so people can explore your work in depth."}
                 </p>
               </div>
             </div>
@@ -288,7 +288,7 @@ function ProfileSetStepper() {
                     { num: 1, label: 'Basic details' },
                     { num: 2, label: 'Work & links' },
                     { num: 3, label: 'Skills & availability' },
-                    { num: 4, label: 'Projects' }
+                    { num: 4, label: 'Contracts' }
                   ].map((step) => (
                     <li key={step.num} className="flex flex-col items-center flex-1 min-w-0">
                       <button
@@ -651,17 +651,17 @@ function ProfileSetStepper() {
               </div>
             )}
 
-            {/* Step 4: Projects */}
+            {/* Step 4: Contracts */}
             {currentStep === 4 && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-1">Project details</h2>
-                    <p className="text-sm text-gray-600">Add your standout projects so people can explore your work in depth.</p>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-1">Contract details</h2>
+                    <p className="text-sm text-gray-600">Add your standout contracts so people can explore your work in depth.</p>
                   </div>
                   <button
                     onClick={() => {
-                      const newProject: Project = {
+                      const newContract: Contract = {
                         id: Date.now(),
                         name: '',
                         role: '',
@@ -674,50 +674,50 @@ function ProfileSetStepper() {
                         images: [],
                         githubLink: ''
                       };
-                      setProjects([...projects, newProject]);
-                      setCurrentProjectIndex(projects.length);
+                      setContracts([...contracts, newContract]);
+                      setCurrentContractIndex(contracts.length);
                     }}
                     className="flex items-center gap-2 px-4 py-2 text-teal-600 border border-teal-600 rounded-lg hover:bg-teal-50 transition-colors text-sm font-medium"
                   >
                     <Plus className="w-4 h-4" />
-                    Add another project
+                    Add another contract
                   </button>
                 </div>
 
-                {projects.length > 0 && (
+                {contracts.length > 0 && (
                   <div className="space-y-6">
-                    {/* Project Selection */}
-                    {projects.length > 1 && (
+                    {/* Contract Selection */}
+                    {contracts.length > 1 && (
                       <div className="flex gap-2 flex-wrap">
-                        {projects.map((project, index) => (
+                        {contracts.map((contract, index) => (
                           <button
-                            key={project.id}
-                            onClick={() => setCurrentProjectIndex(index)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${currentProjectIndex === index
+                            key={contract.id}
+                            onClick={() => setCurrentContractIndex(index)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${currentContractIndex === index
                               ? 'bg-teal-600 text-white'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                               }`}
                           >
-                            {project.name || `Project ${index + 1}`}
+                            {contract.name || `Contract ${index + 1}`}
                           </button>
                         ))}
                       </div>
                     )}
 
-                    {projects[currentProjectIndex] && (
+                    {contracts[currentContractIndex] && (
                       <div className="space-y-5">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="projectName" className="text-sm font-medium text-gray-700 mb-1.5 block">
-                              Project name <span className="text-red-500">*</span>
+                            <Label htmlFor="contractName" className="text-sm font-medium text-gray-700 mb-1.5 block">
+                              Contract name <span className="text-red-500">*</span>
                             </Label>
                             <Input
-                              id="projectName"
-                              value={projects[currentProjectIndex].name}
+                              id="contractName"
+                              value={contracts[currentContractIndex].name}
                               onChange={(e) => {
-                                const updated = [...projects];
-                                updated[currentProjectIndex].name = e.target.value;
-                                setProjects(updated);
+                                const updated = [...contracts];
+                                updated[currentContractIndex].name = e.target.value;
+                                setContracts(updated);
                               }}
                               placeholder="Onboarding redesign for NexGen App"
                               className="w-full text-gray-900 placeholder:text-gray-400"
@@ -725,16 +725,16 @@ function ProfileSetStepper() {
                           </div>
 
                           <div>
-                            <Label htmlFor="projectRole" className="text-sm font-medium text-gray-700 mb-1.5 block">
+                            <Label htmlFor="contractRole" className="text-sm font-medium text-gray-700 mb-1.5 block">
                               Your role <span className="text-red-500">*</span>
                             </Label>
                             <Input
-                              id="projectRole"
-                              value={projects[currentProjectIndex].role}
+                              id="contractRole"
+                              value={contracts[currentContractIndex].role}
                               onChange={(e) => {
-                                const updated = [...projects];
-                                updated[currentProjectIndex].role = e.target.value;
-                                setProjects(updated);
+                                const updated = [...contracts];
+                                updated[currentContractIndex].role = e.target.value;
+                                setContracts(updated);
                               }}
                               placeholder="Lead Designer"
                               className="w-full text-gray-900 placeholder:text-gray-400"
@@ -750,11 +750,11 @@ function ProfileSetStepper() {
                             <div className="relative">
                               <Input
                                 id="liveLink"
-                                value={projects[currentProjectIndex].liveLink}
+                                value={contracts[currentContractIndex].liveLink}
                                 onChange={(e) => {
-                                  const updated = [...projects];
-                                  updated[currentProjectIndex].liveLink = e.target.value;
-                                  setProjects(updated);
+                                  const updated = [...contracts];
+                                  updated[currentContractIndex].liveLink = e.target.value;
+                                  setContracts(updated);
                                 }}
                                 placeholder="https://nexgen.app/onboarding"
                                 className="w-full pr-10 text-gray-900 placeholder:text-gray-400"
@@ -770,13 +770,13 @@ function ProfileSetStepper() {
                             <div className="relative">
                               <Input
                                 id="githubLink"
-                                value={projects[currentProjectIndex].githubLink}
+                                value={contracts[currentContractIndex].githubLink}
                                 onChange={(e) => {
-                                  const updated = [...projects];
-                                  updated[currentProjectIndex].githubLink = e.target.value;
-                                  setProjects(updated);
+                                  const updated = [...contracts];
+                                  updated[currentContractIndex].githubLink = e.target.value;
+                                  setContracts(updated);
                                 }}
-                                placeholder="https://github.com/username/project"
+                                placeholder="https://github.com/username/contract"
                                 className="w-full pr-10 text-gray-900 placeholder:text-gray-400"
                               />
                               <Github className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -791,11 +791,11 @@ function ProfileSetStepper() {
                             </Label>
                             <Input
                               id="duration"
-                              value={projects[currentProjectIndex].duration}
+                              value={contracts[currentContractIndex].duration}
                               onChange={(e) => {
-                                const updated = [...projects];
-                                updated[currentProjectIndex].duration = e.target.value;
-                                setProjects(updated);
+                                const updated = [...contracts];
+                                updated[currentContractIndex].duration = e.target.value;
+                                setContracts(updated);
                               }}
                               placeholder="3 months"
                               className="w-full text-gray-900 placeholder:text-gray-400"
@@ -808,11 +808,11 @@ function ProfileSetStepper() {
                             </Label>
                             <Input
                               id="teamSize"
-                              value={projects[currentProjectIndex].teamSize}
+                              value={contracts[currentContractIndex].teamSize}
                               onChange={(e) => {
-                                const updated = [...projects];
-                                updated[currentProjectIndex].teamSize = e.target.value;
-                                setProjects(updated);
+                                const updated = [...contracts];
+                                updated[currentContractIndex].teamSize = e.target.value;
+                                setContracts(updated);
                               }}
                               placeholder="5 people"
                               className="w-full text-gray-900 placeholder:text-gray-400"
@@ -826,7 +826,7 @@ function ProfileSetStepper() {
                             Technologies | Tech Stack used
                           </Label>
                           <div className="flex flex-wrap gap-2 mt-2 mb-3">
-                            {projects[currentProjectIndex].techStack.map((tech) => (
+                            {contracts[currentContractIndex].techStack.map((tech) => (
                               <span
                                 key={tech}
                                 className="px-3 py-1.5 bg-teal-600 text-white rounded-full text-sm font-medium flex items-center gap-2"
@@ -834,9 +834,9 @@ function ProfileSetStepper() {
                                 {tech}
                                 <button
                                   onClick={() => {
-                                    const updated = [...projects];
-                                    updated[currentProjectIndex].techStack = updated[currentProjectIndex].techStack.filter(t => t !== tech);
-                                    setProjects(updated);
+                                    const updated = [...contracts];
+                                    updated[currentContractIndex].techStack = updated[currentContractIndex].techStack.filter(t => t !== tech);
+                                    setContracts(updated);
                                   }}
                                   className="hover:text-gray-200"
                                 >
@@ -854,10 +854,10 @@ function ProfileSetStepper() {
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   e.preventDefault();
-                                  if (techInput.trim() && !projects[currentProjectIndex].techStack.includes(techInput.trim())) {
-                                    const updated = [...projects];
-                                    updated[currentProjectIndex].techStack.push(techInput.trim());
-                                    setProjects(updated);
+                                  if (techInput.trim() && !contracts[currentContractIndex].techStack.includes(techInput.trim())) {
+                                    const updated = [...contracts];
+                                    updated[currentContractIndex].techStack.push(techInput.trim());
+                                    setContracts(updated);
                                     setTechInput('');
                                   }
                                 }
@@ -867,10 +867,10 @@ function ProfileSetStepper() {
                             />
                             <button
                               onClick={() => {
-                                if (techInput.trim() && !projects[currentProjectIndex].techStack.includes(techInput.trim())) {
-                                  const updated = [...projects];
-                                  updated[currentProjectIndex].techStack.push(techInput.trim());
-                                  setProjects(updated);
+                                if (techInput.trim() && !contracts[currentContractIndex].techStack.includes(techInput.trim())) {
+                                  const updated = [...contracts];
+                                  updated[currentContractIndex].techStack.push(techInput.trim());
+                                  setContracts(updated);
                                   setTechInput('');
                                 }
                               }}
@@ -884,16 +884,16 @@ function ProfileSetStepper() {
                           {/* Available Tech Stack Options */}
                           <div className="flex flex-wrap gap-2">
                             {availableTechStack
-                              .filter(tech => !projects[currentProjectIndex].techStack.includes(tech))
+                              .filter(tech => !contracts[currentContractIndex].techStack.includes(tech))
                               .map((tech) => (
                                 <button
                                   key={tech}
                                   onClick={() => {
-                                    const updated = [...projects];
-                                    if (!updated[currentProjectIndex].techStack.includes(tech)) {
-                                      updated[currentProjectIndex].techStack.push(tech);
+                                    const updated = [...contracts];
+                                    if (!updated[currentContractIndex].techStack.includes(tech)) {
+                                      updated[currentContractIndex].techStack.push(tech);
                                     }
-                                    setProjects(updated);
+                                    setContracts(updated);
                                   }}
                                   className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-200 transition-colors"
                                 >
@@ -903,18 +903,18 @@ function ProfileSetStepper() {
                           </div>
                         </div>
 
-                        {/* Project Summary */}
+                        {/* Contract Summary */}
                         <div>
-                          <Label htmlFor="projectSummary" className="text-sm font-medium text-gray-700 mb-1.5 block">
-                            Project summary
+                          <Label htmlFor="contractSummary" className="text-sm font-medium text-gray-700 mb-1.5 block">
+                            Contract summary
                           </Label>
                           <textarea
-                            id="projectSummary"
-                            value={projects[currentProjectIndex].summary}
+                            id="contractSummary"
+                            value={contracts[currentContractIndex].summary}
                             onChange={(e) => {
-                              const updated = [...projects];
-                              updated[currentProjectIndex].summary = e.target.value;
-                              setProjects(updated);
+                              const updated = [...contracts];
+                              updated[currentContractIndex].summary = e.target.value;
+                              setContracts(updated);
                             }}
                             rows={4}
                             placeholder="Redesigned the entire onboarding experience to improve user activation rates..."
@@ -928,24 +928,24 @@ function ProfileSetStepper() {
                             Key highlights & outcomes
                           </Label>
                           <div className="space-y-2">
-                            {projects[currentProjectIndex].highlights.map((highlight, index) => (
+                            {contracts[currentContractIndex].highlights.map((highlight, index) => (
                               <div key={index} className="flex items-center gap-2">
                                 <span className="text-gray-500">•</span>
                                 <Input
                                   value={highlight}
                                   onChange={(e) => {
-                                    const updated = [...projects];
-                                    updated[currentProjectIndex].highlights[index] = e.target.value;
-                                    setProjects(updated);
+                                    const updated = [...contracts];
+                                    updated[currentContractIndex].highlights[index] = e.target.value;
+                                    setContracts(updated);
                                   }}
                                   placeholder="Increased activation rate by 24% within the first month."
                                   className="flex-1 text-gray-900 placeholder:text-gray-400"
                                 />
                                 <button
                                   onClick={() => {
-                                    const updated = [...projects];
-                                    updated[currentProjectIndex].highlights = updated[currentProjectIndex].highlights.filter((_, i) => i !== index);
-                                    setProjects(updated);
+                                    const updated = [...contracts];
+                                    updated[currentContractIndex].highlights = updated[currentContractIndex].highlights.filter((_, i) => i !== index);
+                                    setContracts(updated);
                                   }}
                                   className="text-red-500 hover:text-red-700"
                                 >
@@ -955,9 +955,9 @@ function ProfileSetStepper() {
                             ))}
                             <button
                               onClick={() => {
-                                const updated = [...projects];
-                                updated[currentProjectIndex].highlights.push('');
-                                setProjects(updated);
+                                const updated = [...contracts];
+                                updated[currentContractIndex].highlights.push('');
+                                setContracts(updated);
                               }}
                               className="flex items-center gap-2 text-teal-600 hover:text-teal-700 text-sm font-medium"
                             >
@@ -967,13 +967,13 @@ function ProfileSetStepper() {
                           </div>
                         </div>
 
-                        {/* Project Images */}
+                        {/* Contract Images */}
                         <div>
                           <Label className="text-sm font-medium text-gray-700 mb-1.5 block">
-                            Project images ({projects[currentProjectIndex].images.length}/5)
+                            Contract images ({contracts[currentContractIndex].images.length}/5)
                           </Label>
                           <p className="text-xs text-gray-500 mb-3">
-                            {projects[currentProjectIndex].images.length > 0
+                            {contracts[currentContractIndex].images.length > 0
                               ? "Images successfully uploaded. Drag to reorder."
                               : "No images uploaded yet."}
                           </p>
@@ -1009,12 +1009,12 @@ function ProfileSetStepper() {
                               dragCounterRef.current = 0;
                               setIsDragging(false);
                               const files = Array.from(e.dataTransfer.files);
-                              handleProjectImagesUpload(files);
+                              handleContractImagesUpload(files);
                             }}
                           >
                             <Upload className="mx-auto text-gray-400 mb-3" size={40} />
                             <p className="text-sm font-medium text-gray-600">
-                              {isDragging ? 'Drop images here' : 'Upload Project Images'}
+                              {isDragging ? 'Drop images here' : 'Upload Contract Images'}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 5MB each. Max 5 images.</p>
                             <p className="text-xs text-gray-400 mt-2">or drag and drop images here</p>
@@ -1026,7 +1026,7 @@ function ProfileSetStepper() {
                               ref={imageInputRef}
                               onChange={async (e) => {
                                 const files = Array.from(e.target.files || []);
-                                await handleProjectImagesUpload(files);
+                                await handleContractImagesUpload(files);
                                 // reset value so selecting same file works again
                                 if (e.target) {
                                   e.target.value = "";
@@ -1036,24 +1036,24 @@ function ProfileSetStepper() {
                           </div>
 
                           {/* Show uploaded images as thumbnails with remove option */}
-                          {projects[currentProjectIndex].images.length > 0 && (
+                          {contracts[currentContractIndex].images.length > 0 && (
                             <div className="flex flex-wrap gap-3 mt-4">
-                              {projects[currentProjectIndex].images.map((img, idx) => (
+                              {contracts[currentContractIndex].images.map((img, idx) => (
                                 <div key={idx} className="relative w-20 h-20 rounded overflow-hidden border border-gray-200 group">
                                   <img
                                     src={img}
-                                    alt={`Project image ${idx + 1}`}
+                                    alt={`Contract image ${idx + 1}`}
                                     className="object-cover w-full h-full"
                                   />
                                   <button
                                     type="button"
                                     className="absolute top-1 right-1 bg-white/70 rounded-full p-0.5 text-gray-700 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition"
                                     onClick={() => {
-                                      const updated = [...projects];
-                                      updated[currentProjectIndex].images = updated[
-                                        currentProjectIndex
+                                      const updated = [...contracts];
+                                      updated[currentContractIndex].images = updated[
+                                        currentContractIndex
                                       ].images.filter((_, i) => i !== idx);
-                                      setProjects(updated);
+                                      setContracts(updated);
                                     }}
                                     aria-label="Remove image"
                                   >
@@ -1065,19 +1065,19 @@ function ProfileSetStepper() {
                           )}
                         </div>
 
-                        {/* Remove Project Button */}
-                        {projects.length > 1 && (
+                        {/* Remove Contract Button */}
+                        {contracts.length > 1 && (
                           <button
                             onClick={() => {
-                              const updated = projects.filter((_, i) => i !== currentProjectIndex);
-                              setProjects(updated);
-                              if (currentProjectIndex >= updated.length) {
-                                setCurrentProjectIndex(updated.length - 1);
+                              const updated = contracts.filter((_, i) => i !== currentContractIndex);
+                              setContracts(updated);
+                              if (currentContractIndex >= updated.length) {
+                                setCurrentContractIndex(updated.length - 1);
                               }
                             }}
                             className="text-red-600 hover:text-red-700 text-sm font-medium"
                           >
-                            Remove this project
+                            Remove this contract
                           </button>
                         )}
                       </div>
@@ -1107,7 +1107,7 @@ function ProfileSetStepper() {
                     const profileData = {
                       profilePicture, fullName, role, location, phoneNumber, date, countryCode, shortBio,
                       workEmail, website, linkedinUrl, twitterUrl, socialLinks,
-                      topSkills, coreHours, projects
+                      topSkills, coreHours, contracts
                     };
                     localStorage.setItem('userProfile', JSON.stringify(profileData));
                     console.log('Draft saved');
@@ -1122,7 +1122,7 @@ function ProfileSetStepper() {
                     onClick={handleNext}
                     className="px-4 sm:px-6 py-2 sm:py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
                   >
-                    <span className="hidden sm:inline">Continue to {currentStep === 1 ? 'work & links' : currentStep === 2 ? 'skills' : 'projects'}</span>
+                    <span className="hidden sm:inline">Continue to {currentStep === 1 ? 'work & links' : currentStep === 2 ? 'skills' : 'contracts'}</span>
                     <span className="sm:hidden">Continue</span>
                     <span>→</span>
                   </button>

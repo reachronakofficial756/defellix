@@ -1,18 +1,16 @@
-import Sidebar from '@/components/Sidebar'
+import Navbar from '@/components/Navbar'
 import Dashboard from '@/components/Dashboard'
-import Myprojects from '@/components/MyProjects'
+import Contracts from '@/components/Contracts'
 import { Route, Routes } from 'react-router-dom'
 
 function HomePage() {
   return (
-    <div className="flex h-screen w-full bg-[#fbf9f1]">
-      <Sidebar />
-
-      <div className="flex-1 overflow-y-auto">
+    <div className="flex flex-col h-screen w-full bg-[#0f1117]">
+      <Navbar />
+      <div className="flex-1 overflow-y-auto scrBar">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/projects" element={<Myprojects />} />
-          
+          <Route path="/contracts" element={<Contracts />} />
         </Routes>
       </div>
     </div>
