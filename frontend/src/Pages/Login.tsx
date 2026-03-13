@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import axios from "axios";
-import { Label } from "../ui/label";
-import { Input } from "../ui/input";
+
 import { cn } from "@/lib/utils";
 import { FaLinkedin, FaGoogle } from "react-icons/fa6";
 import logo from "../assets/logo.svg";
@@ -143,7 +142,7 @@ export default function LoginFormDemo() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
           className="relative flex-1 sm:px-9 md:pl-16 py-auto flex flex-col min-h-[94dvh] justify-center overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
+        >
           <div className="flex items-center justify-center text-center">
             <div>
               <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
@@ -188,35 +187,35 @@ export default function LoginFormDemo() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <LabelInputContainer>
-              <Label
+              <label
                 htmlFor="email"
                 className="text-xs sm:text-sm text-white/70"
               >
                 Email
-              </Label>
+              </label>
               <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                <Input
+                <input
                   id="email"
                   placeholder="eg. john@company.com"
                   type="email"
-                  className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                  className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                 />
               </div>
             </LabelInputContainer>
 
             <LabelInputContainer>
-              <Label
+              <label
                 htmlFor="password"
                 className="text-xs sm:text-sm text-white/70"
               >
                 Password
-              </Label>
+              </label>
               <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                <Input
+                <input
                   id="password"
                   placeholder="Enter your password"
                   type="password"
-                  className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                  className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                 />
               </div>
             </LabelInputContainer>
@@ -263,10 +262,10 @@ export default function LoginFormDemo() {
 
 const BottomGradient = () => {
   return (
-      <>
-          <span className="absolute inset-x-0 -bottom-px block h-px w-full bg-linear-to-r from-transparent via-[#3cb44f] to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
-          <span className="absolute inset-x-10 -bottom-px mx-auto block h-px w-1/2 bg-linear-to-r from-transparent via-[#3cb44f] to-transparent opacity-0 blur-sm transition duration-500 group-hover:opacity-100" />
-      </>
+    <>
+      <span className="absolute inset-x-0 -bottom-px block h-px w-full bg-linear-to-r from-transparent via-[#3cb44f] to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
+      <span className="absolute inset-x-10 -bottom-px mx-auto block h-px w-1/2 bg-linear-to-r from-transparent via-[#3cb44f] to-transparent opacity-0 blur-sm transition duration-500 group-hover:opacity-100" />
+    </>
   );
 };
 

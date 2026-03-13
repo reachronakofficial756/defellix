@@ -2,8 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "motion/react";
 import axios from "axios";
-import { Label } from "../ui/label";
-import { Input } from "../ui/input";
 import { cn } from "@/lib/utils";
 import { IconBrandGoogle } from "@tabler/icons-react";
 import { FaLinkedin } from "react-icons/fa6";
@@ -352,58 +350,58 @@ export default function SignUp() {
                                     transition={{ duration: 0.45, ease: "easeOut" }}
                                 >
                                     <LabelInputContainer>
-                                        <Label
+                                        <label
                                             htmlFor="fullname"
                                             className="text-xs sm:text-sm text-white/70"
                                         >
                                             Full name
-                                        </Label>
+                                        </label>
                                         <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                            <Input
+                                            <input
                                                 id="fullname"
                                                 placeholder="eg. Rakesh Kumar"
                                                 type="text"
                                                 value={fullName}
-                                                onChange={(e) => setFullName(e.target.value)}
-                                                className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                onChange={(e: any) => setFullName(e.target.value)}
+                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
                                         </div>
                                     </LabelInputContainer>
 
                                     <LabelInputContainer>
-                                        <Label
+                                        <label
                                             htmlFor="email"
                                             className="text-xs sm:text-sm mt-4 text-white/70"
                                         >
                                             Email
-                                        </Label>
+                                        </label>
                                         <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                            <Input
+                                            <input
                                                 id="email"
                                                 placeholder="eg. john@company.com"
                                                 type="email"
                                                 value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                                className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                onChange={(e: any) => setEmail(e.target.value)}
+                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
                                         </div>
                                     </LabelInputContainer>
 
                                     <LabelInputContainer>
-                                        <Label
+                                        <label
                                             htmlFor="password"
                                             className="text-xs sm:text-sm mt-4 text-white/70"
                                         >
                                             Password
-                                        </Label>
+                                        </label>
                                         <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                            <Input
+                                            <input
                                                 id="password"
                                                 placeholder="Enter your password"
                                                 type="password"
                                                 value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                                className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                onChange={(e: any) => setPassword(e.target.value)}
+                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
                                         </div>
                                         <p className="mt-1 ml-2 text-[10px] sm:text-xs text-white/40">
@@ -421,32 +419,32 @@ export default function SignUp() {
                                     transition={{ duration: 0.45, ease: "easeOut" }}
                                 >
                                     <LabelInputContainer>
-                                        <Label
+                                        <label
                                             htmlFor="email"
                                             className="text-xs sm:text-sm text-white/70"
                                         >
                                             Email
-                                        </Label>
+                                        </label>
                                         <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                            <Input
+                                            <input
                                                 id="email"
                                                 type="email"
                                                 value={email}
                                                 disabled
-                                                className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border border-white/10 sm:text-sm text-white/70 placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border border-white/10 sm:text-sm text-white/70 placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
                                         </div>
                                     </LabelInputContainer>
 
                                     <LabelInputContainer>
-                                        <Label
+                                        <label
                                             htmlFor="otp"
                                             className="text-xs sm:text-sm text-white/70 mt-4"
                                         >
                                             One-time password
-                                        </Label>
+                                        </label>
                                         <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                            <Input
+                                            <input
                                                 id="otp"
                                                 placeholder="Enter the 6-digit code"
                                                 type="text"
@@ -454,11 +452,11 @@ export default function SignUp() {
                                                 pattern="\d{6}"
                                                 maxLength={6}
                                                 value={otp}
-                                                onChange={(e) => {
+                                                onChange={(e: any) => {
                                                     const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 6);
                                                     setOtp(onlyDigits);
                                                 }}
-                                                className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs tracking-[0.4em] text-center rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs tracking-[0.4em] text-center rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
                                         </div>
                                     </LabelInputContainer>
@@ -494,12 +492,12 @@ export default function SignUp() {
                         <form className="mt-10 space-y-5" onSubmit={handleSubmit}>
 
                             {/* <LabelInputContainer>
-                                <Label
+                                <label
                                     htmlFor="photo"
                                     className="text-xs sm:text-sm text-white/70"
                                 >
                                     Profile photo
-                                </Label>
+                                </label>
                                 <div className="flex items-center gap-4">
                                     <div className="h-16 w-16 rounded-full border border-white/15 bg-[#141414] overflow-hidden flex items-center justify-center text-[10px] text-white/50">
                                         {photo ? (
@@ -514,13 +512,13 @@ export default function SignUp() {
                                     </div>
                                     <div className="flex-1 space-y-2">
                                         <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                            <Input
+                                            <input
                                                 id="photo"
                                                 placeholder="Image URL (optional)"
                                                 type="url"
                                                 value={photo}
-                                                onChange={(e) => setPhoto(e.target.value)}
-                                                className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                onChange={(e: any) => setPhoto(e.target.value)}
+                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
                                         </div>
                                         <div className="flex items-center gap-3">
@@ -529,7 +527,7 @@ export default function SignUp() {
                                                     type="file"
                                                     accept="image/*"
                                                     className="hidden"
-                                                    onChange={(e) => {
+                                                    onChange={(e: any) => {
                                                         const file = e.target.files?.[0];
                                                         if (!file) return;
                                                         void uploadProfilePhoto(file);
@@ -551,135 +549,135 @@ export default function SignUp() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="profile-fullname"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Full name
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="profile-fullname"
                                             placeholder="eg. Rakesh Kumar"
                                             type="text"
                                             value={fullName}
-                                            onChange={(e) => setFullName(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setFullName(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer> */}
 
                                 <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="user-name"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Username
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="user-name"
                                             placeholder="eg. rakesh_dev"
                                             type="text"
                                             value={userName}
-                                            onChange={(e) => setUserName(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setUserName(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer>
                                 <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="phone"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Phone
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="phone"
                                             placeholder="eg. 98765 43210"
                                             type="tel"
                                             value={phone}
-                                            onChange={(e) => setPhone(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setPhone(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer>
                             </div>
 
                             <LabelInputContainer>
-                                <Label
+                                <label
                                     htmlFor="whatDoYouDo"
                                     className="text-xs sm:text-sm text-white/70"
                                 >
                                     What do you do
-                                </Label>
+                                </label>
                                 <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                    <Input
+                                    <input
                                         id="whatDoYouDo"
                                         placeholder="eg. Backend Developer, Video Editor, etc."
                                         type="text"
                                         value={whatDoYouDo}
-                                        onChange={(e) => setWhatDoYouDo(e.target.value)}
-                                        className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        onChange={(e: any) => setWhatDoYouDo(e.target.value)}
+                                        className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                     />
                                 </div>
                             </LabelInputContainer>
 
                             <LabelInputContainer>
-                                <Label
+                                <label
                                     htmlFor="headline"
                                     className="text-xs sm:text-sm text-white/70"
                                 >
                                     Short headline
-                                </Label>
+                                </label>
                                 <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                    <Input
+                                    <input
                                         id="headline"
                                         placeholder="eg. Senior blockchain engineer specialising in L2 payment rails"
                                         type="text"
                                         value={profileHeadline}
-                                        onChange={(e) => setProfileHeadline(e.target.value)}
-                                        className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        onChange={(e: any) => setProfileHeadline(e.target.value)}
+                                        className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                     />
                                 </div>
                             </LabelInputContainer>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="location"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Location
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="location"
                                             placeholder="eg. Remote · IST"
                                             type="text"
                                             value={location}
-                                            onChange={(e) => setLocation(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setLocation(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer>
 
                                 <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="experience"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Experience
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="experience"
                                             placeholder="eg. 5+ years"
                                             type="text"
                                             value={experience}
-                                            onChange={(e) => setExperience(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setExperience(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer>
@@ -688,75 +686,75 @@ export default function SignUp() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="github"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         GitHub
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="github"
                                             placeholder="https://github.com/username"
                                             type="url"
                                             value={githubLink}
-                                            onChange={(e) => setGithubLink(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setGithubLink(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer> */}
 
                                 <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="linkedin"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         LinkedIn
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="linkedin"
                                             placeholder="https://linkedin.com/in/username"
                                             type="url"
                                             value={linkedinLink}
-                                            onChange={(e) => setLinkedinLink(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setLinkedinLink(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer>
                                 {/* <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="portfolio"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Portfolio
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="portfolio"
                                             placeholder="https://portfolio.xyz"
                                             type="url"
                                             value={portfolioLink}
-                                            onChange={(e) => setPortfolioLink(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setPortfolioLink(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer> */}
                                 <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="instagram"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Instagram
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="instagram"
                                             placeholder="https://instagram.com/username"
                                             type="url"
                                             value={instagramLink}
-                                            onChange={(e) => setInstagramLink(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setInstagramLink(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer>
@@ -766,40 +764,40 @@ export default function SignUp() {
                                 
 
                                 <LabelInputContainer>
-                                    <Label
+                                    <label
                                         htmlFor="instagram"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
                                         Instagram
-                                    </Label>
+                                    </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <Input
+                                        <input
                                             id="instagram"
                                             placeholder="https://instagram.com/username"
                                             type="url"
                                             value={instagramLink}
-                                            onChange={(e) => setInstagramLink(e.target.value)}
-                                            className="relative py-7 z-10 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => setInstagramLink(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
                                 </LabelInputContainer>
                             </div> */}
 
                             <LabelInputContainer>
-                                <Label
+                                <label
                                     htmlFor="skills"
                                     className="text-xs sm:text-sm text-white/70"
                                 >
                                     Skills
-                                </Label>
+                                </label>
                                 <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none flex items-center">
-                                    <Input
+                                    <input
                                         id="skills"
                                         placeholder="eg. Solidity, React, Rust"
                                         type="text"
                                         value={skillInput}
-                                        onChange={(e) => setSkillInput(e.target.value)}
-                                        className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none pr-20"
+                                        onChange={(e: any) => setSkillInput(e.target.value)}
+                                        className="relative w-full z-10 py-7 pl-4 pr-20 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                     />
                                     {skillInput.trim().length > 0 && (
                                         <button

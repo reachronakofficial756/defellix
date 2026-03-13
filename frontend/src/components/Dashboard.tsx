@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import CreateModal from "./StepperModal";
 
 // --- Types ---
 interface MetricCard {
@@ -175,7 +174,6 @@ const ImpactDots = ({ count, max = 3 }: { count: number; max?: number }) => (
 // --- Main Dashboard ---
 const Dashboard = () => {
     const navigate = useNavigate();
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [animated, setAnimated] = useState(false);
     const [tab, setTab] = useState<"Overall" | "Monthly">("Overall");
 
@@ -342,7 +340,6 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            <CreateModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </div>
     );
 };

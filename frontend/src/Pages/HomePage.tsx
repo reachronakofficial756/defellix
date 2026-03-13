@@ -1,6 +1,5 @@
 import Navbar from '@/components/Navbar'
 import Dashboard from '@/components/Dashboard'
-import Contracts from '@/components/Contracts'
 import { Route, Routes } from 'react-router-dom'
 
 function HomePage() {
@@ -10,7 +9,6 @@ function HomePage() {
       <div className="flex-1 overflow-y-auto scrBar">
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/contracts" element={<Contracts />} />
         </Routes>
       </div>
     </div>
