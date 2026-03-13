@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useContractsStore } from "@/store/useContractsStore";
 
@@ -173,6 +174,7 @@ const ImpactDots = ({ count, max = 3 }: { count: number; max?: number }) => (
 
 // --- Main Dashboard ---
 const Dashboard = () => {
+    const navigate = useNavigate();
     const openContracts = useContractsStore((state) => state.openContracts);
     const [animated, setAnimated] = useState(false);
     const [tab, setTab] = useState<"Overall" | "Monthly">("Overall");
@@ -189,7 +191,7 @@ const Dashboard = () => {
         <div className="flex-1 bg-[#0f1117] min-h-screen text-white scrBar overflow-y-auto">
 
             {/* Main Layout */}
-            <div className="flex flex-col gap-6 p-8">
+            <div className="flex flex-col gap-6 p-8 pb-28">
 
                 {/* --- TOP SECTION --- */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
@@ -340,6 +342,14 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* Floating Action Button */}
+            <button
+                onClick={() => navigate("/contract")}
+                className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-10 py-3.5 rounded-[20px] bg-[#00e676] text-black font-bold text-lg shadow-[0_8px_30px_rgba(0,230,118,0.25)] hover:shadow-[0_12px_40px_rgba(0,230,118,0.4)] transition-all duration-300 hover:-translate-y-1 active:scale-95 flex items-center gap-2 group cursor-pointer"
+            >
+                <span className="text-2xl -mt-1 leading-none group-hover:scale-110 transition-transform duration-300">+</span>
+                Create Project
+            </button>
         </div>
     );
 };
