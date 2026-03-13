@@ -33,6 +33,7 @@ func NewAuthHandler(authService *service.AuthService, oauthService *service.OAut
 func (h *AuthHandler) RegisterRoutes(r chi.Router, jwtManager *jwt.JWTManager) {
 	r.Route("/api/v1/auth", func(r chi.Router) {
 		r.Post("/register", h.Register)
+		r.Post("/verify-email", h.VerifyEmail)
 		r.Post("/login", h.Login)
 		r.Post("/refresh", h.Refresh)
 		
@@ -40,13 +41,21 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router, jwtManager *jwt.JWTManager) {
 		r.With(middleware.RequireAuth(jwtManager)).Get("/me", h.Me)
 		r.With(middleware.RequireAuth(jwtManager)).Get("/validate", h.Validate)
 		
-		// OAuth routes
+		// OAuth routes (preferred URLs with /oauth prefix)
 		r.Get("/oauth/google", h.OAuthGoogle)
 		r.Get("/oauth/google/callback", h.OAuthGoogleCallback)
 		r.Get("/oauth/linkedin", h.OAuthLinkedIn)
 		r.Get("/oauth/linkedin/callback", h.OAuthLinkedInCallback)
 		r.Get("/oauth/github", h.OAuthGitHub)
 		r.Get("/oauth/github/callback", h.OAuthGitHubCallback)
+
+		// OAuth routes (aliases for backward/external compatibility - handles the 404 issue)
+		r.Get("/google", h.OAuthGoogle)
+		r.Get("/google/callback", h.OAuthGoogleCallback)
+		r.Get("/linkedin", h.OAuthLinkedIn)
+		r.Get("/linkedin/callback", h.OAuthLinkedInCallback)
+		r.Get("/github", h.OAuthGitHub)
+		r.Get("/github/callback", h.OAuthGitHubCallback)
 	})
 }
 
@@ -70,6 +79,32 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondSuccess(w, http.StatusCreated, authResp, "User registered successfully")
+}
+
+// VerifyEmail handles OTP verification for new accounts
+func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	var req dto.VerifyEmailRequest
+
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+
+	authResp, err := h.authService.VerifyEmail(&req)
+	if err != nil {
+		if err.Error() == "invalid OTP" || err.Error() == "OTP has expired, please request a new one" || err.Error() == "invalid email or OTP" {
+			respondError(w, http.StatusUnauthorized, err.Error(), "INVALID_VERIFICATION")
+			return
+		}
+		if err.Error() == "user is already verified" {
+			respondError(w, http.StatusConflict, err.Error(), "ALREADY_VERIFIED")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to verify email", "INTERNAL_ERROR")
+		return
+	}
+
+	respondSuccess(w, http.StatusOK, authResp, "Email verified successfully")
 }
 
 // Login handles user login
@@ -182,8 +217,9 @@ func (h *AuthHandler) OAuthGoogle(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    stateWithRole,
+		Path:     "/",
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   600, // 10 minutes
 	})
@@ -218,13 +254,14 @@ func (h *AuthHandler) OAuthGoogleCallback(w http.ResponseWriter, r *http.Request
 	originalState := stateParam
 	role := "freelancer" // default fallback
 	
-	// We do a simple split if we encoded it earlier
 	if len(stateParam) > 0 {
-		importStrings := "strings"
-		_ = importStrings
-		// To avoid import errors we can parse manually or rely on a helper.
-		// For simplicity, let's just use context since that's what oauthService takes!
-		// But oauth_service also validates `state` natively.
+		for i := 0; i < len(stateParam); i++ {
+			if stateParam[i] == '|' {
+				originalState = stateParam[:i]
+				role = stateParam[i+1:]
+				break
+			}
+		}
 	}
 	
 	// Pass the role down via context
@@ -239,10 +276,17 @@ func (h *AuthHandler) OAuthGoogleCallback(w http.ResponseWriter, r *http.Request
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    "",
+		Path:     "/",
 		MaxAge:   -1,
 	})
 	
-	respondSuccess(w, http.StatusOK, authResp, "Google OAuth authentication successful")
+	frontendURL := "http://localhost:5173/signup"
+	redirectURL := fmt.Sprintf("%s?access_token=%s&email=%s", 
+		frontendURL, 
+		url.QueryEscape(authResp.AccessToken),
+		url.QueryEscape(authResp.UserEmail),
+	)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 // OAuthLinkedIn initiates LinkedIn OAuth flow
@@ -262,8 +306,9 @@ func (h *AuthHandler) OAuthLinkedIn(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    stateWithRole,
+		Path:     "/",
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   600,
 	})
@@ -295,6 +340,16 @@ func (h *AuthHandler) OAuthLinkedInCallback(w http.ResponseWriter, r *http.Reque
 	
 	originalState := stateParam
 	role := "freelancer"
+	
+	if len(stateParam) > 0 {
+		for i := 0; i < len(stateParam); i++ {
+			if stateParam[i] == '|' {
+				originalState = stateParam[:i]
+				role = stateParam[i+1:]
+				break
+			}
+		}
+	}
 	ctx := context.WithValue(r.Context(), "oauth_role", role)
 	
 	authResp, err := h.oauthService.HandleLinkedInCallback(ctx, code, originalState)
@@ -306,10 +361,17 @@ func (h *AuthHandler) OAuthLinkedInCallback(w http.ResponseWriter, r *http.Reque
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    "",
+		Path:     "/",
 		MaxAge:   -1,
 	})
 	
-	respondSuccess(w, http.StatusOK, authResp, "LinkedIn OAuth authentication successful")
+	frontendURL := "http://localhost:5173/signup"
+	redirectURL := fmt.Sprintf("%s?access_token=%s&email=%s", 
+		frontendURL, 
+		url.QueryEscape(authResp.AccessToken),
+		url.QueryEscape(authResp.UserEmail),
+	)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
 // OAuthGitHub initiates GitHub OAuth flow
@@ -323,8 +385,9 @@ func (h *AuthHandler) OAuthGitHub(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    state,
+		Path:     "/",
 		HttpOnly: true,
-		Secure:   r.TLS != nil,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   600,
 	})
@@ -352,9 +415,16 @@ func (h *AuthHandler) OAuthGitHubCallback(w http.ResponseWriter, r *http.Request
 	http.SetCookie(w, &http.Cookie{
 		Name:     "oauth_state",
 		Value:    "",
+		Path:     "/",
 		MaxAge:   -1,
 	})
 	
-	respondSuccess(w, http.StatusOK, authResp, "GitHub OAuth authentication successful")
+	frontendURL := "http://localhost:5173/signup"
+	redirectURL := fmt.Sprintf("%s?access_token=%s&email=%s", 
+		frontendURL, 
+		url.QueryEscape(authResp.AccessToken),
+		url.QueryEscape(authResp.UserEmail),
+	)
+	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 

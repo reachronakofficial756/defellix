@@ -17,6 +17,7 @@ import (
 	"github.com/saiyam0211/defellix/services/auth-service/internal/domain"
 	"github.com/saiyam0211/defellix/services/auth-service/internal/handler"
 	appmw "github.com/saiyam0211/defellix/services/auth-service/internal/middleware"
+	"github.com/saiyam0211/defellix/services/auth-service/internal/notification"
 	"github.com/saiyam0211/defellix/services/auth-service/internal/repository"
 	"github.com/saiyam0211/defellix/services/auth-service/internal/service"
 	"github.com/saiyam0211/defellix/services/auth-service/pkg/jwt"
@@ -36,7 +37,7 @@ func main() {
 	}
 
 	// Run migrations
-	if err := config.AutoMigrate(db, &domain.User{}, &domain.OAuthProvider{}); err != nil {
+	if err := config.AutoMigrate(db, &domain.User{}, &domain.OAuthProvider{}, &domain.PendingRegistration{}); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 	log.Println("Database migrations completed")
@@ -52,10 +53,24 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	oauthRepo := repository.NewOAuthRepository(db)
 
-	// Initialize services
-	authService := service.NewAuthService(userRepo, jwtManager)
+	// Initialize notification service
+	var notifier notification.AuthNotifier
+	if cfg.SMTP.User != "" && cfg.SMTP.Password != "" {
+		notifier = notification.NewSMTPNotifier(
+			cfg.SMTP.Host,
+			cfg.SMTP.Port,
+			cfg.SMTP.User,
+			cfg.SMTP.Password,
+			cfg.SMTP.FromName,
+		)
+		log.Println("SMTP Notifier initialized for Auth Service")
+	} else {
+		notifier = notification.NewNoopNotifier()
+		log.Println("No SMTP credentials found. Using Noop Notifier for Auth Service")
+	}
 
-	// Initialize OAuth service
+	// Initialize services
+	authService := service.NewAuthService(userRepo, jwtManager, notifier)
 	encryptionKey := os.Getenv("OAUTH_ENCRYPTION_KEY")
 	if encryptionKey == "" {
 		encryptionKey = cfg.JWT.SecretKey // Fallback to JWT secret
@@ -121,8 +136,7 @@ func setupMiddleware(r *chi.Mux) {
 	// Recoverer middleware
 	r.Use(appmw.Recoverer)
 
-	// CORS middleware
-	r.Use(appmw.CORS)
+	// Note: CORS is handled exclusively by Nginx
 
 	// Request timeout middleware
 	r.Use(chimw.Timeout(60 * time.Second))

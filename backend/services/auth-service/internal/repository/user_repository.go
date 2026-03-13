@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/saiyam0211/defellix/services/auth-service/internal/domain"
 	"gorm.io/gorm"
@@ -21,6 +22,11 @@ type UserRepository interface {
 	FindByEmail(email string) (*domain.User, error)
 	Update(user *domain.User) error
 	Delete(id uint) error
+
+	// PendingRegistration operations
+	CreatePendingRegistration(pr *domain.PendingRegistration) error
+	FindPendingRegistrationByEmail(email string) (*domain.PendingRegistration, error)
+	DeletePendingRegistration(email string) error
 }
 
 // userRepository implements UserRepository interface
@@ -33,10 +39,10 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 	return &userRepository{db: db}
 }
 
-// Create creates a new user
 func (r *userRepository) Create(user *domain.User) error {
 	if err := r.db.Create(user).Error; err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+		// gorm.ErrDuplicatedKey doesn't reliably map for postgres drivers in some cases
+		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(err.Error(), "duplicate key value violates unique constraint") || strings.Contains(err.Error(), "SQLSTATE 23505") {
 			return ErrUserExists
 		}
 		return err
@@ -79,6 +85,35 @@ func (r *userRepository) Update(user *domain.User) error {
 // Delete soft deletes a user
 func (r *userRepository) Delete(id uint) error {
 	if err := r.db.Delete(&domain.User{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreatePendingRegistration upserts a pending registration
+func (r *userRepository) CreatePendingRegistration(pr *domain.PendingRegistration) error {
+	// Using Save instead of Create performs an UPSERT natively in gorm for Primary Keys
+	if err := r.db.Save(pr).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// FindPendingRegistrationByEmail looks up a pending registration by email
+func (r *userRepository) FindPendingRegistrationByEmail(email string) (*domain.PendingRegistration, error) {
+	var pr domain.PendingRegistration
+	if err := r.db.Where("email = ?", email).First(&pr).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound // reusing the general not found err
+		}
+		return nil, err
+	}
+	return &pr, nil
+}
+
+// DeletePendingRegistration permanently deletes a pending registration via its primary key email
+func (r *userRepository) DeletePendingRegistration(email string) error {
+	if err := r.db.Where("email = ?", email).Delete(&domain.PendingRegistration{}).Error; err != nil {
 		return err
 	}
 	return nil

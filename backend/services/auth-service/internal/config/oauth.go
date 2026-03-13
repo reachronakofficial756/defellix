@@ -44,7 +44,7 @@ func LoadOAuthConfig() *OAuthConfig {
 			ClientID:     getEnv("LINKEDIN_CLIENT_ID", ""),
 			ClientSecret: getEnv("LINKEDIN_CLIENT_SECRET", ""),
 			RedirectURL:  getEnv("LINKEDIN_REDIRECT_URL", "http://localhost:8080/api/v1/auth/oauth/linkedin/callback"),
-			Scopes:       []string{"r_liteprofile", "r_emailaddress"},
+			Scopes:       []string{"openid", "profile", "email"},
 		},
 		GitHub: GitHubOAuthConfig{
 			ClientID:     getEnv("GITHUB_CLIENT_ID", ""),

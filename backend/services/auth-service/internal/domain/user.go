@@ -18,6 +18,7 @@ type User struct {
 	ProviderID   string `gorm:"type:varchar(255);index" json:"provider_id,omitempty"` // The unique ID from Google/LinkedIn
 	// Basic Information
 	FullName      string         `gorm:"not null" json:"full_name"`
+	WhatDoYouDo   string         `gorm:"type:varchar(150)" json:"what_do_you_do,omitempty"`
 	Photo         string         `gorm:"type:text" json:"photo,omitempty"`
 	ShortHeadline string         `gorm:"type:varchar(150)" json:"short_headline,omitempty"`
 	Role          string         `gorm:"default:freelancer" json:"role"` // freelancer, client, both, admin
@@ -57,12 +58,12 @@ type User struct {
 	ShowContracts bool           `gorm:"default:false" json:"show_contracts"`
 
 	// Metadata
-	IsActive          bool           `gorm:"default:true" json:"is_active"`
-	IsVerified        bool           `gorm:"default:false" json:"is_verified"`
-	IsProfileComplete bool           `gorm:"default:false" json:"is_profile_complete"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+	IsActive                 bool           `gorm:"default:true" json:"is_active"`
+	IsVerified               bool           `gorm:"default:false" json:"is_verified"`
+	IsProfileComplete        bool           `gorm:"default:false" json:"is_profile_complete"`
+	CreatedAt                time.Time      `json:"created_at"`
+	UpdatedAt                time.Time      `json:"updated_at"`
+	DeletedAt                gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // TableName specifies the table name for User model
@@ -77,4 +78,19 @@ const (
 	RoleClient    = "client"
 	RoleAdmin     = "admin"
 )
+
+// PendingRegistration represents a user who has initiated sign-up but has not verified their OTP yet
+type PendingRegistration struct {
+	Email     string    `gorm:"primaryKey;type:varchar(255)"`
+	Password  string    `gorm:"type:varchar(255)"`
+	FullName  string    `gorm:"not null"`
+	OTP       string    `gorm:"type:varchar(6);not null"`
+	ExpiresAt time.Time `gorm:"index"`
+	CreatedAt time.Time
+}
+
+// TableName specifies the table name for PendingRegistration model
+func (PendingRegistration) TableName() string {
+	return "pending_registrations"
+}
 

@@ -114,6 +114,9 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 
 	// Update fields
 
+	if req.WhatDoYouDo != "" {
+		profile.WhatDoYouDo = req.WhatDoYouDo
+	}
 	if req.Bio != "" {
 		profile.Bio = req.Bio
 	}
@@ -387,6 +390,7 @@ func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse 
 		Email:             profile.Email,
 		UserName:          profile.UserName,
 		FullName:          profile.FullName,
+		WhatDoYouDo:       profile.WhatDoYouDo,
 		Photo:             profile.Photo,
 		ShortHeadline:     profile.ShortHeadline,
 		Role:              profile.Role,
@@ -425,6 +429,7 @@ func (s *UserService) toPublicProfileResponse(profile *domain.User) *dto.PublicP
 	}
 	if profile.ShowProfile {
 		out.FullName = profile.FullName
+		out.WhatDoYouDo = profile.WhatDoYouDo
 		out.Photo = profile.Photo
 		out.ShortHeadline = profile.ShortHeadline
 		out.Role = profile.Role

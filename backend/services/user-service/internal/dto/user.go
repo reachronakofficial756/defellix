@@ -49,6 +49,7 @@ type UserResponse struct {
 	Email         string          `json:"email"`
 	UserName      string          `json:"user_name,omitempty"` // for ourdomain.com/user_name
 	FullName      string          `json:"full_name"`
+	WhatDoYouDo   string          `json:"what_do_you_do,omitempty"`
 	Photo         string          `json:"photo,omitempty"`
 	ShortHeadline string          `json:"short_headline,omitempty"`
 	Role          string          `json:"role"`
@@ -103,6 +104,7 @@ type UserResponse struct {
 type PublicProfileResponse struct {
 	UserName      string               `json:"user_name"`
 	FullName      string               `json:"full_name,omitempty"`
+	WhatDoYouDo   string               `json:"what_do_you_do,omitempty"`
 	Photo         string               `json:"photo,omitempty"`
 	ShortHeadline string               `json:"short_headline,omitempty"`
 	Role          string               `json:"role,omitempty"`

@@ -114,8 +114,7 @@ func setupMiddleware(r *chi.Mux) {
 	// Recoverer middleware
 	r.Use(appmw.Recoverer)
 
-	// CORS middleware
-	r.Use(appmw.CORS)
+	// Note: CORS is handled exclusively by Nginx
 
 	// Request timeout middleware
 	r.Use(chimw.Timeout(60 * time.Second))

@@ -20,9 +20,17 @@ type RefreshTokenRequest struct {
 
 // AuthResponse represents the authentication response
 type AuthResponse struct {
-	AccessToken  string `json:"access_token"`
+	AccessToken  string `json:"access_token,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
+	TokenType    string `json:"token_type,omitempty"`
+	ExpiresIn    int    `json:"expires_in,omitempty"`
+	Message      string `json:"message,omitempty"`
+	UserEmail    string `json:"user_email,omitempty"`
+}
+
+// VerifyEmailRequest represents the request body for OTP verification
+type VerifyEmailRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	OTP   string `json:"otp" validate:"required,len=6"`
 }
 

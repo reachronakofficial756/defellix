@@ -28,6 +28,11 @@ services:
     restart: always
     environment:
       - SERVER_PORT=8081
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=defellix.support@gmail.com
+      - SMTP_PASS=zpkb eubi vxlp bmfk
+      - SMTP_FROM_NAME=Defellix Auth
 
   # User Service
   user-service:

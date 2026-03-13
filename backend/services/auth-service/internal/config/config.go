@@ -11,7 +11,17 @@ type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
+	SMTP     SMTPConfig
 	OAuth    *OAuthConfig
+}
+
+// SMTPConfig holds email sending credentials
+type SMTPConfig struct {
+	Host     string
+	Port     string
+	User     string
+	Password string
+	FromName string
 }
 
 // ServerConfig holds server-related configuration
@@ -72,6 +82,13 @@ func Load() *Config {
 			SecretKey:       getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
 			AccessTokenTTL:  getEnvAsInt("JWT_ACCESS_TTL_HOURS", 24),
 			RefreshTokenTTL: getEnvAsInt("JWT_REFRESH_TTL_DAYS", 7),
+		},
+		SMTP: SMTPConfig{
+			Host:     getEnv("SMTP_HOST", "smtp.gmail.com"),
+			Port:     getEnv("SMTP_PORT", "587"),
+			User:     getEnv("SMTP_USER", ""),
+			Password: getEnv("SMTP_PASS", ""),
+			FromName: getEnv("SMTP_FROM_NAME", "Defellix Auth"),
 		},
 		OAuth: LoadOAuthConfig(),
 	}

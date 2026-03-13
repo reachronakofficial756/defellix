@@ -1,110 +1,275 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
+import axios from "axios";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-
 import { cn } from "@/lib/utils";
-import {
-  IconBrandGithub,
-  IconBrandGoogle,
-  
-} from "@tabler/icons-react";
-import { FaLinkedin } from "react-icons/fa6";
- 
+import { FaLinkedin, FaGoogle } from "react-icons/fa6";
+import logo from "../assets/logo.svg";
+
 export default function LoginFormDemo() {
+  const navigate = useNavigate();
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const parseJwtEmail = useMemo(() => {
+    return (token: string): string | null => {
+      try {
+        const payload = token.split(".")[1];
+        if (!payload) return null;
+        const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+        return typeof json?.email === "string" ? json.email : null;
+      } catch {
+        return null;
+      }
+    };
+  }, []);
+
+  const handleOAuth = (provider: "google" | "linkedin") => {
+    const base = "https://api.defellix.com";
+    const url = `${base}/api/v1/auth/oauth/${provider}?role=freelancer`;
+    window.location.href = url;
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const toast = params.get("toast");
+    if (toast) {
+      setToastMessage(toast);
+      window.setTimeout(() => setToastMessage(null), 4500);
+    }
+    const token =
+      params.get("access_token") ||
+      params.get("token") ||
+      params.get("jwt");
+    if (!token) return;
+
+    const emailParam = params.get("email");
+    const emailFromJwt = parseJwtEmail(token);
+    const email = emailParam || emailFromJwt || "this email";
+
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+
+    (async () => {
+      try {
+        const res = await axios.get("https://api.defellix.com/api/v1/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const profile = res?.data?.data ?? res?.data ?? {};
+        const hasProfile =
+          typeof profile?.user_name === "string" &&
+          profile.user_name.length >= 3 &&
+          typeof profile?.short_headline === "string" &&
+          profile.short_headline.length >= 10 &&
+          Array.isArray(profile?.skills) &&
+          profile.skills.length > 0;
+
+        if (!hasProfile) {
+          const msg = `Profile doesn’t exist for ${email}. Please set up your profile.`;
+          navigate(
+            `/signup?access_token=${encodeURIComponent(token)}&email=${encodeURIComponent(
+              emailParam || emailFromJwt || "",
+            )}&toast=${encodeURIComponent(msg)}`,
+          );
+          return;
+        }
+
+        navigate("/dashboard");
+      } catch {
+        const msg = `Profile doesn’t exist for ${email}. Please set up your profile.`;
+        navigate(
+          `/signup?access_token=${encodeURIComponent(token)}&email=${encodeURIComponent(
+            emailParam || emailFromJwt || "",
+          )}&toast=${encodeURIComponent(msg)}`,
+        );
+      }
+    })();
+  }, [navigate, parseJwtEmail]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Form submitted");
   };
+
   return (
-    <div className="min-h-screen w-full bg-[#fbf9f1] flex items-center justify-center p-3 sm:p-4 md:p-6 lg:p-8 scrBar">
-      <div className="shadow-input mx-auto w-full max-w-md sm:max-w-lg md:max-w-md lg:max-w-lg rounded-none sm:rounded-lg md:rounded-2xl bg-white p-4 sm:p-6 md:p-8">
-      <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-neutral-800 dark:text-black mb-2 sm:mb-4">
-        Login
-      </h2>
-      <form className="my-4 sm:my-6 md:my-8" onSubmit={handleSubmit}>
-        <LabelInputContainer className="mb-3 sm:mb-4 text-black">
-          <Label htmlFor="email" className="text-sm sm:text-base">Email Address</Label>
-          <div className="relative group overflow-hidden rounded-md">
-            <div className="absolute inset-0 rounded-md bg-teal-600 opacity-0 group-hover:opacity-30 group-hover:scale-105 transition-all duration-500 ease-out pointer-events-none"></div>
-            <Input id="email" placeholder="project@gmail.com" type="email" className="relative z-10 border border-black hover:border-teal-500 transition-all duration-300 text-sm sm:text-base h-9 sm:h-10 md:h-11" />
-          </div>
-        </LabelInputContainer>
-        <LabelInputContainer className="mb-3 sm:mb-4 text-black">
-          <Label htmlFor="password" className="text-sm sm:text-base">Password</Label>
-          <div className="relative group overflow-hidden rounded-md">
-            <div className="absolute inset-0 rounded-md bg-teal-600 opacity-0 group-hover:opacity-30 group-hover:scale-105 transition-all duration-500 ease-out pointer-events-none"></div>
-            <Input id="password" placeholder="••••••••" type="password" className="relative z-10 border border-black hover:border-teal-500 transition-all duration-300 text-sm sm:text-base h-9 sm:h-10 md:h-11" />
-          </div>
-        </LabelInputContainer>
-        
-        <div className="flex gap-2 text-black mb-4 cursor-pointer">
-          <input type="checkbox" name="" id="checkbox"  className="accent" style={{accentColor:"#009689",marginTop:"3px",backgroundColor:"white"}} />
-          <label htmlFor="checkbox" className="bg=white">Remember me</label>
-        </div>
- 
-        <button
-          className="group/btn relative block h-10 sm:h-11 md:h-12 w-full rounded-md bg-linear-to-br from-black to-neutral-600 font-medium text-sm sm:text-base text-white shadow-[0px_1px_0px_0px_#ffffff40_inset,0px_-1px_0px_0px_#ffffff40_inset] dark:bg-teal-800 dark:from-teal-900 dark:to-teal-900 dark:shadow-[0px_1px_0px_0px_#27272a_inset,0px_-1px_0px_0px_#27272a_inset]"
-          type="submit"
+    <div className="min-h-screen w-full bg-black text-white flex items-center justify-center px-4 sm:px-6 lg:px-10 scrBar">
+      {toastMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed top-6 right-6 z-[9999] w-[min(520px,calc(100vw-3rem))] rounded-2xl border border-white/10 bg-black/70 px-4 py-3 text-xs text-white/90 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
         >
-          Get Started &rarr;
-          <BottomGradient />
-        </button>
+          {toastMessage}
+        </motion.div>
+      )}
+      <motion.div
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
+        className="relative w-[96dvw] rounded-3xl h-[94dvh] overflow-hidden flex flex-col md:flex-row"
+      >
+        {/* Left gradient panel (mirrors signup without steps) */}
+        <motion.div
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="relative flex-1 px-8 sm:px-10 py-10 sm:py-12 md:py-16 rounded-3xl bg-[radial-gradient(circle_at_top,_#3cb44f_0,_#05030d_55%,_#000000_100%)]"
+        >
+          <motion.div
+            className="pointer-events-none absolute -top-20 -left-10 h-80 w-80 rounded-full bg-[#49d8d7] blur-3xl"
+            animate={{ opacity: [0.3, 0.7, 0.3], scale: [1, 1.08, 1] }}
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <div className="relative z-10 flex h-full flex-col justify-center text-center">
+            <div>
+              <div className="inline-flex items-center">
+                <img src={logo} alt="Defellix" className="w-80 h-auto" />
+              </div>
 
-        <div className="my-6 sm:my-7 md:my-8 h-px w-full bg-linear-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
+              <h1 className="-mt-12 text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
+                Welcome Back
+              </h1>
+              <p className="mt-3 max-w-sm text-sm sm:text-base text-white/70 leading-relaxed text-center mx-auto">
+                Log in to continue managing every freelance contract with
+                precision, trust, and a premium experience.
+              </p>
+            </div>
+          </div>
+        </motion.div>
 
-        <div className="flex flex-col space-y-3 sm:space-y-4">
-          <button
-            className="group/btn shadow-input relative flex h-10 sm:h-11 md:h-12 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-3 sm:px-4 font-medium text-xs sm:text-sm text-black dark:bg-teal-900 dark:shadow-[0px_0px_1px_1px_#262626]"
-            type="submit"
-          >
-            <IconBrandGithub className="h-4 w-4 sm:h-5 sm:w-5 text-neutral-800 dark:text-neutral-300" />
-            <span className="text-xs sm:text-sm text-neutral-700 dark:text-neutral-300">
-              GitHub
-            </span>
-            <BottomGradient />
-          </button>
-          <button
-            className="group/btn shadow-input relative flex h-10 sm:h-11 md:h-12 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-3 sm:px-4 font-medium text-xs sm:text-sm text-black dark:bg-teal-900 dark:shadow-[0px_0px_1px_1px_#262626]"
-            type="submit"
-          >
-            <IconBrandGoogle className="h-4 w-4 sm:h-5 sm:w-5 text-neutral-800 dark:text-neutral-300" />
-            <span className="text-xs sm:text-sm text-neutral-700 dark:text-neutral-300">
-              Google
-            </span>
-            <BottomGradient />
-          </button>
-          <button
-            className="group/btn shadow-input relative flex h-10 sm:h-11 md:h-12 w-full items-center justify-start space-x-2 rounded-md bg-gray-50 px-3 sm:px-4 font-medium text-xs sm:text-sm text-black dark:bg-teal-900 dark:shadow-[0px_0px_1px_1px_#262626]"
-            type="submit"
-          >
-            <FaLinkedin className="h-4 w-4 sm:h-5 sm:w-5 text-neutral-800 dark:text-neutral-300" />
-            <span className="text-xs sm:text-sm text-neutral-700 dark:text-neutral-300">
-              Linkedin
-            </span>
-            <BottomGradient />
-          </button>
-          <Link to="/signup" className="text-black text-center mt-2 text-xs sm:text-sm md:text-base">
-            New to Platform?
-          </Link>
-        
-        </div>
-      </form>
-      </div>
+        {/* Right login form */}
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+          className="relative flex-1 px-7 sm:px-9 md:pl-16 py-8 sm:py-10 md:py-12"
+        >
+          <div className="flex items-center justify-center text-center mt-32">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
+                Login to Account
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-white/60">
+                Enter your credentials to access your account.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-3 mt-20">
+            <button
+              type="button"
+              onClick={() => handleOAuth("google")}
+              className="group relative cursor-pointer flex-1 h-10 sm:h-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs sm:text-sm font-medium text-white/80 backdrop-blur hover:bg-white/10 transition-all"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <FaGoogle className="h-4 w-4" />
+                Google
+              </span>
+              <BottomGradient />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOAuth("linkedin")}
+              className="group relative cursor-pointer flex-1 h-10 sm:h-11 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs sm:text-sm font-medium text-white/80 backdrop-blur hover:bg-white/10 transition-all"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <FaLinkedin className="h-4 w-4" />
+                LinkedIn
+              </span>
+              <BottomGradient />
+            </button>
+          </div>
+
+          <div className="mt-6 flex items-center gap-3 text-[11px] sm:text-xs text-white/50">
+            <span className="h-px flex-1 bg-white/10" />
+            <span>Or</span>
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+            <LabelInputContainer>
+              <Label
+                htmlFor="email"
+                className="text-xs sm:text-sm text-white/70"
+              >
+                Email
+              </Label>
+              <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                <Input
+                  id="email"
+                  placeholder="eg. john@company.com"
+                  type="email"
+                  className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                />
+              </div>
+            </LabelInputContainer>
+
+            <LabelInputContainer>
+              <Label
+                htmlFor="password"
+                className="text-xs sm:text-sm text-white/70"
+              >
+                Password
+              </Label>
+              <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                <Input
+                  id="password"
+                  placeholder="Enter your password"
+                  type="password"
+                  className="relative z-10 py-7 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                />
+              </div>
+            </LabelInputContainer>
+
+            <div className="flex items-center justify-between text-[11px] sm:text-xs text-white/60">
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded bg-[#5cb870] text-[#5cb870]"
+                />
+                <span>Remember me</span>
+              </label>
+              <button
+                type="button"
+                className="text-white/70 hover:text-[#5cb870] underline-offset-4 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              className="group relative mt-10 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95"
+            >
+              Login &rarr;
+              <BottomGradient />
+            </button>
+
+            <p className="mt-4 text-center text-[11px] sm:text-xs text-white/60">
+              New here?{" "}
+              <Link
+                to="/signup"
+                className="font-medium text-white hover:text-[#5cb870] underline-offset-4 hover:underline"
+              >
+                Create account
+              </Link>
+            </p>
+          </form>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
- 
+
 const BottomGradient = () => {
   return (
-    <>
-      <span className="absolute inset-x-0 -bottom-px block h-px w-full bg-linear-to-r from-transparent via-cyan-500 to-transparent opacity-0 transition duration-500 group-hover/btn:opacity-100" />
-      <span className="absolute inset-x-10 -bottom-px mx-auto block h-px w-1/2 bg-linear-to-r from-transparent via-indigo-500 to-transparent opacity-0 blur-sm transition duration-500 group-hover/btn:opacity-100" />
-    </>
+      <>
+          <span className="absolute inset-x-0 -bottom-px block h-px w-full bg-linear-to-r from-transparent via-[#3cb44f] to-transparent opacity-0 transition duration-500 group-hover:opacity-100" />
+          <span className="absolute inset-x-10 -bottom-px mx-auto block h-px w-1/2 bg-linear-to-r from-transparent via-[#3cb44f] to-transparent opacity-0 blur-sm transition duration-500 group-hover:opacity-100" />
+      </>
   );
 };
- 
+
 const LabelInputContainer = ({
   children,
   className,
@@ -113,7 +278,7 @@ const LabelInputContainer = ({
   className?: string;
 }) => {
   return (
-    <div className={cn("flex w-full flex-col space-y-2", className)}>
+    <div className={cn("flex w-full flex-col space-y-1.5", className)}>
       {children}
     </div>
   );

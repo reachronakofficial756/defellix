@@ -15,6 +15,7 @@ type User struct {
 
 	// Basic Information (Required at registration)
 	FullName      string `gorm:"not null" json:"full_name"`
+	WhatDoYouDo   string `gorm:"type:varchar(150)" json:"what_do_you_do,omitempty"` // Profession/Role headline e.g Backend Developer
 	Photo         string `gorm:"type:text" json:"photo,omitempty"`                 // Avatar/Profile picture URL
 	ShortHeadline string `gorm:"type:varchar(150);not null" json:"short_headline"` // Professional tagline
 	Role          string `gorm:"type:varchar(20);default:freelancer" json:"role"`  // freelancer, client, both

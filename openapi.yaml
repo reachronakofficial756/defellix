@@ -78,17 +78,34 @@ components:
           type: integer
         email:
           type: string
+        message:
+          type: string
+          description: Contextual message, used for OTP instructions.
+
+    VerifyEmailRequest:
+      type: object
+      required: [email, otp]
+      properties:
+        email:
+          type: string
+          format: email
+        otp:
+          type: string
+          minLength: 6
+          maxLength: 6
 
     # --- USER MODULE SCHEMAS ---
     CreateProfileRequest:
       type: object
-      required: [phone, user_name, short_headline, skills]
+      required: [phone, user_name, what_do_you_do, short_headline, skills]
       properties:
         phone:
           type: string
         user_name:
           type: string
           description: Unique username for the public profile URL
+        what_do_you_do:
+          type: string
         photo:
           type: string
         short_headline:
@@ -114,6 +131,8 @@ components:
       type: object
       properties:
         photo:
+          type: string
+        what_do_you_do:
           type: string
         short_headline:
           type: string
@@ -148,6 +167,8 @@ components:
         user_name:
           type: string
         full_name:
+          type: string
+        what_do_you_do:
           type: string
         headline:
           type: string
@@ -447,6 +468,7 @@ paths:
     post:
       tags: [Auth]
       summary: Register a new user
+      description: Creates an account and dispatches a 6-digit OTP to the provided email. The user must call `/verify-email` before they can login.
       requestBody:
         required: true
         content:
@@ -455,12 +477,40 @@ paths:
               $ref: '#/components/schemas/RegisterRequest'
       responses:
         '201':
-          description: User registered successfully
+          description: User registered successfully, OTP sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /api/v1/auth/verify-email:
+    post:
+      tags: [Auth]
+      summary: Verify Email via OTP
+      description: Accepts the 6-digit OTP sent to the user's email during registration. Unlocks the account and returns the standard JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email verified successfully, JWT returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid or expired OTP
+        '409':
+          description: User is already verified
 
   /api/v1/auth/login:
     post:
       tags: [Auth]
       summary: Login user
+      description: Returns a JWT if credentials are correct. Will return 403 Forbidden if the account email has not been verified yet via OTP.
       requestBody:
         required: true
         content:
@@ -474,6 +524,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+        '403':
+          description: Account not verified. Check email for OTP.
 
   /api/v1/auth/oauth/google:
     get:

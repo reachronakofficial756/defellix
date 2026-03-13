@@ -26,7 +26,10 @@ func InitDB(cfg *Config) (*gorm.DB, error) {
 		logLevel = logger.Info
 	}
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		DSN:                  dsn,
+		PreferSimpleProtocol: true, // MUST be true for PgBouncer / Neon DB
+	}), &gorm.Config{
 		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {

@@ -6,6 +6,7 @@ type CreateProfileRequest struct {
 	// Required fields at registration
 	Phone         string   `json:"phone" validate:"required"`
 	UserName      string   `json:"user_name" validate:"required,min=3,max=30"`
+	WhatDoYouDo   string   `json:"what_do_you_do" validate:"required,min=2,max=150"`
 	ShortHeadline string   `json:"short_headline" validate:"required,min=10,max=150"`
 	Photo         string   `json:"photo,omitempty" validate:"omitempty,url"`
 	Location      string   `json:"location,omitempty" validate:"omitempty,max=100"`
@@ -26,6 +27,7 @@ type CreateProfileRequest struct {
 // Includes all fields that can be updated after profile creation
 type UpdateProfileRequest struct {
 	Photo         string   `json:"photo,omitempty" validate:"omitempty,url"`
+	WhatDoYouDo   string   `json:"what_do_you_do,omitempty" validate:"omitempty,min=2,max=150"`
 	ShortHeadline string   `json:"short_headline,omitempty" validate:"omitempty,min=10,max=150"`
 	Bio           string   `json:"bio,omitempty" validate:"omitempty,max=1000"`
 	Location      string   `json:"location,omitempty" validate:"omitempty,max=100"`

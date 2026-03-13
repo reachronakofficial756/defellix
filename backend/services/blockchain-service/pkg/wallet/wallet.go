@@ -43,7 +43,7 @@ func GenerateWallet() (address string, privateKeyHex string, err error) {
 func EncryptPrivateKey(privateKeyHex, masterKey string) (string, error) {
 	// Derive encryption key from master key using PBKDF2
 	key := pbkdf2.Key([]byte(masterKey), []byte("freelancer-wallet-salt"), 4096, 32, sha256.New)
-	
+
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", fmt.Errorf("failed to create cipher: %w", err)
@@ -71,7 +71,7 @@ func EncryptPrivateKey(privateKeyHex, masterKey string) (string, error) {
 // DecryptPrivateKey decrypts an encrypted private key
 func DecryptPrivateKey(encryptedHex, masterKey string) (string, error) {
 	key := pbkdf2.Key([]byte(masterKey), []byte("freelancer-wallet-salt"), 4096, 32, sha256.New)
-	
+
 	encryptedBytes, err := hex.DecodeString(encryptedHex)
 	if err != nil {
 		return "", fmt.Errorf("invalid encrypted hex: %w", err)

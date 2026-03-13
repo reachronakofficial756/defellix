@@ -67,6 +67,7 @@ func (s *ProfileService) CreateProfile(ctx context.Context, userID uint, email s
 	user.Phone = req.Phone
 	user.Photo = req.Photo
 	user.ShortHeadline = req.ShortHeadline
+	user.WhatDoYouDo = req.WhatDoYouDo
 	user.Location = req.Location
 	user.Experience = req.Experience
 	user.GitHubLink = req.GitHubLink
@@ -95,6 +96,7 @@ func (s *ProfileService) checkProfileComplete(req *dto.CreateProfileRequest) boo
 	return req.UserName != "" &&
 		req.Phone != "" &&
 		req.ShortHeadline != "" &&
+		req.WhatDoYouDo != "" &&
 		len(req.Skills) > 0
 }
 
