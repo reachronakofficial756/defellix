@@ -407,7 +407,7 @@ export default function SignUp() {
                                         <p className="mt-1 ml-2 text-[10px] sm:text-xs text-white/40">
                                             Must be at least 8 characters.
                                         </p>
-                                    </LabelInputContainer>
+                    </LabelInputContainer>
                                 </motion.div>
                             )}
 
@@ -433,8 +433,8 @@ export default function SignUp() {
                                                 disabled
                                                 className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border border-white/10 sm:text-sm text-white/70 placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
-                                        </div>
-                                    </LabelInputContainer>
+                        </div>
+                    </LabelInputContainer>
 
                                     <LabelInputContainer>
                                         <label
@@ -463,8 +463,8 @@ export default function SignUp() {
                                 </motion.div>
                             )}
 
-                            <button
-                                type="submit"
+                    <button
+                        type="submit"
                                 disabled={loading}
                                 className="group relative mt-10 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70"
                             >
@@ -473,8 +473,8 @@ export default function SignUp() {
                                     : !isOtpStage
                                         ? "Get Started →"
                                         : "Create account →"}
-                                <BottomGradient />
-                            </button>
+                        <BottomGradient />
+                    </button>
 
                             <p className="mt-4 text-center text-[11px] sm:text-xs text-white/60">
                                 Already have an account?{" "}
@@ -800,7 +800,7 @@ export default function SignUp() {
                                         className="relative w-full z-10 py-7 pl-4 pr-20 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                     />
                                     {skillInput.trim().length > 0 && (
-                                        <button
+                        <button
                                             type="button"
                                             onClick={() => {
                                                 const value = skillInput.trim();
@@ -812,7 +812,7 @@ export default function SignUp() {
                                             className="absolute bottom-0 z-10 right-1.5 bottom-1.5 px-4 py-3.5 rounded-xl bg-white text-[11px] sm:text-xs font-semibold text-black hover:bg-[#3cb44f] hover:text-black transition-all duration-150 cursor-pointer"
                                         >
                                             + Add
-                                        </button>
+                        </button>
                                     )}
                                 </div>
                                 {skills.length > 0 && (
@@ -823,7 +823,7 @@ export default function SignUp() {
                                                 className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 pl-3 pr-2 py-2 text-[11px] sm:text-xs text-white/80"
                                             >
                                                 <span>{s}</span>
-                                                <button
+                        <button
                                                     type="button"
                                                     onClick={() =>
                                                         setSkills((prev) => prev.filter((skill) => skill !== s))
@@ -832,21 +832,21 @@ export default function SignUp() {
                                                 >
                                                     ✕
                                                 </button>
-                                            </span>
+                            </span>
                                         ))}
                                     </div>
                                 )}
                             </LabelInputContainer>
 
-                            <button
-                                type="submit"
+                        <button
+                            type="submit"
                                 disabled={loading}
                                 className="group relative mt-6 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70"
-                            >
+                        >
                                 {loading ? "Saving..." : "Continue →"}
-                                <BottomGradient />
-                            </button>
-                        </form>
+                            <BottomGradient />
+                        </button>
+                </form>
                     )}
 
                     {step === 3 && (
@@ -865,7 +865,7 @@ export default function SignUp() {
                             >
                                 Skip and continue to dashboard
                             </button>
-                        </div>
+            </div>
                     )}
                 </motion.div>
             </motion.div>

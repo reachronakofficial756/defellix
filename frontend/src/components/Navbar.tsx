@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { FaBolt } from 'react-icons/fa6';
 import { IoGridOutline, IoFolderOutline } from 'react-icons/io5';
 import { User, Image as ImageIcon, FileText, LogOut } from 'lucide-react';
+import logo from '@/assets/logo.svg';
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -39,8 +40,7 @@ const Navbar = () => {
 
             {/* Logo */}
             <div className="flex items-center gap-2">
-                <FaBolt className="text-[#00e676] text-xl" />
-                <span className="text-white text-lg font-bold tracking-tight">Defellix</span>
+               <img src={logo} alt="Defellix" className="w-40 h-auto" />
             </div>
 
             {/* Nav Links */}
