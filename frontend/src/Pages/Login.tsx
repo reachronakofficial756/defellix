@@ -142,9 +142,9 @@ export default function LoginFormDemo() {
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
-          className="relative flex-1 px-7 sm:px-9 md:pl-16 py-8 sm:py-10 md:py-12"
-        >
-          <div className="flex items-center justify-center text-center mt-32">
+          className="relative flex-1 sm:px-9 md:pl-16 py-auto flex flex-col min-h-[94dvh] justify-center overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+          <div className="flex items-center justify-center text-center">
             <div>
               <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                 Login to Account

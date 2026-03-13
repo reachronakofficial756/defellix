@@ -279,9 +279,9 @@ export default function SignUp() {
                     initial={{ opacity: 0, x: 40 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
-                    className="relative flex-1 sm:px-9 md:pl-16 py-8 sm:py-10 md:py-12 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    className="relative flex-1 sm:px-9 md:pl-16 py-auto flex flex-col min-h-[94dvh] justify-center overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 >
-                    <div className={`flex items-center justify-center text-center ${step === 2 ? "mt-8" : "mt-32"}`}>
+                    <div className={`flex items-center justify-center text-center`}>
                         <div>
                             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
                                 {step === 1 && (!isOtpStage ? "Sign Up Account" : "Verify your email")}
