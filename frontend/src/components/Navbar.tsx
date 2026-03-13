@@ -1,4 +1,5 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useContractsStore } from '@/store/useContractsStore';
 import { useState, useRef, useEffect } from 'react';
 import { FaBolt } from 'react-icons/fa6';
 import { IoGridOutline, IoFolderOutline } from 'react-icons/io5';
@@ -7,6 +8,7 @@ import { User, Image as ImageIcon, FileText, LogOut } from 'lucide-react';
 const Navbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { openContracts, closeContracts, isOpen: contractsOpen } = useContractsStore();
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -46,19 +48,33 @@ const Navbar = () => {
                 {navLinks.map((link) => {
                     const Icon = link.icon;
                     const active = isActive(link.path);
-                    return (
-                        <Link
-                            key={link.path}
-                            to={link.path}
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${active
-                                ? 'bg-[#00e676] text-black'
-                                : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                    return link.label === 'Contracts' ? (
+                            <button
+                                key={link.path}
+                                onClick={openContracts}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                                    contractsOpen
+                                        ? 'bg-[#00e676] text-black'
+                                        : 'text-gray-400 hover:text-white hover:bg-gray-800'
                                 }`}
-                        >
-                            <Icon className={`text-base ${active ? 'text-black' : ''}`} />
-                            {link.label}
-                        </Link>
-                    );
+                            >
+                                <Icon className={`text-base ${contractsOpen ? 'text-black' : ''}`} />
+                                {link.label}
+                            </button>
+                        ) : (
+                            <Link
+                                key={link.path}
+                                to={link.path}
+                                onClick={closeContracts}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${active && !contractsOpen
+                                    ? 'bg-[#00e676] text-black'
+                                    : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                                    }`}
+                            >
+                                <Icon className={`text-base ${active && !contractsOpen ? 'text-black' : ''}`} />
+                                {link.label}
+                            </Link>
+                        );
                 })}
             </div>
 
