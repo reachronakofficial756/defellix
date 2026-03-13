@@ -339,7 +339,7 @@ const Dashboard = () => {
             {/* --- BOTTOM SECTION (curved, overlaps, parallax) --- */}
             <div className="relative min-h-screen pt-[750px]">
                 <div
-                    className="relative z-20 -mt-12 rounded-t-[50px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
+                    className="relative z-20 -mt-12 rounded-t-[100px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
                 >
                     {/* Centered handle / notch */}
                     <div
