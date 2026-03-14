@@ -1,9 +1,11 @@
 import Navbar from '@/components/Navbar'
 import Dashboard from '@/components/Dashboard'
 import ContractsOverlay from '@/components/ContractsOverlay'
-import CreateContractForm from '@/components/CreateContractForm'
+import Profile from '@/Pages/Profile'
+import ProfileEdit from '@/Pages/ProfileEdit'
 import { Route, Routes, useNavigate } from 'react-router-dom'
 import { useContractsStore } from '@/store/useContractsStore'
+import CreateContractForm from '@/components/CreateContractForm'
 
 function HomePage() {
   const isOpen = useContractsStore((state) => state.isOpen);
@@ -19,8 +21,11 @@ function HomePage() {
           <div className="h-full overflow-y-auto scrBar">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/profileEdit" element={<ProfileEdit />} />
               <Route path="/contract" element={<CreateContractForm onClose={() => navigate("/")} />} />
             </Routes>
+
           </div>
         )}
       </div>
