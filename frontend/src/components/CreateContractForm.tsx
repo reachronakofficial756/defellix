@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 
 const STEPS = [
     "Project Details",
@@ -54,10 +55,10 @@ const CustomDropdown = ({
                         setSearchQuery("");
                     }
                 }}
-                className={`${className} flex items-center justify-between text-left ${open ? 'border-[#00e676] ring-1 ring-[#00e676]' : ''}`}
+                className={`${className} flex items-center justify-between text-left ${open ? 'border-[#3cb44f] ring-1 ring-[#3cb44f]' : ''}`}
             >
                 <span className="truncate">{value || options[0]}</span>
-                <svg className={`shrink-0 w-4 h-4 ml-2 transition-transform duration-200 ${open ? 'rotate-180 text-[#00e676]' : 'text-[#4a4a4a]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <svg className={`shrink-0 w-4 h-4 ml-2 transition-transform duration-200 ${open ? 'rotate-180 text-[#3cb44f]' : 'text-[#4a4a4a]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
             </button>
             {open && (
                 <div className="absolute z-50 w-full mt-2 bg-[#0a0a0a] border border-[#1e1e1e] rounded-xl shadow-2xl overflow-hidden py-2 animate-in fade-in zoom-in-95 duration-200">
@@ -72,7 +73,7 @@ const CustomDropdown = ({
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={(e) => e.stopPropagation()}
                                     onClick={(e) => e.stopPropagation()}
-                                    className="w-full bg-[#0d1117] border border-[#1e1e1e] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#4a4a4a] focus:outline-none focus:border-[#00e676] transition-all"
+                                    className="w-full bg-[#0d1117] border border-[#1e1e1e] rounded-lg px-3 py-2 text-sm text-white placeholder:text-[#4a4a4a] focus:outline-none focus:border-[#3cb44f] transition-all"
                                 />
                                 {searchQuery && (
                                     <button
@@ -96,7 +97,7 @@ const CustomDropdown = ({
                                         setOpen(false);
                                         setSearchQuery("");
                                     }}
-                                    className={`px-5 py-3 cursor-pointer text-sm transition-colors ${value === opt ? 'bg-[#00e676] text-black font-semibold' : 'text-white hover:bg-[#00e67620]'}`}
+                                    className={`px-5 py-3 cursor-pointer text-sm transition-colors ${value === opt ? 'bg-[#3cb44f] text-black font-semibold' : 'text-white hover:bg-[#3cb44f20]'}`}
                                 >
                                     {opt}
                                 </div>
@@ -226,15 +227,18 @@ const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
 
 
 
-    const [milestones, setMilestones] = useState([{
+    const createEmptyMilestone = () => ({
         title: "",
         description: "",
         amount: 0,
         due_date: "",
         is_initial_payment: false,
         submission_criteria: "",
-        completion_criteria_tc: ""
-    }]);
+        completion_criteria_tc: "",
+    });
+
+    // Start with no milestones; user must add at least one explicitly
+    const [milestones, setMilestones] = useState<ReturnType<typeof createEmptyMilestone>[]>([]);
     const [paymentMethod, setPaymentMethod] = useState<string>("Bank Transfer");
     const [otherPaymentMethod, setOtherPaymentMethod] = useState("");
 
@@ -332,34 +336,58 @@ By signing below, both parties agree to the terms outlined in this agreement.
             alert("Please specify your project type.");
             return;
         }
+        if (step === 3 && milestones.length === 0) {
+            alert("Please add at least one milestone.");
+            return;
+        }
         setStep((s) => Math.min(s + 1, 5));
     };
     const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
-    const addMilestone = () => setMilestones([...milestones, {
-        title: "",
-        description: "",
-        amount: 0,
-        due_date: "",
-        is_initial_payment: false,
-        submission_criteria: "",
-        completion_criteria_tc: ""
-    }]);
+    const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+    const [editingMilestoneIndex, setEditingMilestoneIndex] = useState<number | null>(null);
+    const [draftMilestone, setDraftMilestone] = useState(createEmptyMilestone());
 
-    const updateMilestone = (index: number, field: string, value: any) => {
-        const newMilestones = [...milestones];
-        (newMilestones[index] as any)[field] = value;
-        setMilestones(newMilestones);
+    const openMilestoneModal = (index: number | null) => {
+        if (index !== null) {
+            setEditingMilestoneIndex(index);
+            setDraftMilestone(milestones[index]);
+        } else {
+            setEditingMilestoneIndex(null);
+            setDraftMilestone(createEmptyMilestone());
+        }
+        setIsMilestoneModalOpen(true);
     };
 
-    const inputClass = "w-full bg-[#0a0a0a] border border-[#1e1e1e] rounded-xl px-5 py-4 text-white placeholder:text-[#4a4a4a] focus:outline-none focus:border-[#00e676] focus:ring-1 focus:ring-[#00e676] text-sm transition-all";
+    const closeMilestoneModal = () => {
+        setIsMilestoneModalOpen(false);
+    };
+
+    const saveMilestone = () => {
+        if (editingMilestoneIndex === null) {
+            setMilestones([...milestones, { ...draftMilestone }]);
+        } else {
+            const next = [...milestones];
+            next[editingMilestoneIndex] = { ...draftMilestone };
+            setMilestones(next);
+        }
+        setIsMilestoneModalOpen(false);
+    };
+
+    const deleteMilestone = (index: number) => {
+        setMilestones(milestones.filter((_, i) => i !== index));
+    };
+
+    // Match SignUp page input styling (dark pill, no border, subtle text)
+    const inputClass =
+        "w-full bg-[#141414] rounded-2xl px-4 py-4 text-xs sm:text-sm text-white border-none placeholder:text-white/40 focus:outline-none focus:ring-0";
     const labelClass = "text-sm text-white font-medium mb-2 block";
 
     const renderStep = () => {
         switch (step) {
             case 1:
                 return (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="space-y-8 animate-in overflow-y-hidden fade-in slide-in-from-bottom-4 duration-500">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
                                 <label className={labelClass}>Project Title</label>
@@ -397,22 +425,34 @@ By signing below, both parties agree to the terms outlined in this agreement.
                             </div>
                         </div>
 
-                        <div>
-                            <label className={`flex justify-between ${labelClass}`}>
-                                Project Description
-                                <span className="text-[#4a4a4a] text-xs font-normal">{projectDesc.length}/300</span>
-                            </label>
-                            <textarea
-                                value={projectDesc}
-                                onChange={(e) => setProjectDesc(e.target.value)}
-                                maxLength={300}
-                                placeholder="Describe the core objectives..."
-                                rows={4}
-                                className={`${inputClass} resize-none`}
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <label className={`flex justify-between ${labelClass} -mt-2`}>
+                                    Project Description
+                                    <span className="text-[#4a4a4a] text-xs font-normal">{projectDesc.length}/300</span>
+                                </label>
+                                <textarea
+                                    value={projectDesc}
+                                    onChange={(e) => setProjectDesc(e.target.value)}
+                                    maxLength={300}
+                                    placeholder="Describe the core objectives..."
+                                    rows={4}
+                                    className={`${inputClass} resize-none`}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Terms & Conditions</label>
+                                <textarea
+                                    value={customTerms}
+                                    onChange={(e) => setCustomTerms(e.target.value)}
+                                    placeholder="Enter any specific terms, clauses, or conditions for this contract..."
+                                    rows={4}
+                                    className={`${inputClass} resize-none`}
+                                />
+                            </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 -mt-4">
                             <div>
                                 <label className={labelClass}>Start Date</label>
                                 <input
@@ -443,21 +483,10 @@ By signing below, both parties agree to the terms outlined in this agreement.
                             </div>
                         </div>
 
-                        <div>
-                            <label className={labelClass}>Terms & Conditions</label>
-                            <textarea
-                                value={customTerms}
-                                onChange={(e) => setCustomTerms(e.target.value)}
-                                placeholder="Enter any specific terms, clauses, or conditions for this contract..."
-                                rows={4}
-                                className={`${inputClass} resize-none`}
-                            />
-                        </div>
-
                         <div className="mt-4">
                             <label className={labelClass}>Upload PRD (PDF, DOCX)</label>
-                            <div className="w-full border border-dashed border-[#1e1e1e] rounded-xl bg-[#0a0a0a] flex flex-col items-center justify-center py-12 hover:border-[#00e676]/60 transition-colors cursor-pointer group">
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#4a4a4a] group-hover:text-[#00e676] mb-3 group-hover:-translate-y-1 transition-all">
+                            <div className="w-full border border-dashed border-[#1e1e1e] rounded-xl bg-[#0a0a0a] flex flex-col items-center justify-center py-12 hover:border-[#3cb44f]/60 transition-colors cursor-pointer group">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#4a4a4a] group-hover:text-[#3cb44f] mb-3 group-hover:-translate-y-1 transition-all">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                     <polyline points="17 8 12 3 7 8" />
                                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -497,7 +526,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                 <label className={labelClass}>Client Phone</label>
                                 <input
                                     type="tel"
-                                    placeholder="+1 (555) 000-0000"
+                                    placeholder="89000 89000"
                                     className={inputClass}
                                     value={clientPhone}
                                     onChange={(e) => setClientPhone(e.target.value)}
@@ -532,106 +561,86 @@ By signing below, both parties agree to the terms outlined in this agreement.
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xl font-bold text-white">Milestones</h3>
-                                <button onClick={addMilestone} className="text-[#00e676] border border-[#00e676]/40 hover:bg-[#00e676]/10 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all">
+                                <button
+                                    type="button"
+                                    onClick={() => openMilestoneModal(null)}
+                                    className="text-[#3cb44f] cursor-pointer border border-[#3cb44f]/40 hover:bg-[#3cb44f]/10 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                                >
                                     + Add Milestone
                                 </button>
                             </div>
 
                             <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 scrBar">
                                 {milestones.map((ms, i) => (
-                                    <div key={i} className="bg-[#0a0a0a] border border-[#1e1e1e] p-8 rounded-2xl space-y-6 relative group">
-                                        <div className="absolute top-8 right-8 text-[#4a4a4a] font-bold text-lg">#{i + 1}</div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div key={i} className="bg-[#0a0a0a] border border-[#1e1e1e] p-8 rounded-2xl space-y-4 relative group">
+                                        {/* <div className="absolute top-6 right-6 text-[#4a4a4a] font-bold text-lg">#{i + 1}</div> */}
+                                        <div className="flex items-center justify-between gap-4">
                                             <div>
-                                                <label className={labelClass}>Milestone Title</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="e.g. Wireframes"
-                                                    className={inputClass}
-                                                    value={ms.title}
-                                                    onChange={(e) => updateMilestone(i, "title", e.target.value)}
-                                                />
+                                                <p className="text-xs text-[#4a4a4a] mb-1">Milestone Title</p>
+                                                <p className="text-sm font-semibold text-white">
+                                                    {ms.title || "Untitled milestone"}
+                                                </p>
                                             </div>
-                                            <div>
-                                                <label className={labelClass}>Due Date</label>
-                                                <input
-                                                    type="date"
-                                                    className={`${inputClass} [color-scheme:dark]`}
-                                                    value={ms.due_date}
-                                                    onChange={(e) => updateMilestone(i, "due_date", e.target.value)}
-                                                />
+                                            <div className="text-right">
+                                                <p className="text-xs text-[#4a4a4a] mb-1">Amount</p>
+                                                <p className="text-sm font-bold text-white">
+                                                    {contractCurrency} {ms.amount ? ms.amount.toLocaleString() : "0"}
+                                                </p>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
-                                                <label className={labelClass}>Amount</label>
-                                                <input
-                                                    type="number"
-                                                    placeholder="0"
-                                                    className={inputClass}
-                                                    value={ms.amount}
-                                                    onChange={(e) => updateMilestone(i, "amount", parseFloat(e.target.value) || 0)}
-                                                />
+                                                <p className="text-[#4a4a4a] mb-1">Due Date</p>
+                                                <p className="text-white/80">{ms.due_date || "Not set"}</p>
                                             </div>
-                                            <div className="flex items-end pb-4">
-                                                <label className="flex items-center gap-3 cursor-pointer group select-none">
-                                                    <div
-                                                        onClick={() => updateMilestone(i, "is_initial_payment", !ms.is_initial_payment)}
-                                                        className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${ms.is_initial_payment ? 'border-[#00e676] bg-[#00e676]' : 'border-[#1e1e1e] bg-[#0a0a0a]'}`}
-                                                    >
-                                                        {ms.is_initial_payment && (
-                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                                                <polyline points="20 6 9 17 4 12" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-sm text-gray-400 group-hover:text-white transition-colors">Initial Payment</span>
-                                                </label>
+
+                                        {ms.description && (
+                                            <div>
+                                                <p className="text-xs text-[#4a4a4a] mb-1">Description</p>
+                                                <p className="text-sm text-gray-300">{ms.description}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-400">
+                                            <div>
+                                                <p className="text-[#4a4a4a] mb-1">Submission Criteria</p>
+                                                <p className="text-gray-300">{ms.submission_criteria || "—"}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[#4a4a4a] mb-1">Completion Criteria T&C</p>
+                                                <p className="text-gray-300">{ms.completion_criteria_tc || "—"}</p>
                                             </div>
                                         </div>
 
-                                        <div>
-                                            <label className={labelClass}>Milestone Description</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Description of deliverables..."
-                                                className={inputClass}
-                                                value={ms.description}
-                                                onChange={(e) => updateMilestone(i, "description", e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <label className={labelClass}>Submission Criteria</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="e.g. Video URL, GitHub Repo..."
-                                                    className={inputClass}
-                                                    value={ms.submission_criteria}
-                                                    onChange={(e) => updateMilestone(i, "submission_criteria", e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClass}>Completion Criteria T&C</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Terms for completion..."
-                                                    className={inputClass}
-                                                    value={ms.completion_criteria_tc}
-                                                    onChange={(e) => updateMilestone(i, "completion_criteria_tc", e.target.value)}
-                                                />
-                                            </div>
+                                        <div className="flex justify-end gap-3 pt-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => openMilestoneModal(i)}
+                                                className="px-4 py-2 text-xs rounded-xl border border-white/10 text-gray-200 hover:bg-white/5 transition-colors"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => deleteMilestone(i)}
+                                                disabled={milestones.length <= 1}
+                                                className={`px-4 py-2 text-xs rounded-xl border transition-colors ${
+                                                    milestones.length <= 1
+                                                        ? "border-[#3b3b3b] text-[#3b3b3b] cursor-not-allowed"
+                                                        : "border-red-500/40 text-red-400 hover:bg-red-500/10"
+                                                }`}
+                                            >
+                                                Delete
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        <hr className="border-[#1e1e1e]" />
+                        <hr className="border-[#1e1e1e] w-[90%] mx-auto -mt-10" />
 
-                        <div>
+                        <div className="-mt-2">
                             <label className={labelClass}>Revision Policy</label>
                             <CustomDropdown
                                 options={["No Revisions", "1 Round", "2 Rounds", "3 Rounds", "Unlimited"]}
@@ -670,15 +679,161 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                     <label key={opt} className="flex items-center gap-4 cursor-pointer group">
                                         <div
                                             onClick={() => setIntellectualProperty(opt)}
-                                            className="w-6 h-6 rounded-full border border-[#1e1e1e] flex items-center justify-center group-hover:border-[#00e676] transition-colors bg-[#0a0a0a]"
+                                            className="w-6 h-6 rounded-full border border-[#1e1e1e] flex items-center justify-center group-hover:border-[#3cb44f] transition-colors bg-[#0a0a0a]"
                                         >
-                                            {intellectualProperty === opt && <div className="w-3 h-3 bg-[#00e676] rounded-full shadow-[0_0_8px_#00e676]"></div>}
+                                            {intellectualProperty === opt && <div className="w-3 h-3 bg-[#3cb44f] rounded-full shadow-[0_0_8px_#3cb44f]"></div>}
                                         </div>
                                         <span className={`transition-colors text-base font-medium ${intellectualProperty === opt ? 'text-white' : 'text-gray-400 group-hover:text-gray-200'}`}>{opt}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
+
+                        {/* Milestone modal */}
+                        <AnimatePresence>
+                            {isMilestoneModalOpen && (
+                                <motion.div
+                                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.25, ease: "easeOut" }}
+                                >
+                                    <motion.div
+                                        className="w-full max-w-xl bg-[#050509] border border-[#1e1e1e] rounded-2xl p-6 md:p-8 space-y-6"
+                                        initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 12, scale: 0.96 }}
+                                        transition={{ duration: 0.28, ease: "easeOut" }}
+                                    >
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-lg font-semibold text-white">
+                                            {editingMilestoneIndex === null ? "Add Milestone" : "Edit Milestone"}
+                                        </h4>
+                                        <button
+                                            type="button"
+                                            onClick={closeMilestoneModal}
+                                            className="text-sm text-white/50 hover:text-white"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className={labelClass}>Milestone Title</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Wireframes"
+                                                className={inputClass}
+                                                value={draftMilestone.title}
+                                                onChange={(e) =>
+                                                    setDraftMilestone({ ...draftMilestone, title: e.target.value })
+                                                }
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={labelClass}>Due Date</label>
+                                            <input
+                                                type="date"
+                                                className={`${inputClass} [color-scheme:dark]`}
+                                                value={draftMilestone.due_date}
+                                                onChange={(e) =>
+                                                    setDraftMilestone({ ...draftMilestone, due_date: e.target.value })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className={labelClass}>Amount</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0"
+                                                className={inputClass}
+                                                value={draftMilestone.amount}
+                                                onChange={(e) =>
+                                                    setDraftMilestone({
+                                                        ...draftMilestone,
+                                                        amount: parseFloat(e.target.value) || 0,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className={labelClass}>Milestone Description</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Description of deliverables..."
+                                                className={inputClass}
+                                                value={draftMilestone.description}
+                                                onChange={(e) =>
+                                                    setDraftMilestone({
+                                                        ...draftMilestone,
+                                                        description: e.target.value,
+                                                    })
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className={labelClass}>Submission Criteria</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g. Video URL, GitHub Repo..."
+                                                    className={inputClass}
+                                                    value={draftMilestone.submission_criteria}
+                                                    onChange={(e) =>
+                                                        setDraftMilestone({
+                                                            ...draftMilestone,
+                                                            submission_criteria: e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className={labelClass}>Completion Criteria T&C</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Terms for completion..."
+                                                    className={inputClass}
+                                                    value={draftMilestone.completion_criteria_tc}
+                                                    onChange={(e) =>
+                                                        setDraftMilestone({
+                                                            ...draftMilestone,
+                                                            completion_criteria_tc: e.target.value,
+                                                        })
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-4">
+                                        <button
+                                            type="button"
+                                            onClick={closeMilestoneModal}
+                                            className="px-4 py-2 rounded-xl text-xs border border-white/10 text-gray-200 hover:bg-white/5 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={saveMilestone}
+                                            className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#3cb44f] text-black hover:bg-[#45cc59] transition-colors"
+                                        >
+                                            Save milestone
+                                        </button>
+                                    </div>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 );
             case 4:
@@ -724,7 +879,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                             <label className="flex items-center gap-3 cursor-pointer group select-none">
                                 <div
                                     onClick={() => setIsAdvancePayment(!isAdvancePayment)}
-                                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${isAdvancePayment ? 'border-[#00e676] bg-[#00e676]' : 'border-[#1e1e1e] bg-[#0a0a0a]'}`}
+                                    className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${isAdvancePayment ? 'border-[#3cb44f] bg-[#3cb44f]' : 'border-[#1e1e1e] bg-[#0a0a0a]'}`}
                                 >
                                     {isAdvancePayment && (
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
@@ -762,11 +917,11 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                         key={m}
                                         onClick={() => setPaymentMethod(m)}
                                         className={`px-6 py-4 rounded-2xl text-base font-bold transition-all border flex items-center gap-4 ${paymentMethod === m
-                                            ? "bg-[#00e676]/10 border-[#00e676] text-[#00e676] shadow-[0_4px_20px_rgba(0,230,118,0.1)]"
+                                            ? "bg-[#3cb44f]/10 border-[#3cb44f] text-[#3cb44f] shadow-[0_4px_20px_rgba(0,230,118,0.1)]"
                                             : "bg-[#0a0a0a] border-[#1e1e1e] text-[#4a4a4a] hover:border-[#30363d] hover:text-white shadow-sm"
                                             }`}
                                     >
-                                        <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${paymentMethod === m ? "border-[#00e676] bg-[#00e676]" : "border-[#1e1e1e]"}`}>
+                                        <div className={`w-5 h-5 border-2 rounded-full flex items-center justify-center transition-all ${paymentMethod === m ? "border-[#3cb44f] bg-[#3cb44f]" : "border-[#1e1e1e]"}`}>
                                             {paymentMethod === m && (
                                                 <div className="w-2 h-2 bg-black rounded-full"></div>
                                             )}
@@ -798,12 +953,12 @@ By signing below, both parties agree to the terms outlined in this agreement.
                     <div className="flex flex-col lg:flex-row gap-8 h-[85vh] overflow-hidden animate-in fade-in slide-in-from-bottom-6 duration-700">
                         {/* LEFT: PDF PREVIEW (70%) */}
                         <div className="lg:w-[70%] h-full flex flex-col relative">
-                            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#00e676]/10 to-transparent rounded-2xl blur-sm opacity-20"></div>
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-[#3cb44f]/10 to-transparent rounded-2xl blur-sm opacity-20"></div>
 
                             <div className="relative bg-white h-full w-full rounded-xl shadow-2xl overflow-hidden border border-black/5 flex flex-col">
                                 {/* Fixed Header for PDF */}
                                 <div className="absolute top-6 right-6 z-20">
-                                    <div className="bg-[#00e676] text-black text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg border border-black/10 uppercase tracking-widest flex items-center gap-2">
+                                    <div className="bg-[#3cb44f] text-black text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg border border-black/10 uppercase tracking-widest flex items-center gap-2">
                                         <div className="w-1.5 h-1.5 bg-black rounded-full animate-pulse"></div>
                                         DRAFT
                                     </div>
@@ -814,9 +969,9 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                     {isGenerating ? (
                                         <div className="h-full flex flex-col items-center justify-center space-y-8 py-20">
                                             <div className="relative">
-                                                <div className="w-16 h-16 border-4 border-[#00e676]/20 border-t-[#00e676] rounded-full animate-spin"></div>
+                                                <div className="w-16 h-16 border-4 border-[#3cb44f]/20 border-t-[#3cb44f] rounded-full animate-spin"></div>
                                                 <div className="absolute inset-0 flex items-center justify-center">
-                                                    <div className="w-2 h-2 bg-[#00e676] rounded-full animate-ping"></div>
+                                                    <div className="w-2 h-2 bg-[#3cb44f] rounded-full animate-ping"></div>
                                                 </div>
                                             </div>
                                             <div className="space-y-4 w-full max-w-xs text-center">
@@ -841,7 +996,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                 <button
                                     onClick={handleSend}
                                     disabled={isSent || isGenerating}
-                                    className={`w-full ${isSent ? 'bg-gray-800 text-gray-400' : 'bg-[#00e676] text-black'} font-bold py-4 rounded-xl text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 group`}
+                                    className={`w-full ${isSent ? 'bg-gray-800 text-gray-400' : 'bg-[#3cb44f] text-black'} font-bold py-4 rounded-xl text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 group`}
                                 >
                                     {isSent ? (
                                         <>
@@ -859,7 +1014,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                     )}
                                 </button>
 
-                                <button className="w-full bg-transparent border border-[#00e676] text-[#00e676] py-4 rounded-xl text-sm font-semibold hover:bg-[#00e676]/10 transition-all flex items-center justify-center gap-2 group">
+                                <button className="w-full bg-transparent border border-[#3cb44f] text-[#3cb44f] py-4 rounded-xl text-sm font-semibold hover:bg-[#3cb44f]/10 transition-all flex items-center justify-center gap-2 group">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:translate-y-0.5 transition-transform">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                         <polyline points="7 10 12 15 17 10" />
@@ -869,14 +1024,17 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                 </button>
 
                                 <button
-                                    onClick={() => setContractText("")}
-                                    className="w-fit mx-auto mt-4 text-[#4a4a4a] hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest flex items-center gap-2 group"
+                                    onClick={() => {
+                                        // TODO: Implement save draft logic, e.g., call an API or update local storage
+                                        alert("Contract saved as draft!");
+                                    }}
+                                    className="w-fit mx-auto mt-4 cursor-pointer text-[#4a4a4a] hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest flex items-center gap-2 group"
                                 >
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="group-hover:rotate-180 transition-transform duration-500">
-                                        <path d="M23 4v6h-6"></path>
-                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-500">
+                                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
                                     </svg>
-                                    Regenerate Draft
+                                    Save as Draft
                                 </button>
                             </div>
 
@@ -894,9 +1052,9 @@ By signing below, both parties agree to the terms outlined in this agreement.
     };
 
     return (
-        <div className="flex flex-col md:flex-row w-full min-h-screen bg-[#0a0a0f] text-white gap-0">
+        <div className="flex flex-col md:flex-row w-full pt-20 bg-[#000] text-white gap-0">
             {/* Left Column - Steps Panel */}
-            <div className="w-full md:w-[22%] md:fixed left-0 top-0 md:h-screen bg-[#0a0a0f] pl-12 pr-4 py-12 flex flex-col z-20">
+            <div className="w-full md:w-[22%] md:fixed left-0 top-0 md:h-screen bg-[#000] pl-12 pr-4 py-12 flex flex-col z-20">
 
 
                 <div className="flex flex-col gap-10 md:gap-12 flex-1 justify-center">
@@ -913,9 +1071,9 @@ By signing below, both parties agree to the terms outlined in this agreement.
                             >
                                 <div
                                     className={`shrink-0 transition-all duration-300 flex items-center justify-center font-bold relative z-10 rounded-full ${isActive
-                                        ? "w-10 h-10 bg-[#00e676] text-black shadow-[0_0_25px_rgba(0,230,118,0.25)] scale-110"
+                                        ? "w-10 h-10 bg-[#3cb44f] text-black shadow-[0_0_25px_rgba(0,230,118,0.25)] scale-110"
                                         : isCompleted
-                                            ? "w-8 h-8 bg-[#00e676]/20 text-[#00e676]"
+                                            ? "w-8 h-8 bg-[#3cb44f]/20 text-[#3cb44f]"
                                             : "w-9 h-9 bg-transparent text-[#4a4a4a] border-2 border-[#1e1e1e]"
                                         }`}
                                 >
@@ -931,7 +1089,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                     className={`transition-all duration-300 ${isActive
                                         ? "text-2xl font-bold text-white"
                                         : isCompleted
-                                            ? "text-sm text-[#00e676]/60 font-medium"
+                                            ? "text-sm text-[#3cb44f]/60 font-medium"
                                             : "text-base text-[#4a4a4a] font-normal"
                                         }`}
                                 >
@@ -944,14 +1102,24 @@ By signing below, both parties agree to the terms outlined in this agreement.
             </div>
 
             {/* Right Column - Form Content */}
-            <div className={`w-full md:w-[78%] md:ml-[22%] ${step === 5 ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[#0a0a0f] py-8 md:py-12 flex flex-col`}>
+            <div className={`w-full md:w-[78%] md:ml-[22%] ${step === 3 ? 'min-h-[92dvh] overflow-y-auto' : 'h-[92dvh] overflow-y-hidden'} bg-[#000] py-8 md:py-12 flex flex-col`}>
                 <div className="w-full pl-8 pr-12 md:pl-16 md:pr-24 flex-1 flex flex-col justify-center overflow-hidden">
-                    <div className={step < 5 ? "" : "flex-1 overflow-hidden flex flex-col justify-center"}>
-                        {renderStep()}
+                    <div className={step < 5 ? "" : "flex-1 overflow-y-hidden flex flex-col justify-center"}>
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={step}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -16 }}
+                                transition={{ duration: 0.35, ease: "easeOut" }}
+                            >
+                                {renderStep()}
+                            </motion.div>
+                        </AnimatePresence>
 
                         {/* Navigation Buttons - Hidden on Step 5 */}
                         {step < 5 && (
-                            <div className="mt-20 flex items-center justify-between pt-10 border-t border-[#1e1e1e]">
+                            <div className="mt-4 flex items-center justify-between pt-4 border-t border-[#1e1e1e]">
                                 <button
                                     onClick={prevStep}
                                     className={`px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border-2 border-[#1e1e1e] text-[#4a4a4a] hover:text-white hover:bg-[#1e1e1e]/50 transition-all active:scale-95 ${step === 1 ? 'opacity-0 pointer-events-none' : ''}`}
@@ -960,7 +1128,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                 </button>
                                 <button
                                     onClick={nextStep}
-                                    className="bg-[#00e676] text-black font-black text-xs uppercase tracking-widest rounded-2xl px-12 py-4 shadow-[0_10px_30px_rgba(0,230,118,0.2)] hover:bg-[#00ff88] hover:shadow-[0_15px_40px_rgba(0,230,118,0.3)] hover:-translate-y-1 transition-all active:scale-95"
+                                    className="bg-[#3cb44f] cursor-pointer text-black font-black text-xs uppercase tracking-widest rounded-2xl px-12 py-4 shadow-[0_10px_30px_rgba(0,230,118,0.2)] active:scale-95"
                                 >
                                     Continue
                                 </button>

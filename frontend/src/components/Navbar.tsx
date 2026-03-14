@@ -54,7 +54,7 @@ const Navbar = () => {
                             onClick={openContracts}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${contractsOpen
                                     ? 'bg-[#3cb44f] text-[#0d140d]'
-                                    : 'bg-[#3cb44f]/5 text-gray-400'
+                                    : 'bg-[#d4edda]/20 text-gray-400'
                                 }`}
                         >
                             {/* <Icon className={`text-base ${contractsOpen ? 'text-black' : ''}`} /> */}

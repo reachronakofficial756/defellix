@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { motion } from "motion/react";
 import { useContractsStore } from "@/store/useContractsStore";
 import contract_completition from "@/assets/contract_completition.png";
 import client_reviews from "@/assets/client_reviews.png";
@@ -240,17 +241,30 @@ const Dashboard = () => {
     const score = 750;
 
     return (
-        <div
-            className="flex-1 bg-[#0f1117] min-h-screen text-white scrBar overflow-y-auto"
+        <motion.div
+            className="flex-1 bg-[#000] min-h-screen text-white scrBar overflow-y-auto"
             onScroll={(e) => setScrollY(e.currentTarget.scrollTop)}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
         >
             {/* --- TOP SECTION (fixed hero) --- */}
             <div className="fixed inset-x-0 top-15 z-10 pointer-events-none">
-                <div className="pointer-events-auto max-w-full mx-auto flex flex-col gap-6 p-8 pb-24">
+                <motion.div
+                    className="pointer-events-auto max-w-full mx-auto flex flex-col gap-6 p-8 pb-24"
+                    initial={{ opacity: 0, y: -16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.55, ease: "easeOut", delay: 0.1 }}
+                >
                     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
                         {/* LEFT: Reputation Score */}
-                        <div className="xl:col-span-5 rounded-[32px] pl-8 pt-8 flex flex-col justify-between shadow-sm">
+                        <motion.div
+                            className="xl:col-span-5 rounded-[32px] pl-8 pt-8 flex flex-col justify-between shadow-sm"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, ease: "easeOut", delay: 0.18 }}
+                        >
                             {/* Title row */}
                             <div className="flex items-start justify-between mb-8">
                                 <h2 className="text-6xl font-normal text-white leading-tight -mt-8 font-syne">Credibility<br />Score</h2>
@@ -301,12 +315,19 @@ const Dashboard = () => {
                                     <p className="text-white font-bold text-5xl">$12<span className="text-xl text-gray-400 font-medium">.4k</span></p>
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* RIGHT: Metrics grid */}
                         <div className="xl:col-span-7 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                             {metrics.map((m, i) => (
-                                <div key={i} className="bg-[#111f14] rounded-[40px] p-6 flex flex-col justify-between hover:border-gray-600 transition-colors shadow-sm min-h-[180px]">
+                                <motion.div
+                                    key={i}
+                                    className="bg-[#111f14] rounded-[40px] p-6 flex flex-col justify-between hover:border-gray-600 transition-colors shadow-sm min-h-[180px]"
+                                    initial={{ opacity: 0, y: 16 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.45, ease: "easeOut", delay: 0.22 + i * 0.05 }}
+                                    whileHover={{ y: -4, scale: 1.01 }}
+                                >
                                     <div className="flex items-start justify-between mb-2">
                                         <div className={`w-16 h-16 rounded-full ${m.iconBg} flex items-center justify-center text-xl`}>
                                             <img src={m.icon} alt={m.label} className="w-10 h-10" />
@@ -329,11 +350,11 @@ const Dashboard = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             {/* --- BOTTOM SECTION (curved, overlaps, parallax) --- */}
@@ -371,14 +392,18 @@ const Dashboard = () => {
                         </button>
                     </div>
 
-                    <div
+                    <motion.div
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5"
                         style={{ transform: `translateY(${scrollY * -0.08}px)` }}
                     >
-                        {contracts.map((contract) => (
-                            <div
+                        {contracts.map((contract, idx) => (
+                            <motion.div
                                 key={contract.id}
                                 className="bg-[#172b1c] rounded-[30px] p-5 transition-all duration-200 cursor-pointer group"
+                                initial={{ opacity: 0, y: 18 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 + idx * 0.04 }}
+                                whileHover={{ y: -4, scale: 1.01 }}
                             >
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-4">
@@ -424,9 +449,9 @@ const Dashboard = () => {
                                     <p className="text-gray-500 text-xs font-semibold mt-2">{contract.completion}% complete</p>
                                     <span className="text-gray-500 text-xs font-medium mt-1">Milestone {contract.milestone}</span>
                                 </div>
-                            </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </div>
             {/* Floating Action Button */}
@@ -437,7 +462,7 @@ const Dashboard = () => {
                 <span className="text-2xl -mt-1 leading-none group-hover:scale-110 transition-transform duration-300">+</span>
                 Create Project
             </button> */}
-        </div>
+        </motion.div>
     );
 };
 
