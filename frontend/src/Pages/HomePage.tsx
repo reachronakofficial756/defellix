@@ -22,7 +22,7 @@ function HomePage() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/profileEdit" element={<ProfileEdit />} />
+              <Route path="/profile/profileEdit" element={<ProfileEdit />} />
               <Route path="/contract" element={<CreateContractForm onClose={() => navigate("/")} />} />
             </Routes>
 
