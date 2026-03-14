@@ -57,6 +57,7 @@ export default function ProfileEdit() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string>('');
   const [photoBase64, setPhotoBase64] = useState<string>('');
+  const redirectTimeoutRef = useRef<any>(null);
 
   // ── Personal Info
   const [userName, setUserName] = useState('');
@@ -125,7 +126,23 @@ export default function ProfileEdit() {
       }
     };
     fetchProfile();
+
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+        redirectTimeoutRef.current = null;
+      }
+    };
   }, []);
+
+  // ── Cleanup Blob URLs
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   const addSkill = () => {
     const trimmed = skillInput.trim();
@@ -138,6 +155,12 @@ export default function ProfileEdit() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Revoke previous blob if it exists
+    if (avatarPreview && avatarPreview.startsWith('blob:')) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+
     const url = URL.createObjectURL(file);
     setAvatarPreview(url);
     const reader = new FileReader();
@@ -183,7 +206,7 @@ export default function ProfileEdit() {
         token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
       );
       setSaved(true);
-      setTimeout(() => navigate('/'), 1800);
+      redirectTimeoutRef.current = setTimeout(() => navigate('/'), 1800);
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || 'Failed to save. Please try again.');
     } finally {

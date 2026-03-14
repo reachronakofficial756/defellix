@@ -286,10 +286,10 @@ export default function Profile() {
                 <span className="text-xs text-gray-500 font-medium">Identity & presence</span>
               </div>
               <div className="space-y-1 mx-2">
-                <LinkRow icon={Github} title="GitHub" subtitle={data.github_link} verified />
-                <LinkRow icon={Linkedin} title="LinkedIn" subtitle={data.linkedin_link} verified />
-                <LinkRow icon={Globe} title="Portfolio" subtitle={data.portfolio_link} verified />
-                <LinkRow icon={Instagram} title="Instagram" subtitle={data.instagram_link} verified />
+                <LinkRow icon={Github} title="GitHub" subtitle={data.github_link} />
+                <LinkRow icon={Linkedin} title="LinkedIn" subtitle={data.linkedin_link} />
+                <LinkRow icon={Globe} title="Portfolio" subtitle={data.portfolio_link} />
+                <LinkRow icon={Instagram} title="Instagram" subtitle={data.instagram_link} />
               </div>
             </div>
 
@@ -324,7 +324,7 @@ export default function Profile() {
                 <div className="w-full h-px bg-white/5" />
                 <ToggleRow title="Show projects" desc="Published projects are visible to visitors and contribute to your reputation." checked={data.show_projects !== false} />
                 <div className="w-full h-px bg-white/5" />
-                <ToggleRow title="Show contracts" desc="Contract history is displayed as part of your trust and and work history summary." checked={data.show_contracts !== false} />
+                <ToggleRow title="Show contracts" desc="Contract history is displayed as part of your trust and work history summary." checked={data.show_contracts !== false} />
               </div>
             </div>
 

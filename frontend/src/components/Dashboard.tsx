@@ -253,7 +253,7 @@ const Dashboard = () => {
                         <div className="xl:col-span-5 rounded-[32px] pl-8 pt-8 flex flex-col justify-between shadow-sm">
                             {/* Title row */}
                             <div className="flex items-start justify-between mb-8">
-                                <h2 className="text-6xl font-normal text-white leading-tight -mt-8 font-syne">Credebility<br />Score</h2>
+                                <h2 className="text-6xl font-normal text-white leading-tight -mt-8 font-syne">Credibility<br />Score</h2>
                                 <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800">
                                     {(["Overall", "Last Project"] as const).map((t) => (
                                         <button
