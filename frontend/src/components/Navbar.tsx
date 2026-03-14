@@ -36,7 +36,7 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="bg-transparent h-16 fixed w-full px-6 py-10 flex items-center justify-between top-0 z-50">
+        <nav className="bg-transparent h-16 fixed top-0 w-full px-6 py-10 flex items-center justify-between z-50">
 
             {/* Logo */}
             <div className="flex items-center gap-2">
@@ -117,27 +117,20 @@ const Navbar = () => {
                                 </div>
                             </div>
 
-                            {/* Menu Items */}
-                            <div className="p-3 space-y-1">
-                                <button
-                                    onClick={() => {
-                                        navigate('/profile');
-                                        setIsDropdownOpen(false);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-sm font-bold"
-                                >
-                                    <User className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                                    My Account
-                                </button>
-                                <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-sm font-bold">
-                                    <ImageIcon className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                                    Upload Avatar
-                                </button>
-                                <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-sm font-bold">
-                                    <FileText className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                                    Health Records
-                                </button>
-                            </div>
+                                {/* Menu Items */}
+                                <div className="p-3 space-y-1">
+                                    <button
+                                        onClick={() => {
+                                            closeContracts();
+                                            navigate('/profile');
+                                            setIsDropdownOpen(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-sm font-bold cursor-pointer"
+                                    >
+                                        <User className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                                        My Profile
+                                    </button>
+                                </div>
 
                             <div className="px-3 pb-3">
                                 <button
