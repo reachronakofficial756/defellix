@@ -323,12 +323,14 @@ By signing below, both parties agree to the terms outlined in this agreement.
     }, [step, projectTitle, clientName, clientCompany, projectType, otherProjectType, projectDesc, coreDeliverable, outOfScope, startDate, deadline, duration, milestones, contractCurrency, contractAmount, paymentMethod, otherPaymentMethod, isAdvancePayment, advanceAmount, revisionPolicy, intellectualProperty, customTerms, contractText]);
 
     const [isSent, setIsSent] = useState(false);
+    const [generatedLink, setGeneratedLink] = useState("");
+    
     const handleSend = () => {
         setIsSent(true);
-        setTimeout(() => {
-            setIsSent(false);
-            onClose();
-        }, 2000);
+        // Generate a random ID for the mock review link
+        const randomId = Math.random().toString(36).substring(2, 10);
+        setGeneratedLink(`${window.location.origin}/review-contract/${randomId}`);
+        // Remove the automatic onClose() so user can see the link
     };
 
     const nextStep = () => {
@@ -1001,7 +1003,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                     {isSent ? (
                                         <>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                            Contract Sent!
+                                            Sent Successfully!
                                         </>
                                     ) : (
                                         <>
@@ -1013,6 +1015,34 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                         </>
                                     )}
                                 </button>
+
+                                {isSent && (
+                                    <div className="mt-8 p-6 bg-[#3cb44f]/5 border border-[#3cb44f]/20 rounded-2xl animate-in zoom-in-95 duration-500">
+                                        <p className="text-[#3cb44f] text-[10px] font-black uppercase tracking-widest mb-3">Copy Shareable Link</p>
+                                        <div className="flex gap-2">
+                                            <input 
+                                                readOnly 
+                                                value={generatedLink} 
+                                                className="flex-1 bg-black border border-white/10 rounded-xl px-4 py-3 text-xs text-white/60 focus:outline-none"
+                                            />
+                                            <button 
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(generatedLink);
+                                                    alert("Link copied!");
+                                                }}
+                                                className="bg-[#3cb44f] text-black px-4 py-3 rounded-xl text-xs font-bold hover:bg-[#2d8a3e] transition-all cursor-pointer"
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        <button 
+                                            onClick={onClose}
+                                            className="w-full mt-4 py-2 text-white/40 hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer"
+                                        >
+                                            Close Form
+                                        </button>
+                                    </div>
+                                )}
 
                                 <button className="w-full bg-transparent border border-[#3cb44f] text-[#3cb44f] py-4 rounded-xl text-sm font-semibold hover:bg-[#3cb44f]/10 transition-all flex items-center justify-center gap-2 group">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:translate-y-0.5 transition-transform">
