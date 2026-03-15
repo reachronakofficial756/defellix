@@ -1635,9 +1635,12 @@ const ContractTabCard = memo(function ContractTabCard({
 });
 
 export default function ContractsOverlay() {
-  const { closeContracts } = useContractsStore();
-  // Always start with the first project active on initial load/refresh
-  const [activeIndex, setActiveIndex] = useState(0);
+  const { closeContracts, activeContractId } = useContractsStore();
+  // If opened from a notification, start at that contract; otherwise default to first
+  const initialIndex = activeContractId != null
+    ? Math.max(0, CONTRACTS.findIndex((c) => c.id === activeContractId))
+    : 0;
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [viewMode, setViewMode] = useState<'details' | 'all'>('details');
 
   const pageRef = useRef<HTMLDivElement>(null);
