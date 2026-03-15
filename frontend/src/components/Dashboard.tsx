@@ -96,7 +96,7 @@ const ReputationGauge = ({ score, animated }: { score: number; animated: boolean
                     {/* Progress arc gradient */}
                     <linearGradient id="progressGradient" x1="0%" y1="100%" x2="100%" y2="0%">
                         {/* Dark base at the bottom-left arc start (20,100) */}
-                        <stop offset="0%" stopColor="#0d140d" />
+                        <stop offset="0%" stopColor="#000" />
                         <stop offset="70%" stopColor="#3cb44f" />
                         <stop offset="100%" stopColor="#2d8a3e" />
                     </linearGradient>

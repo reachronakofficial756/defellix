@@ -236,8 +236,27 @@ components:
           format: email
         client_phone:
           type: string
+        client_country:
+          type: string
         terms_and_conditions:
           type: string
+        start_date:
+          type: string
+          format: date-time
+        revision_policy:
+          type: string
+        out_of_scope_work:
+          type: string
+        intellectual_property:
+          type: string
+        estimated_duration:
+          type: string
+        payment_method:
+          type: string
+        advance_payment_required:
+          type: boolean
+        advance_payment_amount:
+          type: number
         milestones:
           type: array
           items:
@@ -274,8 +293,27 @@ components:
           format: email
         client_phone:
           type: string
+        client_country:
+          type: string
         terms_and_conditions:
           type: string
+        start_date:
+          type: string
+          format: date-time
+        revision_policy:
+          type: string
+        out_of_scope_work:
+          type: string
+        intellectual_property:
+          type: string
+        estimated_duration:
+          type: string
+        payment_method:
+          type: string
+        advance_payment_required:
+          type: boolean
+        advance_payment_amount:
+          type: number
         milestones:
           type: array
           items:
@@ -298,8 +336,6 @@ components:
         due_date:
           type: string
           format: date-time
-        is_initial_payment:
-          type: boolean
         submission_criteria:
           description: Dynamic JSON, array, or string determining what specific deliverables (urls, files) are needed for this milestone.
           example: "Video URL"
@@ -320,8 +356,6 @@ components:
         due_date:
           type: string
           format: date-time
-        is_initial_payment:
-          type: boolean
         submission_criteria:
           description: Flexible string or JSON object defining what deliverables are needed.
           example: "Video URL"

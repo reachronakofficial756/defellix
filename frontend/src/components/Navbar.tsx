@@ -5,6 +5,8 @@ import { FaBolt } from 'react-icons/fa6';
 import { IoGridOutline, IoFolderOutline } from 'react-icons/io5';
 import { User, Image as ImageIcon, FileText, LogOut } from 'lucide-react';
 import logo from '@/assets/logo.svg';
+import { BiSolidBellRing } from "react-icons/bi";
+
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -36,10 +38,24 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="bg-transparent h-16 fixed top-0 w-full px-6 py-10 flex items-center justify-between z-50">
-
+        <nav
+            className={
+                `h-16 fixed top-0 w-full px-6 py-10 flex items-center justify-between z-50` +
+                (location.pathname.startsWith('/profile')
+                    ? ' bg-[#111f14]/10 backdrop-blur-md'
+                    : '')
+            }
+        >
             {/* Logo */}
-            <div className="flex items-center gap-2">
+            <div
+                className="flex items-center gap-2 cursor-pointer"
+                onClick={() => navigate('/')}
+                role="button"
+                tabIndex={0}
+                onKeyPress={e => {
+                    if (e.key === "Enter" || e.key === " ") navigate('/');
+                }}
+            >
                 <img src={logo} alt="Defellix" className="w-52 h-auto" />
             </div>
 
@@ -78,8 +94,19 @@ const Navbar = () => {
             </div>
 
             {/* Right: Actions + Profile */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-7">
 
+                {/* Notifications Button */}
+                <button
+                    type="button"
+                    className="relative flex items-center cursor-pointer text-gray-400 hover:text-white justify-center w-11 h-11 rounded-full bg-[#1a1d24] hover:bg-[#3cb44f]/10 transition-colors focus:outline-none mr-0.5"
+                    aria-label="Notifications"
+                >
+                    <BiSolidBellRing className="text-gray-400 group-hover:text-white hover:text-white transition-colors text-2xl" />
+
+                    {/* Notification dot example: */}
+                    <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-[#3cb44f]" />
+                </button>
 
                 <div className="relative" ref={dropdownRef}>
                     {/* Profile Toggle */}
@@ -95,17 +122,23 @@ const Navbar = () => {
                             <span className="text-gray-400 text-[10px] leading-none mt-0.5">Product Designer</span>
                         </div>
                         <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black hover:bg-neutral-800 transition-colors">
-                            <svg width="24" height="24" viewBox="0 0 24 24" className="text-white">
+                            <svg
+                                width="24"
+                                height="24"
+                                viewBox="0 0 24 24"
+                                className="text-white transition-transform duration-200"
+                                style={{
+                                    transform: isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)",
+                                }}
+                            >
                                 <path d="M8 10l4 4 4-4" stroke="white" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                         </div>
                     </div>
 
-                    
-
                     {/* Dropdown Menu */}
                     {isDropdownOpen && (
-                        <div className="absolute right-0 top-full mt-3 w-[260px] bg-[#1a1d24] border border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden transform origin-top-right transition-all">
+                        <div className="absolute right-0 top-full mt-3 w-[260px] bg-[#1a1d24]/30 backdrop-blur-sm border border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden transform origin-top-right transition-all">
                             {/* Header */}
                             <div className="px-4 py-4 border-b border-gray-600 flex items-center gap-3">
                                 <div className="w-11 h-11 rounded-full flex-shrink-0 bg-gray-600 flex items-center justify-center overflow-hidden">
@@ -117,20 +150,20 @@ const Navbar = () => {
                                 </div>
                             </div>
 
-                                {/* Menu Items */}
-                                <div className="p-3 space-y-1">
-                                    <button
-                                        onClick={() => {
-                                            closeContracts();
-                                            navigate('/profile');
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors text-sm font-bold cursor-pointer"
-                                    >
-                                        <User className="w-[18px] h-[18px]" strokeWidth={2.5} />
-                                        My Profile
-                                    </button>
-                                </div>
+                            {/* Menu Items */}
+                            <div className="p-3 space-y-1">
+                                <button
+                                    onClick={() => {
+                                        closeContracts();
+                                        navigate('/profile');
+                                        setIsDropdownOpen(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-[#3cb44f]/10 rounded-lg transition-colors text-sm font-bold cursor-pointer"
+                                >
+                                    <User className="w-[18px] h-[18px]" strokeWidth={2.5} />
+                                    My Profile
+                                </button>
+                            </div>
 
                             <div className="px-3 pb-3">
                                 <button

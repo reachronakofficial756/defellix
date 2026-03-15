@@ -80,8 +80,17 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 		ClientName:         req.ClientName,
 		ClientCompanyName:  req.ClientCompanyName,
 		ClientEmail:        req.ClientEmail,
-		ClientPhone:        req.ClientPhone,
-		TermsAndConditions: req.TermsAndConditions,
+		ClientPhone:            req.ClientPhone,
+		ClientCountry:          req.ClientCountry,
+		TermsAndConditions:     req.TermsAndConditions,
+		StartDate:              req.StartDate,
+		RevisionPolicy:         req.RevisionPolicy,
+		OutOfScopeWork:         req.OutOfScopeWork,
+		IntellectualProperty:   req.IntellectualProperty,
+		EstimatedDuration:      req.EstimatedDuration,
+		PaymentMethod:          req.PaymentMethod,
+		AdvancePaymentRequired: req.AdvancePaymentRequired,
+		AdvancePaymentAmount:   req.AdvancePaymentAmount,
 		Status:             domain.ContractStatusDraft,
 		ClientViewToken:    uuid.New().String(),
 	}
@@ -167,9 +176,6 @@ func (s *ContractService) Update(ctx context.Context, id uint, freelancerUserID 
 				if mReq.DueDate != nil {
 					m.DueDate = mReq.DueDate
 				}
-				if mReq.IsInitialPayment != nil {
-					m.IsInitialPayment = *mReq.IsInitialPayment
-				}
 				if mReq.SubmissionCriteria != nil {
 					if b, err := json.Marshal(mReq.SubmissionCriteria); err == nil {
 						m.SubmissionCriteria = string(b)
@@ -192,9 +198,6 @@ func (s *ContractService) Update(ctx context.Context, id uint, freelancerUserID 
 					m.Description = *mReq.Description
 				}
 				m.DueDate = mReq.DueDate
-				if mReq.IsInitialPayment != nil {
-					m.IsInitialPayment = *mReq.IsInitialPayment
-				}
 				if mReq.SubmissionCriteria != nil {
 					if b, err := json.Marshal(mReq.SubmissionCriteria); err == nil {
 						m.SubmissionCriteria = string(b)
@@ -499,8 +502,17 @@ func toPublicViewResponse(c *domain.Contract) *dto.PublicContractViewResponse {
 		ClientName:          c.ClientName,
 		ClientCompanyName:   c.ClientCompanyName,
 		ClientEmail:         c.ClientEmail,
-		ClientPhone:         c.ClientPhone,
-		TermsAndConditions:  c.TermsAndConditions,
+		ClientPhone:            c.ClientPhone,
+		ClientCountry:          c.ClientCountry,
+		TermsAndConditions:     c.TermsAndConditions,
+		StartDate:              c.StartDate,
+		RevisionPolicy:         c.RevisionPolicy,
+		OutOfScopeWork:         c.OutOfScopeWork,
+		IntellectualProperty:   c.IntellectualProperty,
+		EstimatedDuration:      c.EstimatedDuration,
+		PaymentMethod:          c.PaymentMethod,
+		AdvancePaymentRequired: c.AdvancePaymentRequired,
+		AdvancePaymentAmount:   c.AdvancePaymentAmount,
 		Status:              c.Status,
 		IsRevised:           c.IsRevised,
 		SentAt:              c.SentAt,
@@ -563,7 +575,6 @@ func milestonesFromInput(in []dto.MilestoneInput) []domain.ContractMilestone {
 			Description:          in[i].Description,
 			Amount:               in[i].Amount,
 			DueDate:              in[i].DueDate,
-			IsInitialPayment:     in[i].IsInitialPayment,
 			SubmissionCriteria:   subCriteriaStr,
 			CompletionCriteriaTC: in[i].CompletionCriteriaTC,
 			Status:               "pending",
@@ -609,8 +620,35 @@ func applyUpdate(c *domain.Contract, req *dto.UpdateContractRequest) {
 	if req.ClientPhone != nil {
 		c.ClientPhone = *req.ClientPhone
 	}
+	if req.ClientCountry != nil {
+		c.ClientCountry = *req.ClientCountry
+	}
 	if req.TermsAndConditions != nil {
 		c.TermsAndConditions = *req.TermsAndConditions
+	}
+	if req.StartDate != nil {
+		c.StartDate = req.StartDate
+	}
+	if req.RevisionPolicy != nil {
+		c.RevisionPolicy = *req.RevisionPolicy
+	}
+	if req.OutOfScopeWork != nil {
+		c.OutOfScopeWork = *req.OutOfScopeWork
+	}
+	if req.IntellectualProperty != nil {
+		c.IntellectualProperty = *req.IntellectualProperty
+	}
+	if req.EstimatedDuration != nil {
+		c.EstimatedDuration = *req.EstimatedDuration
+	}
+	if req.PaymentMethod != nil {
+		c.PaymentMethod = *req.PaymentMethod
+	}
+	if req.AdvancePaymentRequired != nil {
+		c.AdvancePaymentRequired = *req.AdvancePaymentRequired
+	}
+	if req.AdvancePaymentAmount != nil {
+		c.AdvancePaymentAmount = *req.AdvancePaymentAmount
 	}
 }
 
@@ -639,8 +677,17 @@ func (s *ContractService) toResponseWithShareable(c *domain.Contract, ms []domai
 		ClientName:         c.ClientName,
 		ClientCompanyName:  c.ClientCompanyName,
 		ClientEmail:        c.ClientEmail,
-		ClientPhone:        c.ClientPhone,
-		TermsAndConditions: c.TermsAndConditions,
+		ClientPhone:            c.ClientPhone,
+		ClientCountry:          c.ClientCountry,
+		TermsAndConditions:     c.TermsAndConditions,
+		StartDate:              c.StartDate,
+		RevisionPolicy:         c.RevisionPolicy,
+		OutOfScopeWork:         c.OutOfScopeWork,
+		IntellectualProperty:   c.IntellectualProperty,
+		EstimatedDuration:      c.EstimatedDuration,
+		PaymentMethod:          c.PaymentMethod,
+		AdvancePaymentRequired: c.AdvancePaymentRequired,
+		AdvancePaymentAmount:   c.AdvancePaymentAmount,
 		Status:             c.Status,
 		IsRevised:          c.IsRevised,
 		SentAt:             c.SentAt,
@@ -666,7 +713,6 @@ func milestonesToResponse(ms []domain.ContractMilestone) []dto.MilestoneResponse
 			Description:      ms[i].Description,
 			Amount:           ms[i].Amount,
 			DueDate:          ms[i].DueDate,
-			IsInitialPayment: ms[i].IsInitialPayment,
 			Status:           ms[i].Status,
 			CreatedAt:        ms[i].CreatedAt,
 			UpdatedAt:        ms[i].UpdatedAt,
