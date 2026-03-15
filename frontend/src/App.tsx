@@ -3,12 +3,14 @@ import { Routes, Route } from 'react-router-dom'
 import HomePage from './Pages/HomePage'
 import SignUp from './Pages/SignUp'
 import Login from './Pages/Login'
+import ClientContractReview from './Pages/ClientContractReview'
 
 function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
       <Route path="/*" element={<HomePage />} />
     </Routes>
   )
