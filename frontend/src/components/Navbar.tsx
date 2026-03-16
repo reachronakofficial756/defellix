@@ -1,11 +1,11 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useContractsStore } from '@/store/useContractsStore';
 import { useState, useRef, useEffect } from 'react';
-import { FaBolt } from 'react-icons/fa6';
 import { IoGridOutline, IoFolderOutline } from 'react-icons/io5';
-import { User, Image as ImageIcon, FileText, LogOut } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 import logo from '@/assets/logo.svg';
 import { BiSolidBellRing } from "react-icons/bi";
+import NotificationPanel from '@/components/NotificationPanel';
 
 
 const Navbar = () => {
@@ -15,6 +15,7 @@ const Navbar = () => {
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -38,6 +39,7 @@ const Navbar = () => {
     };
 
     return (
+        <>
         <nav
             className={
                 `h-16 fixed top-0 w-full px-6 py-10 flex items-center justify-between z-50` +
@@ -99,13 +101,17 @@ const Navbar = () => {
                 {/* Notifications Button */}
                 <button
                     type="button"
-                    className="relative flex items-center cursor-pointer text-gray-400 hover:text-white justify-center w-11 h-11 rounded-full bg-[#1a1d24] hover:bg-[#3cb44f]/10 transition-colors focus:outline-none mr-0.5"
+                    onClick={() => setIsNotifOpen((prev) => !prev)}
+                    className={`relative flex items-center cursor-pointer justify-center w-11 h-11 rounded-full transition-all duration-200 focus:outline-none mr-0.5 ${
+                        isNotifOpen
+                            ? 'bg-[#3cb44f]/15 text-[#3cb44f]'
+                            : 'bg-[#1a1d24] text-gray-400 hover:text-white hover:bg-[#3cb44f]/10'
+                    }`}
                     aria-label="Notifications"
                 >
-                    <BiSolidBellRing className="text-gray-400 group-hover:text-white hover:text-white transition-colors text-2xl" />
-
-                    {/* Notification dot example: */}
-                    <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-[#3cb44f]" />
+                    <BiSolidBellRing className="text-xl transition-colors" />
+                    {/* Unread dot */}
+                    <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-[#3cb44f] shadow-[0_0_6px_rgba(60,180,79,0.9)]" />
                 </button>
 
                 <div className="relative" ref={dropdownRef}>
@@ -183,6 +189,13 @@ const Navbar = () => {
 
             </div>
         </nav>
+
+        {/* Notification Slide-in Panel */}
+        <NotificationPanel
+            isOpen={isNotifOpen}
+            onClose={() => setIsNotifOpen(false)}
+        />
+        </>
     );
 };
 
