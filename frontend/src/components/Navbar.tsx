@@ -6,17 +6,63 @@ import { User, LogOut } from 'lucide-react';
 import logo from '@/assets/logo.svg';
 import { BiSolidBellRing } from "react-icons/bi";
 import NotificationPanel from '@/components/NotificationPanel';
+import { apiClient } from '@/api/client';
+import { useAuth } from '@/contexts/AuthContext'
 
+type NavbarUser = {
+  user_name?: string;
+  full_name?: string;
+  what_do_you_do?: string;
+  email?: string;
+  photo?: string;
+};
+
+function getInitials(user: NavbarUser | null): string {
+  if (!user) return '?';
+  const name = user.full_name || user.user_name || '';
+  if (name) {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts[0]) return parts[0].slice(0, 2).toUpperCase();
+  }
+  const email = user.email || '';
+  if (email) return email.slice(0, 2).toUpperCase();
+  return '?';
+}
 
 const Navbar = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { openContracts, closeContracts, isOpen: contractsOpen } = useContractsStore();
+    const { logout } = useAuth();
 
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [user, setUser] = useState<NavbarUser | null>(null);
+    const [userLoading, setUserLoading] = useState(true);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const res = await apiClient.get('/users/me');
+                const apiData = res.data?.data || res.data;
+                const profile = apiData.profile || apiData;
+                setUser({
+                    user_name: profile?.user_name ?? apiData?.user_name,
+                    full_name: profile?.full_name ?? apiData?.full_name,
+                    what_do_you_do: profile?.what_do_you_do ?? apiData?.what_do_you_do,
+                    email: apiData?.email ?? profile?.email,
+                    photo: profile?.photo ?? apiData?.photo
+                });
+            } catch {
+                setUser(null);
+            } finally {
+                setUserLoading(false);
+            }
+        };
+        fetchUser();
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -64,7 +110,6 @@ const Navbar = () => {
             {/* Nav Links */}
             <div className="flex items-center">
                 {navLinks.map((link) => {
-                    const Icon = link.icon;
                     const active = isActive(link.path);
                     return link.label === 'Contracts' ? (
                         <button
@@ -120,12 +165,22 @@ const Navbar = () => {
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                         className="flex items-center gap-2 bg-[#ffffff] px-0.5 rounded-full py-0.5 cursor-pointer transition-colors"
                     >
-                        <div className="w-10 h-10 rounded-full bg-[#3cb44f] -ml-5 flex items-center justify-center text-[#0d140d] font-bold text-xs">
-                            AM
+                        <div className="w-10 h-10 rounded-full bg-[#3cb44f] -ml-5 flex items-center justify-center text-[#0d140d] font-bold text-xs overflow-hidden">
+                            {userLoading ? (
+                                <span className="animate-pulse">…</span>
+                            ) : user?.photo ? (
+                                <img src={user.photo} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                getInitials(user)
+                            )}
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-black text-xs font-semibold leading-none">Alex Morgan</span>
-                            <span className="text-gray-400 text-[10px] leading-none mt-0.5">Product Designer</span>
+                            <span className="text-black text-xs font-semibold leading-none">
+                                {userLoading ? '…' : (user?.full_name || user?.user_name || 'Profile')}
+                            </span>
+                            <span className="text-gray-400 text-[10px] leading-none mt-0.5">
+                                {userLoading ? '…' : (user?.what_do_you_do || '')}
+                            </span>
                         </div>
                         <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black hover:bg-neutral-800 transition-colors">
                             <svg
@@ -148,11 +203,21 @@ const Navbar = () => {
                             {/* Header */}
                             <div className="px-4 py-4 border-b border-gray-600 flex items-center gap-3">
                                 <div className="w-11 h-11 rounded-full flex-shrink-0 bg-gray-600 flex items-center justify-center overflow-hidden">
-                                    <img src="https://ui-avatars.com/api/?name=Saiyam+Kumar&background=475569&color=fff" alt="Profile" className="w-full h-full object-cover" />
+                                    {user?.photo ? (
+                                        <img src={user.photo} alt="Profile" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-white font-bold text-sm">
+                                            {getInitials(user)}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="flex flex-col min-w-0">
-                                    <span className="text-white text-base font-bold truncate">Saiyam Kumar</span>
-                                    <span className="text-gray-400 text-xs truncate">saiyamkumar2007@gmail.com</span>
+                                    <span className="text-white text-base font-bold truncate">
+                                        {user?.full_name || user?.user_name || 'Profile'}
+                                    </span>
+                                    <span className="text-gray-400 text-xs truncate">
+                                        {user?.email || ''}
+                                    </span>
                                 </div>
                             </div>
 
@@ -161,7 +226,12 @@ const Navbar = () => {
                                 <button
                                     onClick={() => {
                                         closeContracts();
-                                        navigate('/profile');
+                                        const userName = user?.user_name;
+                                        if (userName) {
+                                            navigate(`/${userName}`);
+                                        } else {
+                                            navigate('/profile');
+                                        }
                                         setIsDropdownOpen(false);
                                     }}
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white hover:bg-[#3cb44f]/10 rounded-lg transition-colors text-sm font-bold cursor-pointer"
@@ -173,9 +243,10 @@ const Navbar = () => {
 
                             <div className="px-3 pb-3">
                                 <button
-                                    onClick={() => {
-                                        setIsLoggedIn(false);
+                                    onClick={async () => {
                                         setIsDropdownOpen(false);
+                                        await logout();
+                                        navigate('/login');
                                     }}
                                     className="w-full flex items-center gap-3 px-3 py-2.5 text-[#ef5350] hover:bg-[#ef5350]/10 rounded-lg transition-colors text-sm font-bold"
                                 >

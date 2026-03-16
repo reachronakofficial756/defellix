@@ -95,14 +95,17 @@ func (h *UserHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	respondSuccess(w, http.StatusOK, profile, "Profile retrieved successfully")
 }
 
-// GetMyProfile retrieves the current user's profile
+// GetMyProfile retrieves the current user's profile. Returns 200 with profile or with
+// profile: null when the user exists (authenticated) but has not created a profile yet,
+// so the frontend can send existing users to the dashboard instead of signup.
 func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(uint)
 
 	profile, err := h.userService.GetProfileByUserID(r.Context(), userID)
 	if err != nil {
-		if err.Error() == "user not found" {
-			respondError(w, http.StatusNotFound, "Profile not found. Please create your profile first.", "PROFILE_NOT_FOUND")
+		if errors.Is(err, repository.ErrUserNotFound) {
+			// User exists in auth but no profile row yet — return 200 so frontend redirects to /
+			respondSuccess(w, http.StatusOK, map[string]interface{}{"profile": nil, "user_id": userID}, "Profile not created yet")
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "Failed to retrieve profile", "INTERNAL_ERROR")

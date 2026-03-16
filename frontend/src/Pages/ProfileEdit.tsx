@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '@/api/client';
 import {
   User, Phone, MapPin, Briefcase, FileText, Link2,
   ArrowLeft, Plus, X,
@@ -79,14 +79,7 @@ export default function ProfileEdit() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          setFetching(false);
-          return;
-        }
-        const res = await axios.get('https://api.defellix.com/api/v1/users/me', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await apiClient.get('/users/me');
         const data = res.data?.data || res.data;
         
         // Populate fields mapping response to state
@@ -172,7 +165,6 @@ export default function ProfileEdit() {
     try {
       setLoading(true);
       setError(null);
-      const token = localStorage.getItem('access_token');
       const payload: any = {
         what_do_you_do: whatDoYouDo,
         short_headline: headline,
@@ -188,7 +180,6 @@ export default function ProfileEdit() {
         show_profile: true,
         show_projects: true,
         show_contracts: true,
-        // Keeping additional frontend tracking fields
         phone,
         user_name: userName,
         skills
@@ -200,11 +191,7 @@ export default function ProfileEdit() {
           payload.photo = "";
       }
 
-      await axios.put(
-        'https://api.defellix.com/api/v1/users/me',
-        payload,
-        token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
-      );
+      await apiClient.put('/users/me', payload);
       setSaved(true);
       redirectTimeoutRef.current = setTimeout(() => navigate('/'), 1800);
     } catch (err: any) {

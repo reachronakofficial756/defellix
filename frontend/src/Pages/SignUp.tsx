@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "motion/react";
-import axios from "axios";
+import { apiClient, setSessionToken, API_BASE } from "@/api/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { IconBrandGoogle } from "@tabler/icons-react";
 import { FaLinkedin } from "react-icons/fa6";
@@ -11,6 +12,7 @@ const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your f
 
 export default function SignUp() {
     const navigate = useNavigate();
+    const { setAuthenticated } = useAuth();
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [isOtpStage, setIsOtpStage] = useState(false);
@@ -52,16 +54,31 @@ export default function SignUp() {
             params.get("jwt");
         const oauthEmail = params.get("email");
 
-        if (oauthToken) {
-            setAuthToken(oauthToken);
-            axios.defaults.headers.common.Authorization = `Bearer ${oauthToken}`;
-            if (oauthEmail && !email) {
-                setEmail(oauthEmail);
-            }
-            setIsOtpStage(false);
-            setStep(2);
+        if (!oauthToken) return;
+
+        // Store token in session + localStorage for this tab
+        setAuthToken(oauthToken);
+        setSessionToken(oauthToken);
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem("access_token", oauthToken);
         }
-    }, []);
+        if (oauthEmail && !email) {
+            setEmail(oauthEmail);
+        }
+
+        // If user already exists, skip signup and go to dashboard.
+        // If /users/me fails (e.g. account doesn't exist), stay on signup step 2.
+        (async () => {
+            try {
+                await apiClient.get("/users/me");
+                setAuthenticated(true);
+                navigate("/");
+            } catch {
+                setIsOtpStage(false);
+                setStep(2);
+            }
+        })();
+    }, [email, navigate, setAuthenticated]);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -80,8 +97,7 @@ export default function SignUp() {
     };
 
     const handleOAuth = (provider: "google" | "linkedin") => {
-        const base = "https://api.defellix.com";
-        const url = `${base}/api/v1/auth/oauth/${provider}?role=freelancer`;
+        const url = `${API_BASE}/api/v1/auth/oauth/${provider}?role=freelancer`;
         window.location.href = url;
     };
 
@@ -89,7 +105,7 @@ export default function SignUp() {
         try {
             setLoading(true);
             setError(null);
-            await axios.post("https://api.defellix.com/api/v1/auth/register", {
+            await apiClient.post("/auth/register", {
                 email,
                 password,
                 full_name: fullName,
@@ -110,7 +126,7 @@ export default function SignUp() {
         try {
             setLoading(true);
             setError(null);
-            const res = await axios.post("https://api.defellix.com/api/v1/auth/verify-email", {
+            const res = await apiClient.post("/auth/verify-email", {
                 email,
                 otp,
             });
@@ -128,7 +144,10 @@ export default function SignUp() {
             }
 
             setAuthToken(token);
-            axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+             setSessionToken(token);
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem("access_token", token);
+            }
             setStep(2);
         } catch (err: any) {
             const message =
@@ -153,28 +172,20 @@ export default function SignUp() {
                 return;
             }
 
-            await axios.post(
-                "https://api.defellix.com/api/v1/users/me/profile",
-                {
-                    phone,
-                    user_name: userName || fullName,
-                    what_do_you_do: whatDoYouDo,
-                    short_headline: profileHeadline,
-                    photo,
-                    location,
-                    experience,
-                    github_link: githubLink,
-                    linkedin_link: linkedinLink,
-                    portfolio_link: portfolioLink,
-                    instagram_link: instagramLink,
-                    skills,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${authToken}`,
-                    },
-                },
-            );
+            await apiClient.post("/users/me/profile", {
+                phone,
+                user_name: userName || fullName,
+                what_do_you_do: whatDoYouDo,
+                short_headline: profileHeadline,
+                photo,
+                location,
+                experience,
+                github_link: githubLink,
+                linkedin_link: linkedinLink,
+                portfolio_link: portfolioLink,
+                instagram_link: instagramLink,
+                skills,
+            });
 
             setStep(3);
         } catch (err: any) {
@@ -853,14 +864,20 @@ export default function SignUp() {
                         <div className="mt-24 flex flex-col items-center gap-6">
                             <button
                                 type="button"
-                                onClick={() => navigate("/")}
+                                onClick={() => {
+                                    setAuthenticated(true);
+                                    navigate("/contract");
+                                }}
                                 className="group relative flex h-40 w-40 items-center justify-center rounded-3xl border-2 border-dashed border-white/40 bg-white/5 text-sm font-medium text-white/80 hover:border-white hover:bg-white/10 transition-all"
                             >
                                 <span>Create first contract</span>
                             </button>
                             <button
                                 type="button"
-                                onClick={() => navigate("/")}
+                                onClick={() => {
+                                    setAuthenticated(true);
+                                    navigate("/");
+                                }}
                                 className="text-xs sm:text-sm text-white/60 hover:text-white underline-offset-4 hover:underline"
                             >
                                 Skip and continue to dashboard

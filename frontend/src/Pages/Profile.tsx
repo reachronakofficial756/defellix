@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiClient } from '@/api/client';
 import { motion } from 'motion/react';
 import {
   MapPin, Clock, Building, Briefcase,
@@ -9,7 +9,9 @@ import {
 
 interface UserProfile {
   photo?: string;
+  full_name?: string;
   user_name?: string;
+  email?: string;
   phone?: string;
   what_do_you_do?: string;
   short_headline?: string;
@@ -225,7 +227,8 @@ export default function Profile() {
 
   // Default values for showcase if API doesn't populate
   const defaultData: UserProfile = {
-    user_name: 'Alex Morgan',
+    full_name: 'Alex Morgan',
+    user_name: 'alexmorgan',
     what_do_you_do: 'Product Designer',
     short_headline: 'Building trusted digital experiences for SaaS teams, startups, and marketplaces that need clarity, confidence, and conversion.',
     bio: 'I help startups and product teams turn rough ideas into polished interfaces with strong usability foundations. My work spans UX strategy, design systems, high-fidelity product design, and developer collaboration. I care deeply about clarity, credibility, and creating profiles that make someone feel trustworthy before they ever send a message.',
@@ -246,14 +249,10 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-          const res = await axios.get('https://api.defellix.com/api/v1/users/me', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          const apiData = res.data?.data || res.data;
-          setProfile(apiData.profile || apiData);
-        }
+        const res = await apiClient.get('/users/me');
+        const apiData = res.data?.data || res.data;
+        const nested = apiData.profile || {};
+        setProfile({ ...apiData, ...nested } as UserProfile);
       } catch (err) {
         console.error('Failed to fetch profile', err);
       } finally {
@@ -337,7 +336,7 @@ export default function Profile() {
               </span>
             </div> */}
             <button
-              onClick={() => navigate('/profile/profileEdit')}
+              onClick={() => navigate('/profile/edit')}
               className="absolute right-0 top-0 items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-[#3cb44f]/15 text-white text-sm font-semibold transition-all border border-white/10 hover:border-[#3cb44f]/30 cursor-pointer shadow-sm"
             >
               <span className="text-white text-sm font-semibold flex items-center gap-2">
@@ -361,7 +360,7 @@ export default function Profile() {
                 </div>
                 <div className="flex-1 text-center sm:text-left">
                   <p className="text-[#3cb44f] text-[10px] font-bold uppercase tracking-[0.2em] mb-2">{data.what_do_you_do}</p>
-                  <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight leading-tight">{data.user_name}</h1>
+                  <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight leading-tight">{data.full_name}</h1>
                   <p className="text-sm text-gray-300 leading-relaxed max-w-2xl">{data.short_headline}</p>
                 </div>
               </div>

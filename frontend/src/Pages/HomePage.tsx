@@ -21,8 +21,10 @@ function HomePage() {
           <div className="h-full overflow-y-auto scrBar">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              {/* Own profile can be viewed either at /profile or at /:userName (vanity URL for logged-in user) */}
               <Route path="/profile" element={<Profile />} />
-              <Route path="/profile/profileEdit" element={<ProfileEdit />} />
+              <Route path="/:userName" element={<Profile />} />
+              <Route path="/profile/edit" element={<ProfileEdit />} />
               <Route path="/contract" element={<CreateContractForm onClose={() => navigate("/")} />} />
             </Routes>
 

@@ -199,3 +199,31 @@ type SignRequest struct {
 type SendOTPRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
+
+// ExtractFromPRDRequest is the payload for POST /api/v1/contracts/extract-from-prd
+type ExtractFromPRDRequest struct {
+	PRDFileURL string `json:"prd_file_url" validate:"required,url"`
+}
+
+// ExtractedClient holds client details extracted from PRD
+type ExtractedClient struct {
+	Name    string `json:"name,omitempty"`
+	Email   string `json:"email,omitempty"`
+	Phone   string `json:"phone,omitempty"`
+	Company string `json:"company,omitempty"`
+	Country string `json:"country,omitempty"`
+}
+
+// ExtractedContract is the response from POST /api/v1/contracts/extract-from-prd
+type ExtractedContract struct {
+	ProjectTitle       string          `json:"project_title,omitempty"`
+	ProjectType        string          `json:"project_type,omitempty"`
+	ProjectDescription string          `json:"project_description,omitempty"`
+	TermsAndConditions string          `json:"terms_and_conditions,omitempty"`
+	StartDate          string          `json:"start_date,omitempty"`  // YYYY-MM-DD
+	Deadline           string          `json:"deadline,omitempty"`    // YYYY-MM-DD
+	Client             ExtractedClient `json:"client,omitempty"`
+	Scope              string          `json:"scope,omitempty"`
+	Deliverables       string          `json:"deliverables,omitempty"`
+	PaymentTerms       string          `json:"payment_terms,omitempty"`
+}

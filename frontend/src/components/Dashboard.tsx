@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { useContractsStore } from "@/store/useContractsStore";
+import { apiClient } from "@/api/client";
 import contract_completition from "@/assets/contract_completition.png";
 import client_reviews from "@/assets/client_reviews.png";
 import response_rate from "@/assets/response_rate.png";
@@ -25,7 +26,7 @@ interface Contract {
     name: string;
     client: string;
     updatedAgo: string;
-    status: "Active" | "In Review" | "Delayed";
+    status: "Active" | "In Review" | "Delayed" | "Sent";
     milestone: string;
     completion: number;
     color: string;
@@ -51,17 +52,7 @@ const metrics: MetricCard[] = [
     { label: "Disputes", value: "0", unit: "%", impact: "Low Impact", impactDots: 1, icon: disputes, iconBg: "bg-[#d4edda]" },
 ];
 
-const contracts: Contract[] = [
-    { id: 1, name: "E-Commerce React Frontend", client: "Sarah Miller", updatedAgo: "2h ago", status: "Active", milestone: "2/4", completion: 60, color: "#00e676", initials: "SM", avatarBg: "bg-green-700" },
-    { id: 2, name: "Mobile Banking App UI", client: "James Anderson", updatedAgo: "5h ago", status: "In Review", milestone: "5/5", completion: 90, color: "#fbc02d", initials: "JA", avatarBg: "bg-yellow-600" },
-    { id: 3, name: "SaaS Dashboard Design", client: "Priya Sharma", updatedAgo: "1d ago", status: "Delayed", milestone: "1/3", completion: 25, color: "#ef5350", initials: "PS", avatarBg: "bg-red-700" },
-    { id: 4, name: "E-Commerce React Frontend", client: "Sarah Miller", updatedAgo: "2h ago", status: "Active", milestone: "2/4", completion: 60, color: "#00e676", initials: "SM", avatarBg: "bg-green-700" },
-    { id: 5, name: "Mobile Banking App UI", client: "James Anderson", updatedAgo: "5h ago", status: "In Review", milestone: "5/5", completion: 90, color: "#fbc02d", initials: "JA", avatarBg: "bg-yellow-600" },
-    { id: 6, name: "SaaS Dashboard Design", client: "Priya Sharma", updatedAgo: "1d ago", status: "Delayed", milestone: "1/3", completion: 25, color: "#ef5350", initials: "PS", avatarBg: "bg-red-700" },
-    { id: 7, name: "E-Commerce React Frontend", client: "Sarah Miller", updatedAgo: "2h ago", status: "Active", milestone: "2/4", completion: 60, color: "#00e676", initials: "SM", avatarBg: "bg-green-700" },
-    { id: 8, name: "Mobile Banking App UI", client: "James Anderson", updatedAgo: "5h ago", status: "In Review", milestone: "5/5", completion: 90, color: "#fbc02d", initials: "JA", avatarBg: "bg-yellow-600" },
-    { id: 9, name: "SaaS Dashboard Design", client: "Priya Sharma", updatedAgo: "1d ago", status: "Delayed", milestone: "1/3", completion: 25, color: "#ef5350", initials: "PS", avatarBg: "bg-red-700" },
-];
+
 
 // const activities: Activity[] = [
 // { id: 1, text: "Sarah Miller approved milestone #2", highlight: "Sarah Miller", time: "2h ago", dotColor: "bg-[#00e676]" },
@@ -207,6 +198,7 @@ const StatusBadge = ({ status }: { status: Contract["status"] }) => {
         Active: "bg-green-900 text-green-400 border border-green-700",
         "In Review": "bg-yellow-900 text-yellow-400 border border-yellow-700",
         Delayed: "bg-red-900 text-red-400 border border-red-700",
+        Sent: "bg-blue-900 text-blue-400 border border-blue-700",
     };
     return (
         <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${map[status]}`}>
@@ -227,10 +219,79 @@ const ImpactDots = ({ count, max = 3 }: { count: number; max?: number }) => (
 // --- Main Dashboard ---
 const Dashboard = () => {
     const navigate = useNavigate();
-    const openContracts = useContractsStore((state) => state.openContracts);
+    const { openContracts } = useContractsStore();
+    const [contracts, setContracts] = useState<Contract[]>([]); 
+    const [loadingContracts, setLoadingContracts] = useState(true);
     const [animated, setAnimated] = useState(false);
     const [tab, setTab] = useState<"Overall" | "Last Project">("Overall");
     const [scrollY, setScrollY] = useState(0);
+
+    useEffect(() => {
+        const fetchContracts = async () => {
+            try {
+                const res = await apiClient.get("/contracts");
+                const data = (res as any).data?.data?.contracts || [];
+                
+                const mapped: Contract[] = data.map((c: any) => {
+                    let status: Contract["status"] = "Active";
+                    let color = "#00e676";
+                    let avatarBg = "bg-green-700";
+
+                    if (c.status === "sent") {
+                        status = "Sent";
+                        color = "#60a5fa"; // blue
+                        avatarBg = "bg-blue-600";
+                    } else if (c.status === "pending" || c.status === "draft") {
+                        status = "In Review";
+                        color = "#fbc02d";
+                        avatarBg = "bg-yellow-600";
+                    } else if (c.status === "disputed" || c.status === "delayed") {
+                        status = "Delayed";
+                        color = "#ef5350";
+                        avatarBg = "bg-red-700";
+                    }
+
+                    const totalMilestones = c.milestones?.length || 0;
+                    const completedMilestones = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').length || 0;
+                    
+                    const totalAmount = c.total_amount || 1;
+                    const completedAmount = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').reduce((sum: number, m: any) => sum + m.amount, 0) || 0;
+                    const completion = Math.round((completedAmount / totalAmount) * 100);
+
+                    const date = new Date(c.updated_at || c.created_at || Date.now());
+                    const now = new Date();
+                    const diffMs = now.getTime() - date.getTime();
+                    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffHrs / 24);
+                    let updatedAgo = diffHrs < 24 ? `${diffHrs}h ago` : `${diffDays}d ago`;
+                    if (diffHrs === 0) updatedAgo = "Just now";
+
+                    const rawName = c.client_name || "CL";
+                    const initials = rawName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+
+                    return {
+                        id: c.id,
+                        name: c.project_name || "Untitled Project",
+                        client: c.client_name || "Unknown Client",
+                        updatedAgo,
+                        status,
+                        milestone: `${completedMilestones}/${totalMilestones}`,
+                        completion,
+                        color,
+                        initials,
+                        avatarBg
+                    };
+                });
+                
+                setContracts(mapped);
+            } catch (err) {
+                console.error("Failed to fetch contracts", err);
+            } finally {
+                setLoadingContracts(false);
+            }
+        };
+        fetchContracts();
+    }, []);
 
     // Trigger animation on mount (and on every refresh via key state)
     useEffect(() => {
@@ -396,7 +457,15 @@ const Dashboard = () => {
                         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5"
                         style={{ transform: `translateY(${scrollY * -0.08}px)` }}
                     >
-                        {contracts.map((contract, idx) => (
+                        {loadingContracts ? (
+                            Array.from({ length: 6 }).map((_, i) => (
+                                <div key={i} className="bg-[#172b1c] rounded-[30px] p-5 animate-pulse h-[140px]" />
+                            ))
+                        ) : contracts.length === 0 ? (
+                            <div className="col-span-full py-12 text-center text-gray-500">
+                                No active contracts found. Click "Create Contract" to get started!
+                            </div>
+                        ) : contracts.map((contract, idx) => (
                             <motion.div
                                 key={contract.id}
                                 className="bg-[#172b1c] rounded-[30px] p-5 transition-all duration-200 cursor-pointer group"
@@ -425,7 +494,8 @@ const Dashboard = () => {
                                             type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                navigate(`/contracts/${contract.id}`);
+                                                openContracts(contract.id);
+                                                navigate('/dashboard');
                                             }}
                                             className="mt-1 text-[11px] font-semibold text-[#3cb44f] hover:text-white transition-colors"
                                         >

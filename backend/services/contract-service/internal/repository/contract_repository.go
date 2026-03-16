@@ -115,12 +115,12 @@ func (r *contractRepository) GetByID(ctx context.Context, id uint, freelancerUse
 }
 
 func (r *contractRepository) ListByFreelancer(ctx context.Context, freelancerUserID uint, status string, page, limit int) ([]*domain.Contract, int64, error) {
-	q := r.db.WithContext(ctx).Model(&domain.Contract{}).Where("freelancer_user_id = ?", freelancerUserID)
+	baseQ := r.db.WithContext(ctx).Model(&domain.Contract{}).Where("freelancer_user_id = ?", freelancerUserID)
 	if status != "" {
-		q = q.Where("status = ?", status)
+		baseQ = baseQ.Where("status = ?", status)
 	}
 	var total int64
-	if err := q.Count(&total).Error; err != nil {
+	if err := baseQ.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var list []*domain.Contract
@@ -131,12 +131,22 @@ func (r *contractRepository) ListByFreelancer(ctx context.Context, freelancerUse
 	if limit <= 0 {
 		limit = 20
 	}
-	err := q.Order("updated_at DESC").Offset(offset).Limit(limit).Find(&list).Error
+	fetchQ := r.db.WithContext(ctx).
+		Preload("Milestones", func(db *gorm.DB) *gorm.DB {
+			return db.Order("order_index ASC")
+		}).
+		Where("freelancer_user_id = ?", freelancerUserID)
+	if status != "" {
+		fetchQ = fetchQ.Where("status = ?", status)
+	}
+	err := fetchQ.Order("updated_at DESC").Offset(offset).Limit(limit).Find(&list).Error
 	if err != nil {
 		return nil, 0, err
 	}
 	return list, total, nil
 }
+
+
 
 func (r *contractRepository) Update(ctx context.Context, c *domain.Contract, milestones []domain.ContractMilestone) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

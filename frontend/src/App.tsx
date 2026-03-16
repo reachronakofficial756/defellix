@@ -1,9 +1,23 @@
 import './App.css'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import HomePage from './Pages/HomePage'
 import SignUp from './Pages/SignUp'
 import Login from './Pages/Login'
 import ClientContractReview from './Pages/ClientContractReview'
+import { useAuth } from './contexts/AuthContext'
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth()
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0f1117]">
+        <div className="w-10 h-10 rounded-full border-2 border-[#3cb44f]/30 border-t-[#3cb44f] animate-spin" />
+      </div>
+    )
+  }
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
 
 function App() {
   return (
@@ -11,7 +25,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
-      <Route path="/*" element={<HomePage />} />
+      <Route path="/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
     </Routes>
   )
 }

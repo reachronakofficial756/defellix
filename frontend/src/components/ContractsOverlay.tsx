@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { useContractsStore } from '../store/useContractsStore';
+import { apiClient } from "@/api/client";
 import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid } from 'lucide-react';
 import contractsBg3d from '@/assets/contracts_bg_3d.png';
 
@@ -16,1473 +17,51 @@ type MilestoneDetail = {
   completion_criteria_tc: string;
 };
 
-const CONTRACTS = [
-  {
-    id: 1,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 2,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 3,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 4,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 5,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 6,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 7,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 8,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 1,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 2,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 3,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 4,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 5,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 6,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 7,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 8,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 1,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 2,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 3,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 4,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 5,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 6,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 7,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 8,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 1,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 2,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 3,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 4,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 5,
-    title: 'E-Commerce React Frontend',
-    client: 'TechNova Solutions',
-    milestoneDeadline: 'Mar 2025',
-    status: 'Active' as const,
-    date: 'Oct 2024 – Mar 2025',
-    budget: '$12,500',
-    completion: 60,
-    milestone: '2 / 4',
-    tags: ['React', 'Next.js', 'Stripe', 'Tailwind'],
-    details: 'Building a fully responsive, high-performance storefront using Next.js, Framer Motion, and Tailwind CSS. The project involves complex state management, real-time cart updates, and integrating Stripe for payments. Phase 1 deliverables included wireframes and initial component architecture.',
-    milestones: [
-      { label: 'Design Wireframes', done: true },
-      { label: 'Component Architecture', done: true },
-      { label: 'API Integration', done: false },
-      { label: 'Checkout & Deploy', done: false },
-    ],
-    projectType: 'E-Commerce',
-    projectDesc: 'Full storefront with cart, checkout, and Stripe integration.',
-    startDate: '2024-10-01',
-    deadline: '2025-03-31',
-    duration: '6 months',
-    customTerms: 'Standard confidentiality and professional conduct.',
-    clientName: 'Jane Smith',
-    clientEmail: 'jane@technova.com',
-    clientPhone: '+1 (555) 100-2000',
-    clientCountry: 'United States',
-    clientCompany: 'TechNova Solutions',
-    outOfScope: 'Backend API development, hosting, and ongoing maintenance.',
-    coreDeliverable: 'Live staging link + Figma handoff + component library.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '12500',
-    paymentMethod: 'Stripe',
-    isAdvancePayment: true,
-    advanceAmount: '2500',
-    milestonesDetail: [
-      { title: 'Wireframes', description: 'Low-fi and hi-fi wireframes', amount: 2500, due_date: '2024-11-15', is_initial_payment: true, submission_criteria: 'Figma link', completion_criteria_tc: 'Approval within 5 days' },
-      { title: 'Component Architecture', description: 'Core components built', amount: 3500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'GitHub + Storybook', completion_criteria_tc: 'Code review sign-off' },
-      { title: 'API Integration', description: 'Stripe and cart integration', amount: 3500, due_date: '2025-02-28', is_initial_payment: false, submission_criteria: 'Staging URL', completion_criteria_tc: 'QA pass' },
-      { title: 'Checkout & Deploy', description: 'Checkout flow and production deploy', amount: 3000, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Live link', completion_criteria_tc: 'Final sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 6,
-    title: 'Mobile Banking App UI',
-    client: 'FinVanguard',
-    milestoneDeadline: 'Apr 2025',
-    status: 'In Review' as const,
-    date: 'Nov 2024 – Apr 2025',
-    budget: '$18,000',
-    completion: 90,
-    milestone: '5 / 5',
-    tags: ['Figma', 'React Native', 'Lottie'],
-    details: 'Designing the user interface for a neobank targeting Gen-Z users. The scope includes dark mode by default, complex animations using Lottie, and a highly intuitive dashboard for tracking expenses. Development handoff expects detailed Figma specifications with functional prototypes.',
-    milestones: [
-      { label: 'UX Research & Flow', done: true },
-      { label: 'High-Fi Mockups', done: true },
-      { label: 'Prototype Animation', done: true },
-      { label: 'Dev Handoff Specs', done: true },
-      { label: 'Final Review', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'Neobank app UI with dark mode and Lottie animations.',
-    startDate: '2024-11-01',
-    deadline: '2025-04-30',
-    duration: '6 months',
-    customTerms: 'NDA and financial data handling terms.',
-    clientName: 'Alex Rivera',
-    clientEmail: 'alex@finvanguard.com',
-    clientPhone: '+44 20 7946 0958',
-    clientCountry: 'United Kingdom',
-    clientCompany: 'FinVanguard',
-    outOfScope: 'Backend, compliance logic, and app store submission.',
-    coreDeliverable: 'Figma file + prototype + dev specs PDF.',
-    revisionPolicy: '3 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '18000',
-    paymentMethod: 'Bank Transfer',
-    isAdvancePayment: true,
-    advanceAmount: '5000',
-    milestonesDetail: [
-      { title: 'UX Research & Flow', description: 'User flows and research report', amount: 3000, due_date: '2024-12-01', is_initial_payment: true, submission_criteria: 'PDF + Miro', completion_criteria_tc: 'Stakeholder approval' },
-      { title: 'High-Fi Mockups', description: 'All screens in Figma', amount: 5000, due_date: '2025-01-31', is_initial_payment: false, submission_criteria: 'Figma link', completion_criteria_tc: 'Design review' },
-      { title: 'Prototype Animation', description: 'Lottie and micro-interactions', amount: 4000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Figma prototype', completion_criteria_tc: 'Approval' },
-      { title: 'Dev Handoff Specs', description: 'Specs and asset export', amount: 4000, due_date: '2025-04-15', is_initial_payment: false, submission_criteria: 'PDF + Figma', completion_criteria_tc: 'Handoff complete' },
-      { title: 'Final Review', description: 'Post-dev QA and tweaks', amount: 2000, due_date: '2025-04-30', is_initial_payment: false, submission_criteria: 'Sign-off', completion_criteria_tc: 'Client sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 7,
-    title: 'SaaS Dashboard Design',
-    client: 'CloudSync',
-    milestoneDeadline: 'May 2025',
-    status: 'Delayed' as const,
-    date: 'Dec 2024 – May 2025',
-    budget: '$8,200',
-    completion: 25,
-    milestone: '1 / 3',
-    tags: ['D3.js', 'React', 'TypeScript'],
-    details: 'A B2B dashboard for managing cloud infrastructure visually. Includes drag-and-drop server configuration screens, real-time analytics graphs utilizing D3.js, and complex data grids. The project is currently delayed pending finalization of backend API structures.',
-    milestones: [
-      { label: 'Information Architecture', done: true },
-      { label: 'Dashboard Components', done: false },
-      { label: 'Data Binding & Charts', done: false },
-    ],
-    projectType: 'UI/UX Design',
-    projectDesc: 'B2B cloud infrastructure dashboard with D3.js charts.',
-    startDate: '2024-12-01',
-    deadline: '2025-05-31',
-    duration: '6 months',
-    customTerms: 'Standard SaaS terms.',
-    clientName: 'Sam Chen',
-    clientEmail: 'sam@cloudsync.io',
-    clientPhone: '+1 (555) 300-4000',
-    clientCountry: 'United States',
-    clientCompany: 'CloudSync',
-    outOfScope: 'Backend API and deployment.',
-    coreDeliverable: 'Figma + component specs + D3 chart specs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Client owns all upon payment',
-    contractCurrency: 'USD',
-    contractAmount: '8200',
-    paymentMethod: 'PayPal',
-    isAdvancePayment: false,
-    advanceAmount: '',
-    milestonesDetail: [
-      { title: 'Information Architecture', description: 'IA and wireframes', amount: 2500, due_date: '2025-01-15', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Approval' },
-      { title: 'Dashboard Components', description: 'Core UI components', amount: 3200, due_date: '2025-03-31', is_initial_payment: false, submission_criteria: 'Figma', completion_criteria_tc: 'Review' },
-      { title: 'Data Binding & Charts', description: 'D3 charts and data grids', amount: 2500, due_date: '2025-05-31', is_initial_payment: false, submission_criteria: 'Figma + spec', completion_criteria_tc: 'Sign-off' },
-    ] as MilestoneDetail[],
-  },
-  {
-    id: 8,
-    title: 'AI Video Generator',
-    client: 'Visionary AI',
-    milestoneDeadline: 'Jun 2025',
-    status: 'Active' as const,
-    date: 'Jan 2025 – Jun 2025',
-    budget: '$25,000',
-    completion: 40,
-    milestone: '2 / 5',
-    tags: ['Fabric.js', 'WebSockets', 'React'],
-    details: 'Developing the frontend for a generative AI platform that converts text to professional video output. Core challenges include handling long-polling server responses, web socket integration for progress streaming, and a highly interactive video timeline editor built with Fabric.js.',
-    milestones: [
-      { label: 'Prompt Input & UI Shell', done: true },
-      { label: 'WebSocket Streaming', done: true },
-      { label: 'Video Timeline Editor', done: false },
-      { label: 'Export & Rendering Flow', done: false },
-      { label: 'QA & Launch', done: false },
-    ],
-    projectType: 'Web Development',
-    projectDesc: 'AI video generation frontend with WebSockets and Fabric.js timeline.',
-    startDate: '2025-01-01',
-    deadline: '2025-06-30',
-    duration: '6 months',
-    customTerms: 'IP and data usage for AI training.',
-    clientName: 'Jordan Lee',
-    clientEmail: 'jordan@visionaryai.com',
-    clientPhone: '+1 (555) 500-6000',
-    clientCountry: 'United States',
-    clientCompany: 'Visionary AI',
-    outOfScope: 'ML models and video encoding backend.',
-    coreDeliverable: 'Staging app + GitHub repo + deployment docs.',
-    revisionPolicy: '2 Rounds',
-    intellectualProperty: 'Shared ownership',
-    contractCurrency: 'USD',
-    contractAmount: '25000',
-    paymentMethod: 'Crypto',
-    isAdvancePayment: true,
-    advanceAmount: '7500',
-    milestonesDetail: [
-      { title: 'Prompt Input & UI Shell', description: 'Input UI and app shell', amount: 5000, due_date: '2025-02-01', is_initial_payment: true, submission_criteria: 'Staging URL', completion_criteria_tc: 'Approval' },
-      { title: 'WebSocket Streaming', description: 'Progress and stream UI', amount: 5000, due_date: '2025-03-15', is_initial_payment: false, submission_criteria: 'Demo', completion_criteria_tc: 'Sign-off' },
-      { title: 'Video Timeline Editor', description: 'Fabric.js timeline', amount: 6000, due_date: '2025-05-01', is_initial_payment: false, submission_criteria: 'Staging', completion_criteria_tc: 'QA' },
-      { title: 'Export & Rendering Flow', description: 'Export and render pipeline UI', amount: 5000, due_date: '2025-06-01', is_initial_payment: false, submission_criteria: 'E2E test', completion_criteria_tc: 'Pass' },
-      { title: 'QA & Launch', description: 'Bug fixes and launch prep', amount: 4000, due_date: '2025-06-30', is_initial_payment: false, submission_criteria: 'Production', completion_criteria_tc: 'Launch' },
-    ] as MilestoneDetail[],
-  },
+export interface ContractItem {
+  id: number;
+  title: string;
+  client: string;
+  milestoneDeadline: string;
+  status: "Active" | "In Review" | "Delayed" | "Sent";
+  date: string;
+  budget: string;
+  completion: number;
+  milestone: string;
+  tags: string[];
+  details: string;
+  milestones: { label: string; done: boolean }[];
+  projectType?: string;
+  projectDesc?: string;
+  startDate?: string;
+  deadline?: string;
+  duration?: string;
+  customTerms?: string;
+  clientName?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  clientCountry?: string;
+  clientCompany?: string;
+  outOfScope?: string;
+  coreDeliverable?: string;
+  revisionPolicy?: string;
+  intellectualProperty?: string;
+  contractCurrency?: string;
+  contractAmount?: string | number;
+  paymentMethod?: string;
+  isAdvancePayment?: boolean;
+  advanceAmount?: string | number;
+  milestonesDetail?: MilestoneDetail[];
+}
 
-];
 
 const statusConfig = {
   Active: { color: '#00e676', bg: 'bg-[#00e676]/10', text: 'text-[#00e676]', border: 'border-[#00e676]/30', Icon: CheckCircle },
   'In Review': { color: '#fbc02d', bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30', Icon: RotateCcw },
   Delayed: { color: '#ef5350', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30', Icon: AlertCircle },
+  Sent: { color: '#60a5fa', bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/30', Icon: FileCheck },
 };
 
-type ContractItem = (typeof CONTRACTS)[number];
+
 
 const ContractTabCard = memo(function ContractTabCard({
   contract,
@@ -1650,8 +229,101 @@ export default function ContractsOverlay() {
   const tabButtonsRef = useRef<(HTMLButtonElement | null)[]>([]);
   const hasInitializedVisibleStart = useRef(false);
 
-  const active = CONTRACTS[activeIndex];
-  const cfg = statusConfig[active.status];
+  const [contracts, setContracts] = useState<ContractItem[]>([]);
+  const [loadingContracts, setLoadingContracts] = useState(true);
+
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const res = await apiClient.get("/contracts");
+        const data = (res as any).data?.data?.contracts || [];
+        const mapped: ContractItem[] = data.map((c: any) => {
+            const dummyChecklist = c.milestones?.map((m: any) => ({
+                label: m.title,
+                done: m.status === 'approved' || m.status === 'paid'
+            })) || [];
+
+            const mappedMilestonesDetail = c.milestones?.map((m: any) => ({
+                title: m.title,
+                description: m.description,
+                amount: m.amount,
+                due_date: m.due_date ? new Date(m.due_date).toLocaleDateString() : 'TBD',
+                is_initial_payment: m.order_index === 0,
+                submission_criteria: m.submission_criteria,
+                completion_criteria_tc: m.completion_criteria_tc
+            })) || [];
+
+            let status: "Active" | "In Review" | "Delayed" | "Sent" = "Active";
+            if (c.status === "sent") status = "Sent";
+            else if (c.status === "pending" || c.status === "draft") status = "In Review";
+            else if (c.status === "disputed" || c.status === "delayed") status = "Delayed";
+
+            const totalMilestones = c.milestones?.length || 0;
+            const completedMilestones = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').length || 0;
+            
+            const totalAmount = c.total_amount || 1;
+            const completedAmount = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').reduce((sum: number, m: any) => sum + m.amount, 0) || 0;
+            const completion = Math.round((completedAmount / totalAmount) * 100);
+
+            return {
+                id: c.id,
+                title: c.project_name || "Untitled",
+                client: c.client_name || "Unknown Client",
+                milestoneDeadline: c.due_date ? new Date(c.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD',
+                status: status,
+                date: c.start_date ? `${new Date(c.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${c.due_date ? new Date(c.due_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'TBD'}` : 'TBD',
+                budget: `${c.currency || 'USD'} ${c.total_amount?.toLocaleString() || '0'}`,
+                completion: completion,
+                milestone: `${completedMilestones} / ${totalMilestones}`,
+                tags: [c.project_category || 'Other'],
+                details: c.description || '',
+                milestones: dummyChecklist,
+                projectType: c.project_category || 'Other',
+                projectDesc: c.description || '',
+                startDate: c.start_date ? new Date(c.start_date).toISOString().split('T')[0] : 'TBD',
+                deadline: c.due_date ? new Date(c.due_date).toISOString().split('T')[0] : 'TBD',
+                duration: c.estimated_duration || 'Unknown',
+                customTerms: c.terms_and_conditions || 'None',
+                clientName: c.client_name || '',
+                clientEmail: c.client_email || '',
+                clientPhone: c.client_phone || '',
+                clientCountry: c.client_country || '',
+                clientCompany: c.client_company_name || '',
+                outOfScope: c.out_of_scope_work || '',
+                coreDeliverable: c.submission_criteria || '',
+                revisionPolicy: c.revision_policy || '',
+                intellectualProperty: c.intellectual_property || '',
+                contractCurrency: c.currency || 'USD',
+                contractAmount: c.total_amount || 0,
+                paymentMethod: c.payment_method || '',
+                isAdvancePayment: c.advance_payment_required || false,
+                advanceAmount: c.advance_payment_amount || 0,
+                milestonesDetail: mappedMilestonesDetail
+            };
+        });
+        setContracts(mapped);
+      } catch (err) {
+        console.error("Failed to load overlay contracts", err);
+      } finally {
+        setLoadingContracts(false);
+      }
+    };
+    fetchContracts();
+  }, []);
+
+  // Auto-select contract from dashboard "Open contract" click
+  useEffect(() => {
+    if (activeContractId == null || contracts.length === 0) return;
+    const idx = contracts.findIndex(c => c.id === activeContractId);
+    if (idx !== -1) {
+      setActiveIndex(idx);
+      setViewMode('details');
+      setActiveContractId(null); // clear after use
+    }
+  }, [activeContractId, contracts, setActiveContractId]);
+
+  const active = contracts[activeIndex] || contracts[0];
+  const cfg = active ? statusConfig[active.status] : null;
 
   // ─── GSAP page entrance ───────────────────────────────────────────────────
   useEffect(() => {
@@ -1698,7 +370,7 @@ export default function ContractsOverlay() {
   const CARD_WIDTH = 210;
   const CARD_GAP = 8;
   const TABS_HORIZONTAL_PADDING = 112; // px-10 (80) + pl-4 pr-4 (32)
-  const [numThatFit, setNumThatFit] = useState<number>(CONTRACTS.length);
+  const [numThatFit, setNumThatFit] = useState<number>(contracts.length);
   const [visibleStart, setVisibleStart] = useState(0);
 
   useEffect(() => {
@@ -1714,13 +386,13 @@ export default function ContractsOverlay() {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [CONTRACTS.length]);
+  }, [contracts.length]);
 
   // On first layout, choose an initial window so the active tab sits at the visual center (only when we have a separate View All card).
   useEffect(() => {
     if (hasInitializedVisibleStart.current) return;
     if (numThatFit <= 0) return;
-    const showViewAll = numThatFit > 0 && CONTRACTS.length > numThatFit;
+    const showViewAll = numThatFit > 0 && contracts.length > numThatFit;
     if (!showViewAll) {
       // All projects fit in the row: show from the first project, no windowing.
       setVisibleStart(0);
@@ -1732,7 +404,7 @@ export default function ContractsOverlay() {
     // Force an odd count so we have a true center slot
     const visibleCountForInit = baseVisibleCount % 2 === 0 ? Math.max(1, baseVisibleCount - 1) : baseVisibleCount;
     const halfWindow = Math.floor(visibleCountForInit / 2);
-    const maxStart = Math.max(0, CONTRACTS.length - visibleCountForInit);
+    const maxStart = Math.max(0, contracts.length - visibleCountForInit);
     const desiredStart = activeIndex - halfWindow;
     const start = Math.min(maxStart, Math.max(0, desiredStart));
     setVisibleStart(start);
@@ -1740,12 +412,36 @@ export default function ContractsOverlay() {
   }, [numThatFit, activeIndex]);
 
   // Visible slice: when we show the View All card, reserve one slot and keep an odd number of project tabs.
-  const showViewAllCard = numThatFit > 0 && CONTRACTS.length > numThatFit;
-  const baseVisibleCount = showViewAllCard ? Math.max(0, numThatFit - 1) : Math.min(CONTRACTS.length, numThatFit);
+  const showViewAllCard = numThatFit > 0 && contracts.length > numThatFit;
+  const baseVisibleCount = showViewAllCard ? Math.max(0, numThatFit - 1) : Math.min(contracts.length, numThatFit);
   const visibleCount = showViewAllCard
     ? (baseVisibleCount % 2 === 0 ? Math.max(1, baseVisibleCount - 1) : baseVisibleCount)
     : baseVisibleCount;
-  const visibleContracts = CONTRACTS.slice(visibleStart, visibleStart + visibleCount);
+  const visibleContracts = contracts.slice(visibleStart, visibleStart + visibleCount);
+
+  // Early return if loading or empty
+  if (loadingContracts || contracts.length === 0) {
+    return (
+      <motion.div ref={pageRef} className="h-full bg-[#1e3824] flex items-center justify-center overflow-hidden">
+        {loadingContracts ? (
+          <div className="flex flex-col items-center gap-5">
+               <svg className="animate-spin h-10 w-10 text-[#00e676]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-[#00e676] font-bold tracking-widest text-xs uppercase">Loading Contracts...</p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-5">
+              <AlertCircle className="w-14 h-14 text-white/50" />
+              <p className="text-white/50 font-bold tracking-widest text-xs uppercase">No Active Contracts</p>
+          </div>
+        )}
+      </motion.div>
+    );
+  }
+
+  if (!active || !cfg) return null;
 
   return (
     <motion.div
@@ -1759,7 +455,7 @@ export default function ContractsOverlay() {
             {viewMode === 'all' ? 'All projects' : active.title}
           </h2>
           <p className="text-white text-sm md:text-base mt-1">
-            {viewMode === 'all' ? `${CONTRACTS.length} contracts` : `Client: ${active.client}`}
+            {viewMode === 'all' ? `${contracts.length} contracts` : `Client: ${active.client}`}
           </p>
         </div>
       </div>
@@ -1778,7 +474,7 @@ export default function ContractsOverlay() {
         >
           <Calendar size={24} className="text-black" />
         </button>
-      </div>
+                </div>
 
       {/* ─── Tabs row: project cards, or (when view all) only centered "Go back to project details" ─────────────────── */}
       <div ref={tabsRef} className="relative z-0 shrink-0 px-10 pt-2 min-h-[11rem]">
@@ -1818,12 +514,12 @@ export default function ContractsOverlay() {
                       index={globalIndex}
                       isActive={globalIndex === activeIndex}
                       isFirst={visibleStart === 0 && i === 0}
-                      isLast={!showViewAllCard && globalIndex === CONTRACTS.length - 1}
+                      isLast={!showViewAllCard && globalIndex === contracts.length - 1}
                       onSelect={handleSelectTab}
                       setButtonRef={setTabButtonRef}
                     />
-                  );
-                })}
+            );
+          })}
                 {showViewAllCard && (
                   <button
                     type="button"
@@ -1833,7 +529,7 @@ export default function ContractsOverlay() {
                   >
                     <LayoutGrid size={24} className="text-gray-600" />
                     <span className="text-sm font-bold text-gray-800 text-center">View all projects</span>
-                    <span className="text-xs text-gray-500">+{CONTRACTS.length - visibleCount} more</span>
+                    <span className="text-xs text-gray-500">+{contracts.length - visibleCount} more</span>
                   </button>
                 )}
               </motion.div>
@@ -1843,10 +539,10 @@ export default function ContractsOverlay() {
       </div>
 
       {/* ─── Active Contract Detail Panel: fixed position, in front of tabs (no movement on project change) ───────────────────────────────── */}
-      <motion.div
-        ref={detailsRef}
+        <motion.div
+          ref={detailsRef}
         className="relative z-10 flex-1 mx-1 -mt-[22px] pt-6 overflow-hidden rounded-t-[40px] min-h-0 flex flex-col flex-shrink-0"
-        style={{
+          style={{
           background: '#0d1a10',
         }}
       >
@@ -1869,7 +565,7 @@ export default function ContractsOverlay() {
                   animate="visible"
                   variants={{ visible: { transition: { staggerChildren: 0.04, delayChildren: 0.06 } }, hidden: {} }}
                 >
-                  {CONTRACTS.map((c, i) => {
+                  {contracts.map((c, i) => {
                     const sc = statusConfig[c.status] ?? statusConfig.Active;
                     return (
                       <motion.button
@@ -1886,7 +582,7 @@ export default function ContractsOverlay() {
                           // so this project appears within (ideally at the center of) the row.
                           if (showViewAllCard && visibleCount > 0) {
                             const halfWindow = Math.floor(visibleCount / 2);
-                            const maxStart = Math.max(0, CONTRACTS.length - visibleCount);
+                            const maxStart = Math.max(0, contracts.length - visibleCount);
                             const desiredStart = i - halfWindow;
                             const nextStart = Math.min(maxStart, Math.max(0, desiredStart));
                             setVisibleStart(nextStart);
@@ -1915,44 +611,44 @@ export default function ContractsOverlay() {
                 transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
                 <>
-                  {/* ─── HERO ROW ── large title + key stats ─── */}
+            {/* ─── HERO ROW ── large title + key stats ─── */}
                   <div className="px-4 pb-6">
-                    {/* Stats strip */}
+              {/* Stats strip */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                      {[
+                {[
                         { icon: DollarSign, label: 'Revenue', value: active.budget, color: '#00e676' },
-                        { icon: Calendar, label: 'Timeline', value: active.date, color: '#60a5fa' },
-                        { icon: FileText, label: 'Milestones', value: active.milestone, color: '#a78bfa' },
+                  { icon: Calendar, label: 'Timeline', value: active.date, color: '#60a5fa' },
+                  { icon: FileText, label: 'Milestones', value: active.milestone, color: '#a78bfa' },
                         { icon: Calendar, label: 'Current Milestone Deadline', value: (active as { milestoneDeadline?: string }).milestoneDeadline ?? '—', color: '#ffd166' },
-                      ].map(({ icon: Icon, label, value, color }) => (
+                ].map(({ icon: Icon, label, value, color }) => (
                         <div key={label} className="bg-white/4 rounded-3xl p-5 border border-white/6 flex flex-col gap-2">
-                          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
-                            <Icon size={17} style={{ color }} />
-                          </div>
-                          <div>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+                      <Icon size={17} style={{ color }} />
+                    </div>
+                    <div>
                             <p className="text-gray-500 text-sm font-medium mb-0.5">{label}</p>
                             <p className="text-white font-bold text-2xl truncate">{value}</p>
-                          </div>
-                        </div>
-                      ))}
                     </div>
+                  </div>
+                ))}
+              </div>
 
-                    {/* Progress bar — full width */}
-                    <div className="mb-8">
-                      <div className="flex justify-between items-center mb-2">
-                        <p className="text-gray-400 text-sm font-medium">Overall Progress</p>
-                        <p className="font-bold text-sm" style={{ color: cfg.color }}>{active.completion}%</p>
-                      </div>
-                      <div className="h-2.5 bg-white/8 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${active.completion}%` }}
-                          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-                          className="h-full rounded-full"
-                          style={{ backgroundColor: cfg.color, boxShadow: `0 0 10px ${cfg.color}55` }}
-                        />
-                      </div>
-                    </div>
+              {/* Progress bar — full width */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-gray-400 text-sm font-medium">Overall Progress</p>
+                  <p className="font-bold text-sm" style={{ color: cfg.color }}>{active.completion}%</p>
+                </div>
+                <div className="h-2.5 bg-white/8 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${active.completion}%` }}
+                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: cfg.color, boxShadow: `0 0 10px ${cfg.color}55` }}
+                  />
+                </div>
+              </div>
 
                     {/* ─── CreateContractForm-aligned sections ─── */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-2">
@@ -1971,7 +667,7 @@ export default function ContractsOverlay() {
                             <div><dt className="text-gray-500 mb-0.5">Duration</dt><dd className="text-white font-medium">{(active as { duration?: string }).duration ?? '—'}</dd></div>
                             <div className="sm:col-span-2"><dt className="text-gray-500 mb-0.5">Terms & Conditions</dt><dd className="text-gray-300 leading-relaxed">{(active as { customTerms?: string }).customTerms ?? '—'}</dd></div>
                           </dl>
-                        </div>
+                  </div>
 
 
 
@@ -1987,7 +683,7 @@ export default function ContractsOverlay() {
                             <div><dt className="text-gray-500 mb-0.5">Client Country</dt><dd className="text-white font-medium">{(active as { clientCountry?: string }).clientCountry ?? '—'}</dd></div>
                             <div className="sm:col-span-2"><dt className="text-gray-500 mb-0.5">Company Name</dt><dd className="text-white font-medium">{(active as { clientCompany?: string }).clientCompany ?? active.client}</dd></div>
                           </dl>
-                        </div>
+                    </div>
                         {/* 4. Payment Terms (Step 4) */}
                         <div className="rounded-3xl border border-white/8 p-6 bg-white/3 space-y-4">
                           <h3 className="text-white font-semibold text-base flex items-center gap-2">
@@ -2006,30 +702,30 @@ export default function ContractsOverlay() {
                                   <div key={idx} className="flex justify-between items-center text-sm py-2 border-b border-white/6 last:border-0">
                                     <span className="text-gray-400">{idx + 1}. {ms.title || 'Untitled'}</span>
                                     <span className="text-white font-bold">{(active as { contractCurrency?: string }).contractCurrency ?? 'USD'} {ms.amount?.toLocaleString() ?? '0'}</span>
-                                  </div>
+                    </div>
                                 ))}
-                              </div>
-                            </div>
+                    </div>
+                    </div>
                           )}
-                        </div>
+                  </div>
 
                         {/* Activity */}
                         <div className="rounded-3xl border border-white/8 p-6 bg-white/3">
-                          <h4 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-                            <Clock size={15} className="text-gray-400" /> Activity
-                          </h4>
-                          <div className="space-y-4 relative before:content-[''] before:absolute before:left-[7px] before:top-0 before:bottom-0 before:w-px before:bg-white/8">
-                            {['Contract signed', 'Kicked off phase 1', 'Milestone review', 'Ongoing work'].map((a, i) => (
-                              <div key={i} className="flex items-start gap-4 pl-5 relative">
-                                <div className="absolute left-0 top-1 w-3.5 h-3.5 rounded-full bg-[#161b27] border-2 shrink-0" style={{ borderColor: i === 0 ? cfg.color : 'rgba(255,255,255,0.12)' }} />
-                                <div>
-                                  <p className="text-white text-xs font-medium">{a}</p>
-                                  <p className="text-gray-600 text-[10px] mt-0.5">{i === 0 ? 'Jan 2025' : i === 1 ? 'Feb 2025' : i === 2 ? 'Mar 2025' : 'Now'}</p>
-                                </div>
-                              </div>
-                            ))}
+                    <h4 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
+                      <Clock size={15} className="text-gray-400" /> Activity
+                    </h4>
+                    <div className="space-y-4 relative before:content-[''] before:absolute before:left-[7px] before:top-0 before:bottom-0 before:w-px before:bg-white/8">
+                      {['Contract signed', 'Kicked off phase 1', 'Milestone review', 'Ongoing work'].map((a, i) => (
+                        <div key={i} className="flex items-start gap-4 pl-5 relative">
+                          <div className="absolute left-0 top-1 w-3.5 h-3.5 rounded-full bg-[#161b27] border-2 shrink-0" style={{ borderColor: i === 0 ? cfg.color : 'rgba(255,255,255,0.12)' }} />
+                          <div>
+                            <p className="text-white text-xs font-medium">{a}</p>
+                            <p className="text-gray-600 text-[10px] mt-0.5">{i === 0 ? 'Jan 2025' : i === 1 ? 'Feb 2025' : i === 2 ? 'Mar 2025' : 'Now'}</p>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  </div>
 
 
 
@@ -2052,7 +748,7 @@ export default function ContractsOverlay() {
                             <div><dt className="text-gray-500 mb-0.5">Intellectual Property</dt><dd className="text-white font-medium">{(active as { intellectualProperty?: string }).intellectualProperty ?? '—'}</dd></div>
                           </dl>
                           {/* Milestones (form-style with title, description, amount, due_date, etc.) */}
-                          {((active as { milestonesDetail?: MilestoneDetail[] }).milestonesDetail?.length ?? 0) > 0 && (
+                          {/* {((active as { milestonesDetail?: MilestoneDetail[] }).milestonesDetail?.length ?? 0) > 0 && (
                             <div className="pt-4 border-t border-white/8">
                               <h4 className="text-white font-medium text-sm mb-3">Milestones</h4>
                               <div className="space-y-3">
@@ -2073,38 +769,54 @@ export default function ContractsOverlay() {
                                 ))}
                               </div>
                             </div>
-                          )}
+                          )} */}
                           {/* Checklist milestones (label / done) */}
                           <div className="pt-4 border-t border-white/8">
                             <h4 className="text-white font-medium text-sm mb-3">Progress Checklist</h4>
-                            <div className="space-y-2">
-                              {active.milestones.map((m, i) => (
-                                <div key={i} className="flex items-center gap-3">
-                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${m.done ? 'bg-[#00e676]/15' : 'bg-white/6 border border-white/10'}`}>
-                                    {m.done ? <CheckCircle size={12} className="text-[#00e676]" /> : <span className="text-gray-600 text-[10px] font-bold">{i + 1}</span>}
+                            <div className="space-y-3">
+                              {active.milestones.length === 0 ? (
+                                <p className="text-gray-500 text-sm">No milestones defined.</p>
+                              ) : active.milestones.map((m, i) => {
+                                const msDetail = (active as { milestonesDetail?: MilestoneDetail[] }).milestonesDetail?.[i];
+                                return (
+                                  <div key={i} className={`flex flex-col gap-1.5 p-3 rounded-xl border ${m.done ? 'border-[#00e676]/20 bg-[#00e676]/5' : 'border-white/6 bg-white/3'}`}>
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${m.done ? 'bg-[#00e676]/20' : 'bg-white/6 border border-white/10'}`}>
+                                        {m.done ? <CheckCircle size={12} className="text-[#00e676]" /> : <span className="text-gray-600 text-[10px] font-bold">{i + 1}</span>}
+                                      </div>
+                                      <span className={`text-sm font-semibold flex-1 ${m.done ? 'text-white' : 'text-gray-300'}`}>{m.label}</span>
+                                      {m.done && <span className="text-[10px] text-[#00e676] font-semibold bg-[#00e676]/10 px-2 py-0.5 rounded-full">Done</span>}
+                                    </div>
+                                    {msDetail && (
+                                      <div className="ml-9 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
+                                        {msDetail.amount > 0 && (
+                                          <span className="text-[#a78bfa] font-medium">{(active as { contractCurrency?: string }).contractCurrency ?? 'USD'} {msDetail.amount.toLocaleString()}</span>
+                                        )}
+                                        {msDetail.due_date && <span>Due: {msDetail.due_date}</span>}
+                                        {msDetail.submission_criteria && <span className="text-gray-600 truncate max-w-[180px]">Submit: {msDetail.submission_criteria}</span>}
+                                      </div>
+                                    )}
                                   </div>
-                                  <span className={`text-sm ${m.done ? 'text-white' : 'text-gray-500'}`}>{m.label}</span>
-                                  {m.done && <span className="ml-auto text-[10px] text-[#00e676] font-semibold">Done</span>}
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
 
                         <div className="flex flex-col gap-2">
-                          <button
+                  <button
                             className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
-                            style={{
-                              background: `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`,
-                              border: `1px solid ${cfg.color}40`,
-                              color: cfg.color,
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.background = `${cfg.color}22`)}
-                            onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`)}
-                          >
+                    style={{
+                      background: `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`,
+                      border: `1px solid ${cfg.color}40`,
+                      color: cfg.color,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = `${cfg.color}22`)}
+                    onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`)}
+                  >
                             Submit Work
-                          </button>
-                          <button
+                  </button>
+                  <button
                             className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
                             style={{
                               background: `#2d8a3e`,
@@ -2113,16 +825,16 @@ export default function ContractsOverlay() {
                             }}
                           >
                             Get Section 65b Certificate
-                          </button>
-                        </div>
+                  </button>
+                </div>
 
-                      </div>
-                    </div>
-                  </div>
+              </div>
+            </div>
+          </div>
                 </>
-              </motion.div>
+        </motion.div>
             )}
-          </AnimatePresence>
+      </AnimatePresence>
         </div>
       </motion.div>
     </motion.div>

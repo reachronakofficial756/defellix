@@ -13,21 +13,28 @@ import (
 func RequireAuth(jwtManager *jwt.JWTManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Extract token from Authorization header
+			// Extract token from Authorization header or Cookie
+			var tokenString string
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				respondError(w, http.StatusUnauthorized, "Authorization header required", "UNAUTHORIZED")
-				return
+			if authHeader != "" {
+				parts := strings.Split(authHeader, " ")
+				if len(parts) == 2 && parts[0] == "Bearer" {
+					tokenString = parts[1]
+				}
 			}
 
-			// Check if it's a Bearer token
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				respondError(w, http.StatusUnauthorized, "Invalid authorization header format", "UNAUTHORIZED")
-				return
+			// Fallback to HttpOnly cookie
+			if tokenString == "" {
+				cookie, err := r.Cookie("access_token")
+				if err == nil && cookie.Value != "" {
+					tokenString = cookie.Value
+				}
 			}
 
-			tokenString := parts[1]
+			if tokenString == "" {
+				respondError(w, http.StatusUnauthorized, "Authorization token required", "UNAUTHORIZED")
+				return
+			}
 
 			// Validate token
 			claims, err := jwtManager.ValidateToken(tokenString)

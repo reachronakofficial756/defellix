@@ -1,32 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import axios from "axios";
-
+import { apiClient, setSessionToken, API_BASE } from "@/api/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { FaLinkedin, FaGoogle } from "react-icons/fa6";
 import logo from "../assets/logo.svg";
 
 export default function LoginFormDemo() {
   const navigate = useNavigate();
+  const { setAuthenticated } = useAuth();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const parseJwtEmail = useMemo(() => {
-    return (token: string): string | null => {
-      try {
-        const payload = token.split(".")[1];
-        if (!payload) return null;
-        const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-        return typeof json?.email === "string" ? json.email : null;
-      } catch {
-        return null;
-      }
-    };
-  }, []);
-
   const handleOAuth = (provider: "google" | "linkedin") => {
-    const base = "https://api.defellix.com";
-    const url = `${base}/api/v1/auth/oauth/${provider}?role=freelancer`;
+    const url = `${API_BASE}/api/v1/auth/oauth/${provider}?role=freelancer`;
     window.location.href = url;
   };
 
@@ -43,48 +30,29 @@ export default function LoginFormDemo() {
       params.get("jwt");
     if (!token) return;
 
-    const emailParam = params.get("email");
-    const emailFromJwt = parseJwtEmail(token);
-    const email = emailParam || emailFromJwt || "this email";
-
-    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+    setSessionToken(token);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("access_token", token);
+    }
 
     (async () => {
       try {
-        const res = await axios.get("https://api.defellix.com/api/v1/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const profile = res?.data?.data ?? res?.data ?? {};
-        const hasProfile =
-          typeof profile?.user_name === "string" &&
-          profile.user_name.length >= 3 &&
-          typeof profile?.short_headline === "string" &&
-          profile.short_headline.length >= 10 &&
-          Array.isArray(profile?.skills) &&
-          profile.skills.length > 0;
-
-        if (!hasProfile) {
-          const msg = `Profile doesn’t exist for ${email}. Please set up your profile.`;
-          navigate(
-            `/signup?access_token=${encodeURIComponent(token)}&email=${encodeURIComponent(
-              emailParam || emailFromJwt || "",
-            )}&toast=${encodeURIComponent(msg)}`,
-          );
-          return;
-        }
-
-        navigate("/dashboard");
+        await apiClient.get("/users/me");
+        // User exists in DB → go to dashboard
+        setAuthenticated(true);
+        navigate("/");
       } catch {
-        const msg = `Profile doesn’t exist for ${email}. Please set up your profile.`;
-        navigate(
-          `/signup?access_token=${encodeURIComponent(token)}&email=${encodeURIComponent(
-            emailParam || emailFromJwt || "",
-          )}&toast=${encodeURIComponent(msg)}`,
-        );
+        // Account does not exist → show error, stay on login
+        setSessionToken(null);
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem("access_token");
+        }
+        setToastMessage("Please create your account first before logging in.");
+        window.setTimeout(() => setToastMessage(null), 5000);
+        window.history.replaceState({}, "", "/login");
       }
     })();
-  }, [navigate, parseJwtEmail]);
+  }, [navigate, setAuthenticated]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

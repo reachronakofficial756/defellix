@@ -68,6 +68,8 @@ services:
       - SMTP_USER=defellix.support@gmail.com
       - SMTP_PASS=zpkb eubi vxlp bmfk
       - SMTP_FROM_NAME=Defellix Contracts
+    env_file:
+      - ./services/contract-service/.env
 
   # Blockchain Service
   blockchain-service:

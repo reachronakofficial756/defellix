@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { apiClient } from "@/api/client";
 
 const STEPS = [
     "Project Details",
@@ -179,7 +180,7 @@ const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
     const [coreDeliverable, setCoreDeliverable] = useState("");
     const [revisionPolicy, setRevisionPolicy] = useState("2 Rounds");
     const [intellectualProperty, setIntellectualProperty] = useState("Client owns all upon payment");
-    const [contractCurrency, setContractCurrency] = useState("USD");
+    const [contractCurrency, setContractCurrency] = useState("INR");
     const [contractAmount, setContractAmount] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [contractText, setContractText] = useState("");
@@ -244,6 +245,14 @@ const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
 
     const [isAdvancePayment, setIsAdvancePayment] = useState(false);
     const [advanceAmount, setAdvanceAmount] = useState("");
+
+    // Backend integration state
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [contractId, setContractId] = useState<number | null>(null);
+    
+    // PRD upload and extraction state
+    const [prdFile, setPrdFile] = useState<File | null>(null);
+    const [isUploadingPrd, setIsUploadingPrd] = useState(false);
 
     useEffect(() => {
         if (step !== 5) {
@@ -324,13 +333,170 @@ By signing below, both parties agree to the terms outlined in this agreement.
 
     const [isSent, setIsSent] = useState(false);
     const [generatedLink, setGeneratedLink] = useState("");
+
+    const buildContractPayload = () => {
+        const totalBase = parseFloat(contractAmount) || 0;
+        const milestonesTotal = milestones.reduce((sum, ms) => sum + (ms.amount || 0), 0);
+        const totalAmount = totalBase + milestonesTotal;
+        const displayProjectType = projectType === "Other" ? (otherProjectType || projectType) : projectType;
+
+        const toISO = (value: string) => (value ? new Date(value + "T00:00:00").toISOString() : undefined);
+
+        const finalMilestones = milestones.map((ms) => ({
+            title: ms.title,
+            description: ms.description,
+            amount: ms.amount || 0,
+            due_date: ms.due_date ? new Date(ms.due_date + "T00:00:00").toISOString() : undefined,
+            submission_criteria: ms.submission_criteria || "Video URL",
+            completion_criteria_tc: ms.completion_criteria_tc || "",
+        }));
+
+        // The Go backend enforces that the sum of all milestones exactly equals the total_amount.
+        // If the user specified a base fee, we automatically wrap it into a final milestone.
+        if (totalBase > 0) {
+            finalMilestones.push({
+                title: "Core Project Deliverables (Final Payment)",
+                description: "Final payment upon completion of the core project scope.",
+                amount: totalBase,
+                due_date: toISO(deadline),
+                submission_criteria: coreDeliverable || "Standard delivery",
+                completion_criteria_tc: "Subject to final review.",
+            });
+        }
+
+        return {
+            project_category: displayProjectType,
+            project_name: projectTitle,
+            description: projectDesc,
+            due_date: toISO(deadline),
+            total_amount: totalAmount,
+            currency: contractCurrency || "INR",
+            prd_file_url: "", // PRD upload UI is wiring handled in handlePrdUpload
+            submission_criteria: coreDeliverable || "",
+            client_name: clientName,
+            client_company_name: clientCompany,
+            client_email: clientEmail,
+            client_phone: clientPhone,
+            client_country: clientCountry,
+            terms_and_conditions: customTerms,
+            start_date: toISO(startDate),
+            revision_policy: revisionPolicy,
+            out_of_scope_work: outOfScope,
+            intellectual_property: intellectualProperty,
+            estimated_duration: duration,
+            payment_method: paymentMethod === "Other" ? otherPaymentMethod || "Other" : paymentMethod,
+            advance_payment_required: isAdvancePayment,
+            advance_payment_amount: parseFloat(advanceAmount) || 0,
+            milestones: finalMilestones,
+        };
+    };
+
+    const createOrReuseDraft = async (): Promise<number> => {
+        if (contractId) return contractId;
+        const payload = buildContractPayload();
+        const res = await apiClient.post("/contracts", payload);
+        const data = (res as any).data?.data ?? (res as any).data;
+        const id = data?.id;
+        if (!id) {
+            throw new Error("Contract created but response had no id");
+        }
+        setContractId(id);
+        return id;
+    };
+
+    const handleSaveDraft = async () => {
+        try {
+            setIsSubmitting(true);
+            await createOrReuseDraft();
+            alert("Contract saved as draft!");
+        } catch (err: any) {
+            const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to save draft. Please try again.";
+            alert(msg);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSend = async () => {
+        try {
+            setIsSubmitting(true);
+            const id = await createOrReuseDraft();
+            const res = await apiClient.post(`/contracts/${id}/send`, {});
+            const data = (res as any).data?.data ?? (res as any).data;
+            const link =
+                data?.shareable_link ||
+                (typeof window !== "undefined"
+                    ? `${window.location.origin}/review-contract/${id}`
+                    : "");
+            setGeneratedLink(link);
+            setIsSent(true);
+        } catch (err: any) {
+            const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to send contract. Please try again.";
+            alert(msg);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handlePrdUpload = async (file: File) => {
+        try {
+            setIsUploadingPrd(true);
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const res = await apiClient.post("/contracts/prd-upload", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            const data = (res as any).data?.data ?? (res as any).data;
+            const url = data?.prd_file_url;
+            if (!url) {
+                throw new Error("PRD upload succeeded but no URL returned");
+            }
+            
+            // The backend now returns the extracted contract synchronously, bypassing CDN fetch blocks
+            if (data?.extracted_contract) {
+                const extracted = data.extracted_contract;
+                if (extracted.project_title) setProjectTitle(extracted.project_title);
+                if (extracted.project_description) setProjectDesc(extracted.project_description);
+                if (extracted.terms_and_conditions) setCustomTerms(extracted.terms_and_conditions);
+                if (extracted.start_date) setStartDate(extracted.start_date);
+                if (extracted.deadline) setDeadline(extracted.deadline);
+                if (extracted.scope) setCoreDeliverable(extracted.scope);
+                if (extracted.deliverables) setOutOfScope(extracted.deliverables);
     
-    const handleSend = () => {
-        setIsSent(true);
-        // Generate a random ID for the mock review link
-        const randomId = Math.random().toString(36).substring(2, 10);
-        setGeneratedLink(`${window.location.origin}/review-contract/${randomId}`);
-        // Remove the automatic onClose() so user can see the link
+                if (extracted.project_type) {
+                    const matchedType = PROJECT_TYPES.find(
+                        (t) => t.toLowerCase() === extracted.project_type.toLowerCase()
+                    );
+                    if (matchedType) {
+                        setProjectType(matchedType);
+                    } else {
+                        setProjectType("Other");
+                        setOtherProjectType(extracted.project_type);
+                    }
+                }
+    
+                if (extracted.client) {
+                    if (extracted.client.name) setClientName(extracted.client.name);
+                    if (extracted.client.email) setClientEmail(extracted.client.email);
+                    if (extracted.client.phone) setClientPhone(extracted.client.phone);
+                    if (extracted.client.company) setClientCompany(extracted.client.company);
+                    if (extracted.client.country) setClientCountry(extracted.client.country);
+                }
+    
+                alert("PRD data extracted and form auto-filled!");
+            }
+        } catch (err: any) {
+            alert(err?.response?.data?.message || err?.message || "Failed to upload PRD");
+        } finally {
+            setIsUploadingPrd(false);
+        }
     };
 
     const nextStep = () => {
@@ -487,14 +653,50 @@ By signing below, both parties agree to the terms outlined in this agreement.
 
                         <div className="mt-4">
                             <label className={labelClass}>Upload PRD (PDF, DOCX)</label>
-                            <div className="w-full border border-dashed border-[#1e1e1e] rounded-xl bg-[#0a0a0a] flex flex-col items-center justify-center py-12 hover:border-[#3cb44f]/60 transition-colors cursor-pointer group">
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#4a4a4a] group-hover:text-[#3cb44f] mb-3 group-hover:-translate-y-1 transition-all">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="17 8 12 3 7 8" />
-                                    <line x1="12" y1="3" x2="12" y2="15" />
-                                </svg>
-                                <p className="text-white font-medium text-base">Drag & drop PRD here</p>
-                                <p className="text-[#4a4a4a] text-sm mt-1">Accepts PDF and DOCX only</p>
+                            <input
+                                type="file"
+                                id="prd-file-input"
+                                accept=".pdf,.docx,.doc"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        setPrdFile(file);
+                                        void handlePrdUpload(file);
+                                    }
+                                }}
+                            />
+                            <div
+                                onClick={() => document.getElementById("prd-file-input")?.click()}
+                                className="w-full border border-dashed border-[#1e1e1e] rounded-xl bg-[#0a0a0a] flex flex-col items-center justify-center py-12 hover:border-[#3cb44f]/60 transition-colors cursor-pointer group"
+                            >
+                                {isUploadingPrd ? (
+                                    <>
+                                        <div className="w-10 h-10 rounded-full border-2 border-[#3cb44f]/30 border-t-[#3cb44f] animate-spin mb-3" />
+                                        <p className="text-white font-medium text-base">
+                                            Uploading & Extracting...
+                                        </p>
+                                    </>
+                                ) : prdFile ? (
+                                    <>
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#3cb44f] mb-3">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                                            <polyline points="22 4 12 14.01 9 11.01" />
+                                        </svg>
+                                        <p className="text-white font-medium text-base">{prdFile.name}</p>
+                                        <p className="text-[#3cb44f] text-sm mt-1">Uploaded & extracted</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#4a4a4a] group-hover:text-[#3cb44f] mb-3 group-hover:-translate-y-1 transition-all">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="17 8 12 3 7 8" />
+                                            <line x1="12" y1="3" x2="12" y2="15" />
+                                        </svg>
+                                        <p className="text-white font-medium text-base">Drag & drop PRD here</p>
+                                        <p className="text-[#4a4a4a] text-sm mt-1">Accepts PDF and DOCX only</p>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -841,7 +1043,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
             case 4:
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="max-w-md">
+                        {/* <div className="max-w-md">
                             <label className={labelClass}>Amount (Base Project Fee)</label>
                             <div className="flex items-center gap-2 w-full">
                                 <div className="w-28 shrink-0">
@@ -861,7 +1063,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                 />
                             </div>
                             <p className="mt-2 text-[#4a4a4a] text-xs">This is the base fee. Milestones may add to this total.</p>
-                        </div>
+                        </div> */}
 
                         <div className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-2xl p-8 space-y-5 shadow-2xl shadow-black/40">
                             <p className="text-base font-bold text-white mb-2">Milestone Payment Schedule</p>
@@ -896,7 +1098,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                 <div className="max-w-xs animate-in fade-in slide-in-from-top-2 duration-300 ml-9">
                                     <label className={labelClass}>Advance Amount</label>
                                     <div className="relative">
-                                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#4a4a4a] font-bold">{contractCurrency === "USD" ? "$" : contractCurrency}</span>
+                                        <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#4a4a4a] font-bold">{contractCurrency === "INR" ? "₹" : contractCurrency}</span>
                                         <input
                                             type="number"
                                             placeholder="0.00"
@@ -997,13 +1199,21 @@ By signing below, both parties agree to the terms outlined in this agreement.
                             <div className="flex flex-col gap-4">
                                 <button
                                     onClick={handleSend}
-                                    disabled={isSent || isGenerating}
+                                    disabled={isSent || isGenerating || isSubmitting}
                                     className={`w-full ${isSent ? 'bg-gray-800 text-gray-400' : 'bg-[#3cb44f] text-black'} font-bold py-4 rounded-xl text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2 group`}
                                 >
                                     {isSent ? (
                                         <>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                             Sent Successfully!
+                                        </>
+                                    ) : isSubmitting ? (
+                                        <>
+                                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Sending...
                                         </>
                                     ) : (
                                         <>
@@ -1044,7 +1254,12 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                     </div>
                                 )}
 
-                                <button className="w-full bg-transparent border border-[#3cb44f] text-[#3cb44f] py-4 rounded-xl text-sm font-semibold hover:bg-[#3cb44f]/10 transition-all flex items-center justify-center gap-2 group">
+                                <button
+                                    type="button"
+                                    onClick={handleSaveDraft}
+                                    disabled={isSubmitting}
+                                    className="w-full bg-transparent border border-[#3cb44f] text-[#3cb44f] py-4 rounded-xl text-sm font-semibold hover:bg-[#3cb44f]/10 transition-all flex items-center justify-center gap-2 group"
+                                >
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:translate-y-0.5 transition-transform">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                         <polyline points="7 10 12 15 17 10" />
@@ -1054,10 +1269,8 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                 </button>
 
                                 <button
-                                    onClick={() => {
-                                        // TODO: Implement save draft logic, e.g., call an API or update local storage
-                                        alert("Contract saved as draft!");
-                                    }}
+                                    onClick={handleSaveDraft}
+                                    disabled={isSubmitting}
                                     className="w-fit mx-auto mt-4 cursor-pointer text-[#4a4a4a] hover:text-white transition-colors text-[10px] font-black uppercase tracking-widest flex items-center gap-2 group"
                                 >
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="transition-transform duration-500">

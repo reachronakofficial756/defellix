@@ -1,8 +1,14 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
@@ -34,6 +40,8 @@ func (h *ContractHandler) RegisterRoutes(r chi.Router, authMw func(http.Handler)
 			r.Put("/{id}", h.Update)
 			r.Post("/{id}/send", h.Send)
 			r.Delete("/{id}", h.Delete)
+			r.Post("/prd-upload", h.UploadPRD)
+			r.Post("/extract-from-prd", h.ExtractFromPRD)
 		})
 	})
 	// Public contract routes (no auth): client view, send-for-review, sign
@@ -57,6 +65,10 @@ func (h *ContractHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := h.svc.Create(r.Context(), h.userID(r), &req)
 	if err != nil {
+		if strings.Contains(err.Error(), "does not match total amount") {
+			respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "Failed to create contract", "INTERNAL_ERROR")
 		return
 	}
@@ -182,7 +194,7 @@ func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	respondSuccess(w, http.StatusOK, map[string]string{"message": "Contract deleted"}, "OK")
 }
 
-// GetByClientToken returns the contract for client view (no auth). Token from URL.
+// Removed to replace with a cleaner approach later if neededken returns the contract for client view (no auth). Token from URL.
 func (h *ContractHandler) GetByClientToken(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
@@ -281,4 +293,118 @@ func (h *ContractHandler) SendSignOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondSuccess(w, http.StatusOK, map[string]string{"message": "OTP sent successfully"}, "OTP_SENT")
+}
+
+// UploadPRD uploads a PRD file to Cloudinary and returns the secure URL
+func (h *ContractHandler) UploadPRD(w http.ResponseWriter, r *http.Request) {
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "file is required", "BAD_REQUEST")
+		return
+	}
+	defer file.Close()
+
+	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
+	apiKey := os.Getenv("CLOUDINARY_API_KEY")
+	uploadPreset := os.Getenv("CLOUDINARY_UPLOAD_PRESET")
+
+	if cloudName == "" || (apiKey == "" && uploadPreset == "") {
+		respondError(w, http.StatusInternalServerError, "Cloudinary not configured", "INTERNAL_ERROR")
+		return
+	}
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+
+	// Read file into memory to enable multi-use (Upload to Cloudinary + Extract Text)
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to read uploaded file to memory", "INTERNAL_ERROR")
+		return
+	}
+
+	fw, err := mw.CreateFormFile("file", header.Filename)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to build upload request", "INTERNAL_ERROR")
+		return
+	}
+	if _, err := io.Copy(fw, bytes.NewReader(fileBytes)); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to stream file", "INTERNAL_ERROR")
+		return
+	}
+
+	if uploadPreset != "" {
+		_ = mw.WriteField("upload_preset", uploadPreset)
+	} else {
+		_ = mw.WriteField("api_key", apiKey)
+	}
+	
+	_ = mw.WriteField("folder", "defellix/prds")
+	_ = mw.WriteField("resource_type", "auto")
+
+	
+	mw.Close()
+
+	uploadURL := "https://api.cloudinary.com/v1_1/" + url.PathEscape(cloudName) + "/auto/upload"
+	req, err := http.NewRequest(http.MethodPost, uploadURL, &buf)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to create upload request", "INTERNAL_ERROR")
+		return
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		respondError(w, http.StatusBadGateway, "failed to upload to Cloudinary", "UPSTREAM_ERROR")
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		respondError(w, http.StatusBadGateway, string(body), "UPSTREAM_ERROR")
+		return
+	}
+
+	var out struct {
+		SecureURL string `json:"secure_url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to parse Cloudinary response", "INTERNAL_ERROR")
+		return
+	}
+
+	// ---------------------------------------------------------
+	// NATIVE BYPASS: Read bytes directly into PDF parser
+	// ---------------------------------------------------------
+	extractedContractJSON, err := h.svc.ExtractFromPRDBytes(r.Context(), fileBytes)
+	if err != nil {
+		// Even if extraction fails, the upload succeeded. 
+		// We can return the URL and let the frontend know extraction failed, 
+		// but since the frontend expects both in one, we return error if extraction is vital.
+		// However, returning partial success is usually preferred. Let's return error on extraction fail.
+		respondError(w, http.StatusInternalServerError, "Failed to extract contract: "+err.Error(), "EXTRACTION_FAILED")
+		return
+	}
+
+	respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"prd_file_url": out.SecureURL,
+		"extracted_contract": extractedContractJSON,
+	}, "PRD uploaded and extracted successfully")
+}
+
+// ExtractFromPRD extracts contract fields from a PRD using Groq LLM
+func (h *ContractHandler) ExtractFromPRD(w http.ResponseWriter, r *http.Request) {
+	var req dto.ExtractFromPRDRequest
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+
+	extracted, err := h.svc.ExtractFromPRD(r.Context(), req.PRDFileURL)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to extract PRD: "+err.Error(), "INTERNAL_ERROR")
+		return
+	}
+
+	respondSuccess(w, http.StatusOK, extracted, "PRD extracted")
 }

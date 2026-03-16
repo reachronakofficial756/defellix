@@ -36,6 +36,7 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router, jwtManager *jwt.JWTManager) {
 		r.Post("/verify-email", h.VerifyEmail)
 		r.Post("/login", h.Login)
 		r.Post("/refresh", h.Refresh)
+		r.Post("/logout", h.Logout)
 		
 		// Protected routes
 		r.With(middleware.RequireAuth(jwtManager)).Get("/me", h.Me)
@@ -57,6 +58,31 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router, jwtManager *jwt.JWTManager) {
 		r.Get("/github", h.OAuthGitHub)
 		r.Get("/github/callback", h.OAuthGitHubCallback)
 	})
+}
+
+func (h *AuthHandler) setAuthCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   86400, // 24 hours
+	})
+}
+
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+	respondSuccess(w, http.StatusOK, nil, "Logged out successfully")
 }
 
 // Register handles user registration
@@ -104,6 +130,7 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.setAuthCookie(w, authResp.AccessToken)
 	respondSuccess(w, http.StatusOK, authResp, "Email verified successfully")
 }
 
@@ -130,6 +157,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.setAuthCookie(w, authResp.AccessToken)
 	respondSuccess(w, http.StatusOK, authResp, "Login successful")
 }
 
@@ -280,6 +308,8 @@ func (h *AuthHandler) OAuthGoogleCallback(w http.ResponseWriter, r *http.Request
 		MaxAge:   -1,
 	})
 	
+	h.setAuthCookie(w, authResp.AccessToken)
+	
 	frontendURL := "http://localhost:5173/signup"
 	redirectURL := fmt.Sprintf("%s?access_token=%s&email=%s", 
 		frontendURL, 
@@ -365,6 +395,8 @@ func (h *AuthHandler) OAuthLinkedInCallback(w http.ResponseWriter, r *http.Reque
 		MaxAge:   -1,
 	})
 	
+	h.setAuthCookie(w, authResp.AccessToken)
+	
 	frontendURL := "http://localhost:5173/signup"
 	redirectURL := fmt.Sprintf("%s?access_token=%s&email=%s", 
 		frontendURL, 
@@ -418,6 +450,8 @@ func (h *AuthHandler) OAuthGitHubCallback(w http.ResponseWriter, r *http.Request
 		Path:     "/",
 		MaxAge:   -1,
 	})
+	
+	h.setAuthCookie(w, authResp.AccessToken)
 	
 	frontendURL := "http://localhost:5173/signup"
 	redirectURL := fmt.Sprintf("%s?access_token=%s&email=%s", 
