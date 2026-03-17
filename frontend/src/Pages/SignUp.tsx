@@ -88,7 +88,7 @@ export default function SignUp() {
                 if (isProfileComplete) {
                     // Fully onboarded already → re-fetch auth state then go to dashboard
                     await refetch();
-                    navigate("/", { replace: true });
+                    navigate("/dashboard", { replace: true });
                 } else {
                     // Auth user but no completed profile → stay on step 2
                     setIsOtpStage(false);
@@ -960,7 +960,7 @@ export default function SignUp() {
                                 onClick={async () => {
                                     // Ensure auth context is fully updated before navigation
                                     await refetch();
-                                    navigate("/");
+                                    navigate("/dashboard");
                                 }}
                                 className="text-xs sm:text-sm text-white/60 hover:text-white underline-offset-4 hover:underline"
                             >

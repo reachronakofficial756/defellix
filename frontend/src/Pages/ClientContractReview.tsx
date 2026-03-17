@@ -11,8 +11,9 @@ import logo from '@/assets/logo.svg';
 import Navbar from '@/components/Navbar';
 import { useNavigate } from 'react-router-dom';
 
+import { API_BASE } from '@/api/client';
 
-const API_BASE = 'http://localhost:8080/api/v1/public/contracts';
+const CONTRACT_API_BASE = `${API_BASE}/api/v1/public/contracts`;
 
 interface Milestone {
   id: number;
@@ -94,7 +95,7 @@ export default function ClientContractReview() {
     if (!contractId) return;
     const fetchContract = async () => {
       try {
-        const res = await fetch(`${API_BASE}/${contractId}`);
+        const res = await fetch(`${CONTRACT_API_BASE}/${contractId}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || 'Not found');
         const c: Contract = json.data;
@@ -130,7 +131,7 @@ export default function ClientContractReview() {
     setIsSendingOtp(true);
     setOtpError('');
     try {
-      const res = await fetch(`${API_BASE}/${contractId}/send-otp`, {
+      const res = await fetch(`${CONTRACT_API_BASE}/${contractId}/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: contract.client_email }),
@@ -153,7 +154,7 @@ export default function ClientContractReview() {
     setIsSigning(true);
     setOtpError('');
     try {
-      const res = await fetch(`${API_BASE}/${contractId}/sign`, {
+      const res = await fetch(`${CONTRACT_API_BASE}/${contractId}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otp, company_address: companyAddress, email: contract?.client_email }),
@@ -174,7 +175,7 @@ export default function ClientContractReview() {
     if (!negotiationText.trim()) return;
     setNegotiating(true);
     try {
-      const res = await fetch(`${API_BASE}/${contractId}/send-for-review`, {
+      const res = await fetch(`${CONTRACT_API_BASE}/${contractId}/send-for-review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ comment: negotiationText }),

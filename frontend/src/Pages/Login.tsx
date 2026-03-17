@@ -41,7 +41,7 @@ export default function LoginFormDemo() {
       try {
         const res = await apiClient.get("/users/me");
         const apiData = res.data?.data || res.data;
-        
+
         // Backend response structure:
         // - Profile exists: apiData IS the User object directly
         // - Profile doesn't exist: apiData = {profile: null, user_id: X}
@@ -51,9 +51,10 @@ export default function LoginFormDemo() {
         const isProfileComplete = profile && profile !== null && profile.user_name;
 
         if (isProfileComplete) {
+          setAuthenticated(true);
           // Fully onboarded → re-fetch context then go to dashboard
           await refetch();
-          navigate("/", { replace: true });
+          navigate("/dashboard", { replace: true });
         } else {
           // Auth user exists but has no completed profile → send to step 2 to finish onboarding
           const emailParam = params.get("email") || apiData?.email;
