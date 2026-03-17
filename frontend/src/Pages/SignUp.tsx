@@ -216,6 +216,8 @@ export default function SignUp() {
                 skills,
             });
 
+            // Refresh auth context to update profile completion status
+            await refetch();
             setStep(3);
         } catch (err: any) {
             const message =
@@ -933,8 +935,8 @@ export default function SignUp() {
                         <div className="mt-24 flex flex-col items-center gap-6">
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setAuthenticated(true);
+                                onClick={async () => {
+                                    await refetch();
                                     navigate("/contract");
                                 }}
                                 className="group relative flex h-40 w-40 items-center justify-center rounded-3xl border-2 border-dashed border-white/40 bg-white/5 text-sm font-medium text-white/80 hover:border-white hover:bg-white/10 transition-all"
@@ -943,8 +945,8 @@ export default function SignUp() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setAuthenticated(true);
+                                onClick={async () => {
+                                    await refetch();
                                     navigate("/");
                                 }}
                                 className="text-xs sm:text-sm text-white/60 hover:text-white underline-offset-4 hover:underline"
