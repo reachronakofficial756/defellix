@@ -5,7 +5,8 @@ import LandingPage from './Pages/LandingPage'
 import SignUp from './Pages/SignUp'
 import Login from './Pages/Login'
 import ClientContractReview from './Pages/ClientContractReview'
-import MilestoneSubmission from './Pages/MilestoneSubmission'
+import MilestoneSubmission from './Pages/MilestoneSubmission'   
+import MilestoneReview from './Pages/MilestoneReview'
 import { useAuth } from './contexts/AuthContext'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -30,7 +31,9 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
-      {/* All dashboard routes are protected */}
+      <Route path="/submit-milestone/:contractId" element={<MilestoneSubmission />} />
+      <Route path="/review-milestone/:contractId" element={<MilestoneReview />} />
+      {/* All dashboard/submit-milestone/:contractId routes are protected */}
       <Route path="/dashboard/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       {/* Catch-all → landing page */}
       <Route path="*" element={<Navigate to="/" replace />} />
