@@ -51,7 +51,7 @@ func main() {
 	repRepo := repository.NewReputationRepository(db)
 
 	// Initialize services
-	userService := service.NewUserService(userRepo)
+	userService := service.NewUserService(userRepo, cfg.Auth.ServiceURL)
 	profileService := service.NewProfileService(userRepo)
 	repService := service.NewReputationService(repRepo, userRepo)
 

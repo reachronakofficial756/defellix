@@ -5,6 +5,7 @@ import "time"
 // CreateContractRequest is the payload for creating or saving a contract as draft
 type CreateContractRequest struct {
 	// Project
+	FreelancerName     string     `json:"freelancer_name,omitempty" validate:"omitempty,max=200"`
 	ProjectCategory    string     `json:"project_category" validate:"required,max=80"`
 	ProjectName        string     `json:"project_name" validate:"required,min=2,max=200"`
 	Description        string     `json:"description" validate:"omitempty,max=5000"`
@@ -19,9 +20,18 @@ type CreateContractRequest struct {
 	ClientCompanyName string `json:"client_company_name,omitempty" validate:"omitempty,max=120"`
 	ClientEmail       string `json:"client_email" validate:"required,email"`
 	ClientPhone       string `json:"client_phone,omitempty" validate:"omitempty,max=30"`
+	ClientCountry     string `json:"client_country,omitempty" validate:"omitempty,max=100"`
 
 	// Terms
-	TermsAndConditions string `json:"terms_and_conditions,omitempty" validate:"omitempty,max=10000"`
+	TermsAndConditions     string     `json:"terms_and_conditions,omitempty" validate:"omitempty,max=10000"`
+	StartDate              *time.Time `json:"start_date,omitempty"`
+	RevisionPolicy         string     `json:"revision_policy,omitempty" validate:"omitempty,max=5000"`
+	OutOfScopeWork         string     `json:"out_of_scope_work,omitempty" validate:"omitempty,max=5000"`
+	IntellectualProperty   string     `json:"intellectual_property,omitempty" validate:"omitempty,max=5000"`
+	EstimatedDuration      string     `json:"estimated_duration,omitempty" validate:"omitempty,max=100"`
+	PaymentMethod          string     `json:"payment_method,omitempty" validate:"omitempty,max=50"`
+	AdvancePaymentRequired bool       `json:"advance_payment_required"`
+	AdvancePaymentAmount   float64    `json:"advance_payment_amount,omitempty" validate:"omitempty,min=0"`
 
 	// Milestones (at least one; first can be initial payment)
 	Milestones []MilestoneInput `json:"milestones" validate:"required,min=1,dive"`
@@ -33,7 +43,6 @@ type MilestoneInput struct {
 	Description       string     `json:"description,omitempty" validate:"omitempty,max=2000"`
 	Amount            float64    `json:"amount" validate:"required,min=0"`
 	DueDate           *time.Time `json:"due_date,omitempty"`
-	IsInitialPayment     bool        `json:"is_initial_payment"`
 	SubmissionCriteria   interface{} `json:"submission_criteria,omitempty"`
 	CompletionCriteriaTC string      `json:"completion_criteria_tc,omitempty" validate:"omitempty,max=10000"`
 }
@@ -51,9 +60,18 @@ type UpdateContractRequest struct {
 	ClientName         *string    `json:"client_name,omitempty" validate:"omitempty,max=120"`
 	ClientCompanyName  *string    `json:"client_company_name,omitempty" validate:"omitempty,max=120"`
 	ClientEmail        *string    `json:"client_email,omitempty" validate:"omitempty,email"`
-	ClientPhone        *string    `json:"client_phone,omitempty" validate:"omitempty,max=30"`
-	TermsAndConditions *string    `json:"terms_and_conditions,omitempty" validate:"omitempty,max=10000"`
-	Milestones         []UpdateMilestoneInput `json:"milestones,omitempty" validate:"omitempty,dive"`
+	ClientPhone            *string    `json:"client_phone,omitempty" validate:"omitempty,max=30"`
+	ClientCountry          *string    `json:"client_country,omitempty" validate:"omitempty,max=100"`
+	TermsAndConditions     *string    `json:"terms_and_conditions,omitempty" validate:"omitempty,max=10000"`
+	StartDate              *time.Time `json:"start_date,omitempty"`
+	RevisionPolicy         *string    `json:"revision_policy,omitempty" validate:"omitempty,max=5000"`
+	OutOfScopeWork         *string    `json:"out_of_scope_work,omitempty" validate:"omitempty,max=5000"`
+	IntellectualProperty   *string    `json:"intellectual_property,omitempty" validate:"omitempty,max=5000"`
+	EstimatedDuration      *string    `json:"estimated_duration,omitempty" validate:"omitempty,max=100"`
+	PaymentMethod          *string    `json:"payment_method,omitempty" validate:"omitempty,max=50"`
+	AdvancePaymentRequired *bool      `json:"advance_payment_required,omitempty"`
+	AdvancePaymentAmount   *float64   `json:"advance_payment_amount,omitempty" validate:"omitempty,min=0"`
+	Milestones             []UpdateMilestoneInput `json:"milestones,omitempty" validate:"omitempty,dive"`
 }
 
 // UpdateMilestoneInput is for modifying milestones via PUT
@@ -63,7 +81,6 @@ type UpdateMilestoneInput struct {
 	Description       *string    `json:"description,omitempty" validate:"omitempty,max=2000"`
 	Amount            *float64   `json:"amount,omitempty" validate:"omitempty,min=0"`
 	DueDate           *time.Time `json:"due_date,omitempty"`
-	IsInitialPayment     *bool       `json:"is_initial_payment,omitempty"`
 	SubmissionCriteria   interface{} `json:"submission_criteria,omitempty"`
 	CompletionCriteriaTC *string     `json:"completion_criteria_tc,omitempty" validate:"omitempty,max=10000"`
 }
@@ -83,9 +100,18 @@ type ContractResponse struct {
 	ClientName         string               `json:"client_name"`
 	ClientCompanyName  string               `json:"client_company_name,omitempty"`
 	ClientEmail        string               `json:"client_email"`
-	ClientPhone        string               `json:"client_phone,omitempty"`
-	TermsAndConditions string               `json:"terms_and_conditions,omitempty"`
-	Status             string               `json:"status"`
+	ClientPhone            string               `json:"client_phone,omitempty"`
+	ClientCountry          string               `json:"client_country,omitempty"`
+	TermsAndConditions     string               `json:"terms_and_conditions,omitempty"`
+	StartDate              *time.Time           `json:"start_date,omitempty"`
+	RevisionPolicy         string               `json:"revision_policy,omitempty"`
+	OutOfScopeWork         string               `json:"out_of_scope_work,omitempty"`
+	IntellectualProperty   string               `json:"intellectual_property,omitempty"`
+	EstimatedDuration      string               `json:"estimated_duration,omitempty"`
+	PaymentMethod          string               `json:"payment_method,omitempty"`
+	AdvancePaymentRequired bool                 `json:"advance_payment_required"`
+	AdvancePaymentAmount   float64              `json:"advance_payment_amount,omitempty"`
+	Status                 string               `json:"status"`
 	IsRevised          bool                 `json:"is_revised"`
 	SentAt             *time.Time           `json:"sent_at,omitempty"`
 	ShareableLink      string               `json:"shareable_link,omitempty"` // Set when status is sent; base URL + /:id
@@ -103,7 +129,6 @@ type MilestoneResponse struct {
 	Description       string     `json:"description,omitempty"`
 	Amount            float64    `json:"amount"`
 	DueDate           *time.Time `json:"due_date,omitempty"`
-	IsInitialPayment     bool        `json:"is_initial_payment"`
 	SubmissionCriteria   interface{} `json:"submission_criteria,omitempty"`
 	CompletionCriteriaTC string      `json:"completion_criteria_tc,omitempty"`
 	Status            string     `json:"status"`
@@ -121,6 +146,7 @@ type ListContractsQuery struct {
 // PublicContractViewResponse is returned by GET /api/v1/public/contracts/:token (no auth). Safe for client view.
 type PublicContractViewResponse struct {
 	ID                  uint                 `json:"id"`
+	FreelancerName      string               `json:"freelancer_name,omitempty"` // display name of the service provider
 	ProjectCategory     string               `json:"project_category"`
 	ProjectName         string               `json:"project_name"`
 	Description         string               `json:"description"`
@@ -132,9 +158,18 @@ type PublicContractViewResponse struct {
 	ClientName          string               `json:"client_name"`
 	ClientCompanyName   string               `json:"client_company_name,omitempty"`
 	ClientEmail         string               `json:"client_email"`
-	ClientPhone         string               `json:"client_phone,omitempty"`
-	TermsAndConditions  string               `json:"terms_and_conditions,omitempty"`
-	Status              string               `json:"status"`
+	ClientPhone            string               `json:"client_phone,omitempty"`
+	ClientCountry          string               `json:"client_country,omitempty"`
+	TermsAndConditions     string               `json:"terms_and_conditions,omitempty"`
+	StartDate              *time.Time           `json:"start_date,omitempty"`
+	RevisionPolicy         string               `json:"revision_policy,omitempty"`
+	OutOfScopeWork         string               `json:"out_of_scope_work,omitempty"`
+	IntellectualProperty   string               `json:"intellectual_property,omitempty"`
+	EstimatedDuration      string               `json:"estimated_duration,omitempty"`
+	PaymentMethod          string               `json:"payment_method,omitempty"`
+	AdvancePaymentRequired bool                 `json:"advance_payment_required"`
+	AdvancePaymentAmount   float64              `json:"advance_payment_amount,omitempty"`
+	Status                 string               `json:"status"`
 	IsRevised           bool                 `json:"is_revised"`
 	SentAt              *time.Time           `json:"sent_at,omitempty"`
 	ClientReviewComment string               `json:"client_review_comment,omitempty"` // set when status is pending
@@ -165,4 +200,32 @@ type SignRequest struct {
 // SendOTPRequest is payload for generating contract sign OTP
 type SendOTPRequest struct {
 	Email string `json:"email" validate:"required,email"`
+}
+
+// ExtractFromPRDRequest is the payload for POST /api/v1/contracts/extract-from-prd
+type ExtractFromPRDRequest struct {
+	PRDFileURL string `json:"prd_file_url" validate:"required,url"`
+}
+
+// ExtractedClient holds client details extracted from PRD
+type ExtractedClient struct {
+	Name    string `json:"name,omitempty"`
+	Email   string `json:"email,omitempty"`
+	Phone   string `json:"phone,omitempty"`
+	Company string `json:"company,omitempty"`
+	Country string `json:"country,omitempty"`
+}
+
+// ExtractedContract is the response from POST /api/v1/contracts/extract-from-prd
+type ExtractedContract struct {
+	ProjectTitle       string          `json:"project_title,omitempty"`
+	ProjectType        string          `json:"project_type,omitempty"`
+	ProjectDescription string          `json:"project_description,omitempty"`
+	TermsAndConditions string          `json:"terms_and_conditions,omitempty"`
+	StartDate          string          `json:"start_date,omitempty"`  // YYYY-MM-DD
+	Deadline           string          `json:"deadline,omitempty"`    // YYYY-MM-DD
+	Client             ExtractedClient `json:"client,omitempty"`
+	Scope              string          `json:"scope,omitempty"`
+	Deliverables       string          `json:"deliverables,omitempty"`
+	PaymentTerms       string          `json:"payment_terms,omitempty"`
 }

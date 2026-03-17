@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "motion/react";
-import axios from "axios";
+import { apiClient, setSessionToken, API_BASE } from "@/api/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { IconBrandGoogle } from "@tabler/icons-react";
 import { FaLinkedin } from "react-icons/fa6";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import logo from "../assets/logo.svg";
 
 const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your first contract"];
 
 export default function SignUp() {
     const navigate = useNavigate();
+    const { setAuthenticated, refetch } = useAuth();
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [isOtpStage, setIsOtpStage] = useState(false);
@@ -18,6 +21,7 @@ export default function SignUp() {
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [otp, setOtp] = useState("");
 
     const [profileHeadline, setProfileHeadline] = useState("");
@@ -27,6 +31,7 @@ export default function SignUp() {
     const [photo] = useState("");
     const [location, setLocation] = useState("");
     const [experience, setExperience] = useState("");
+    const [companyName, setCompanyName] = useState("");
     const [githubLink] = useState("");
     const [linkedinLink, setLinkedinLink] = useState("");
     const [portfolioLink] = useState("");
@@ -52,16 +57,49 @@ export default function SignUp() {
             params.get("jwt");
         const oauthEmail = params.get("email");
 
-        if (oauthToken) {
-            setAuthToken(oauthToken);
-            axios.defaults.headers.common.Authorization = `Bearer ${oauthToken}`;
-            if (oauthEmail && !email) {
-                setEmail(oauthEmail);
-            }
-            setIsOtpStage(false);
-            setStep(2);
+        if (!oauthToken) return;
+
+        // Store token in session + localStorage for this tab
+        setAuthToken(oauthToken);
+        setSessionToken(oauthToken);
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem("access_token", oauthToken);
         }
-    }, []);
+        if (oauthEmail && !email) {
+            setEmail(oauthEmail);
+        }
+
+        // Check profile completion FIRST before setting step from URL
+        // If user already exists AND has a completed profile, skip signup and go to dashboard.
+        // If /users/me fails OR profile is incomplete, stay on signup step 2.
+        (async () => {
+            try {
+                const res = await apiClient.get("/users/me");
+                const apiData = res.data?.data || res.data;
+                
+                // Backend response structure:
+                // - Profile exists: apiData IS the User object directly
+                // - Profile doesn't exist: apiData = {profile: null, user_id: X}
+                const profile = apiData?.profile !== undefined ? apiData.profile : apiData;
+
+                // Profile is complete ONLY if user_name exists (required field)
+                const isProfileComplete = profile && profile !== null && profile.user_name;
+                
+                if (isProfileComplete) {
+                    // Fully onboarded already → re-fetch auth state then go to dashboard
+                    await refetch();
+                    navigate("/", { replace: true });
+                } else {
+                    // Auth user but no completed profile → stay on step 2
+                    setIsOtpStage(false);
+                    setStep(2);
+                }
+            } catch {
+                setIsOtpStage(false);
+                setStep(2);
+            }
+        })();
+    }, [email, navigate, setAuthenticated, refetch]);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -80,8 +118,7 @@ export default function SignUp() {
     };
 
     const handleOAuth = (provider: "google" | "linkedin") => {
-        const base = "https://api.defellix.com";
-        const url = `${base}/api/v1/auth/oauth/${provider}?role=freelancer`;
+        const url = `${API_BASE}/api/v1/auth/oauth/${provider}?role=freelancer`;
         window.location.href = url;
     };
 
@@ -89,7 +126,7 @@ export default function SignUp() {
         try {
             setLoading(true);
             setError(null);
-            await axios.post("https://api.defellix.com/api/v1/auth/register", {
+            await apiClient.post("/auth/register", {
                 email,
                 password,
                 full_name: fullName,
@@ -110,7 +147,7 @@ export default function SignUp() {
         try {
             setLoading(true);
             setError(null);
-            const res = await axios.post("https://api.defellix.com/api/v1/auth/verify-email", {
+            const res = await apiClient.post("/auth/verify-email", {
                 email,
                 otp,
             });
@@ -128,7 +165,10 @@ export default function SignUp() {
             }
 
             setAuthToken(token);
-            axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+             setSessionToken(token);
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem("access_token", token);
+            }
             setStep(2);
         } catch (err: any) {
             const message =
@@ -153,29 +193,31 @@ export default function SignUp() {
                 return;
             }
 
-            await axios.post(
-                "https://api.defellix.com/api/v1/users/me/profile",
-                {
-                    phone,
-                    user_name: userName || fullName,
-                    what_do_you_do: whatDoYouDo,
-                    short_headline: profileHeadline,
-                    photo,
-                    location,
-                    experience,
-                    github_link: githubLink,
-                    linkedin_link: linkedinLink,
-                    portfolio_link: portfolioLink,
-                    instagram_link: instagramLink,
-                    skills,
-                },
-                {
-                    headers: {
-                        Authorization: `Bearer ${authToken}`,
-                    },
-                },
-            );
+            // Username is required - cannot proceed without it
+            if (!userName || userName.trim() === "") {
+                setError("Username is required. Please enter a username to continue.");
+                setLoading(false);
+                return;
+            }
 
+            await apiClient.post("/users/me/profile", {
+                phone,
+                user_name: userName,
+                what_do_you_do: whatDoYouDo,
+                short_headline: profileHeadline,
+                photo,
+                location,
+                experience,
+                company_name: companyName,
+                github_link: githubLink,
+                linkedin_link: linkedinLink,
+                portfolio_link: portfolioLink,
+                instagram_link: instagramLink,
+                skills,
+            });
+
+            // Refresh auth context to update profile completion status
+            await refetch();
             setStep(3);
         } catch (err: any) {
             const message =
@@ -192,11 +234,20 @@ export default function SignUp() {
         <div className="min-h-screen w-full bg-black text-white flex items-center justify-center px-4 sm:px-6 lg:px-10 scrBar">
             {toastMessage && (
                 <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="fixed top-6 right-6 z-[9999] w-[min(520px,calc(100vw-3rem))] rounded-2xl border border-white/10 bg-black/70 px-4 py-3 text-xs text-white/90 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="fixed top-8 right-8 z-[9999] w-[min(480px,calc(100vw-4rem))] rounded-2xl border border-[#ef5350]/30 bg-[#ef5350]/10 px-5 py-4 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(239,83,80,0.3)] flex items-start gap-4 overflow-hidden"
                 >
-                    {toastMessage}
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[#ef5350]" />
+                    <div className="w-8 h-8 rounded-full bg-[#ef5350]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <AlertCircle className="w-4 h-4 text-[#ef5350]" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm font-bold text-white tracking-tight">Notice</span>
+                        <span className="text-[13px] text-white/80 leading-relaxed font-medium">
+                            {toastMessage}
+                        </span>
+                    </div>
                 </motion.div>
             )}
             <motion.div
@@ -398,16 +449,27 @@ export default function SignUp() {
                                             <input
                                                 id="password"
                                                 placeholder="Enter your password"
-                                                type="password"
+                                                type={showPassword ? "text" : "password"}
                                                 value={password}
                                                 onChange={(e: any) => setPassword(e.target.value)}
-                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                className="relative w-full z-10 py-7 px-4 pr-12 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword((prev) => !prev)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-white/40 hover:text-white/70 transition-colors"
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-5 w-5" />
+                                                ) : (
+                                                    <Eye className="h-5 w-5" />
+                                                )}
+                                            </button>
                                         </div>
                                         <p className="mt-1 ml-2 text-[10px] sm:text-xs text-white/40">
                                             Must be at least 8 characters.
                                         </p>
-                                    </LabelInputContainer>
+                    </LabelInputContainer>
                                 </motion.div>
                             )}
 
@@ -433,8 +495,8 @@ export default function SignUp() {
                                                 disabled
                                                 className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border border-white/10 sm:text-sm text-white/70 placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
-                                        </div>
-                                    </LabelInputContainer>
+                        </div>
+                    </LabelInputContainer>
 
                                     <LabelInputContainer>
                                         <label
@@ -463,8 +525,8 @@ export default function SignUp() {
                                 </motion.div>
                             )}
 
-                            <button
-                                type="submit"
+                    <button
+                        type="submit"
                                 disabled={loading}
                                 className="group relative mt-10 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70"
                             >
@@ -473,8 +535,8 @@ export default function SignUp() {
                                     : !isOtpStage
                                         ? "Get Started →"
                                         : "Create account →"}
-                                <BottomGradient />
-                            </button>
+                        <BottomGradient />
+                    </button>
 
                             <p className="mt-4 text-center text-[11px] sm:text-xs text-white/60">
                                 Already have an account?{" "}
@@ -572,7 +634,7 @@ export default function SignUp() {
                                         htmlFor="user-name"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
-                                        Username
+                                        Username <span className="text-red-400">*</span>
                                     </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
                                         <input
@@ -581,6 +643,7 @@ export default function SignUp() {
                                             type="text"
                                             value={userName}
                                             onChange={(e: any) => setUserName(e.target.value)}
+                                            required
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
@@ -677,6 +740,25 @@ export default function SignUp() {
                                             type="text"
                                             value={experience}
                                             onChange={(e: any) => setExperience(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        />
+                                    </div>
+                                </LabelInputContainer>
+
+                                <LabelInputContainer>
+                                    <label
+                                        htmlFor="companyName"
+                                        className="text-xs sm:text-sm text-white/70"
+                                    >
+                                        Company Name (Optional)
+                                    </label>
+                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                        <input
+                                            id="companyName"
+                                            placeholder="eg. Acme Inc."
+                                            type="text"
+                                            value={companyName}
+                                            onChange={(e: any) => setCompanyName(e.target.value)}
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
@@ -800,7 +882,7 @@ export default function SignUp() {
                                         className="relative w-full z-10 py-7 pl-4 pr-20 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                     />
                                     {skillInput.trim().length > 0 && (
-                                        <button
+                        <button
                                             type="button"
                                             onClick={() => {
                                                 const value = skillInput.trim();
@@ -812,7 +894,7 @@ export default function SignUp() {
                                             className="absolute bottom-0 z-10 right-1.5 bottom-1.5 px-4 py-3.5 rounded-xl bg-white text-[11px] sm:text-xs font-semibold text-black hover:bg-[#3cb44f] hover:text-black transition-all duration-150 cursor-pointer"
                                         >
                                             + Add
-                                        </button>
+                        </button>
                                     )}
                                 </div>
                                 {skills.length > 0 && (
@@ -823,7 +905,7 @@ export default function SignUp() {
                                                 className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 pl-3 pr-2 py-2 text-[11px] sm:text-xs text-white/80"
                                             >
                                                 <span>{s}</span>
-                                                <button
+                        <button
                                                     type="button"
                                                     onClick={() =>
                                                         setSkills((prev) => prev.filter((skill) => skill !== s))
@@ -832,40 +914,46 @@ export default function SignUp() {
                                                 >
                                                     ✕
                                                 </button>
-                                            </span>
+                            </span>
                                         ))}
                                     </div>
                                 )}
                             </LabelInputContainer>
 
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="group relative mt-6 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70"
-                            >
+                        <button
+                            type="submit"
+                                disabled={loading || !userName || userName.trim() === ""}
+                                className="group relative mt-6 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
                                 {loading ? "Saving..." : "Continue →"}
-                                <BottomGradient />
-                            </button>
-                        </form>
+                            <BottomGradient />
+                        </button>
+                </form>
                     )}
 
                     {step === 3 && (
                         <div className="mt-24 flex flex-col items-center gap-6">
                             <button
                                 type="button"
-                                onClick={() => navigate("/")}
+                                onClick={async () => {
+                                    await refetch();
+                                    navigate("/contract");
+                                }}
                                 className="group relative flex h-40 w-40 items-center justify-center rounded-3xl border-2 border-dashed border-white/40 bg-white/5 text-sm font-medium text-white/80 hover:border-white hover:bg-white/10 transition-all"
                             >
                                 <span>Create first contract</span>
                             </button>
                             <button
                                 type="button"
-                                onClick={() => navigate("/")}
+                                onClick={async () => {
+                                    await refetch();
+                                    navigate("/");
+                                }}
                                 className="text-xs sm:text-sm text-white/60 hover:text-white underline-offset-4 hover:underline"
                             >
                                 Skip and continue to dashboard
                             </button>
-                        </div>
+            </div>
                     )}
                 </motion.div>
             </motion.div>

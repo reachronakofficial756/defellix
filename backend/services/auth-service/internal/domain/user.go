@@ -94,3 +94,20 @@ func (PendingRegistration) TableName() string {
 	return "pending_registrations"
 }
 
+// PendingOAuthUser represents a user who authenticated via OAuth but hasn't completed profile setup
+// They stay in this table until they fill Step 2 (username, etc.)
+type PendingOAuthUser struct {
+	Email      string    `gorm:"primaryKey;type:varchar(255)"`
+	FullName   string    `gorm:"not null"`
+	Provider   string    `gorm:"type:varchar(50);not null"` // google, linkedin, github
+	ProviderID string    `gorm:"type:varchar(255);not null;index"`
+	Role       string    `gorm:"type:varchar(20);default:freelancer"`
+	ExpiresAt  time.Time `gorm:"index"` // 24 hours from creation
+	CreatedAt  time.Time
+}
+
+// TableName specifies the table name for PendingOAuthUser model
+func (PendingOAuthUser) TableName() string {
+	return "pending_oauth_users"
+}
+

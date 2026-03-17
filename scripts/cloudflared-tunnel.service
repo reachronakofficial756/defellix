@@ -1,0 +1,20 @@
+[Unit]
+Description=Cloudflare Tunnel for api.defellix.com
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStartPre=-/usr/bin/docker stop cloudflared-tunnel
+ExecStartPre=-/usr/bin/docker rm cloudflared-tunnel
+ExecStart=/usr/bin/docker run --rm --name cloudflared-tunnel \
+  --network host \
+  cloudflare/cloudflared:latest tunnel --no-autoupdate run \
+  --token eyJhIjoiZGFkNjUyOWNmOWYzZDI2Njk4ZGJiNjhkY2FkNmM2ODEiLCJ0IjoiODcxNmNlMjUtYTBkYS00NjVlLWE5NWMtMmU3ODViZjU2MmFiIiwicyI6Ik1qSXhNV1UzWXpndFlUa3dOaTAwTUdZNUxXRmxOV1V0TVRWa1pESXlObU5pWW1OaSJ9
+ExecStop=/usr/bin/docker stop cloudflared-tunnel
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

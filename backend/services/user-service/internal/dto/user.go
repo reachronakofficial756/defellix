@@ -56,7 +56,6 @@ type UserResponse struct {
 	Bio           string          `json:"bio,omitempty"`
 	Location      string          `json:"location,omitempty"`
 	Experience    string          `json:"experience,omitempty"`
-	Timezone      string          `json:"timezone,omitempty"`
 	Phone         string          `json:"phone,omitempty"`
 	
 	// Social links

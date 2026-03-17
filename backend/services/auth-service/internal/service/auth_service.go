@@ -240,39 +240,133 @@ func (s *AuthService) GetUserByID(userID uint) (*domain.User, error) {
 
 // OAuthLoginAndRegister handles users returning from Google or LinkedIn callbacks
 func (s *AuthService) OAuthLoginAndRegister(email, fullName, provider, providerID string, defaultRole string) (*dto.AuthResponse, error) {
+	// Check if user already exists in main users table
 	user, err := s.userRepo.FindByEmail(email)
 	if err != nil && !errors.Is(err, repository.ErrUserNotFound) {
 		return nil, err
 	}
 
-	if user == nil {
-		// Auto-Register the new user
-		user = &domain.User{
-			Email:        email,
-			FullName:     fullName,
-			Role:         defaultRole,
-			IsActive:     true,
-			IsVerified:   true, // OAuth implicitly verifies the email
-			AuthProvider: provider,
-			ProviderID:   providerID,
+	// Case 1: Existing user - login directly
+	if user != nil {
+		if user.AuthProvider == "local" {
+			// User previously registered manually, link the OAuth provider
+			user.AuthProvider = provider
+			user.ProviderID = providerID
+			if err := s.userRepo.Update(user); err != nil {
+				return nil, err
+			}
 		}
-		if err := s.userRepo.Create(user); err != nil {
+
+		if !user.IsActive {
+			return nil, ErrUserInactive
+		}
+
+		// Generate tokens for existing user
+		accessToken, err := s.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role)
+		if err != nil {
 			return nil, err
 		}
-	} else if user.AuthProvider == "local" {
-		// User previously registered manually, link the OAuth provider
-		user.AuthProvider = provider
-		user.ProviderID = providerID
-		if err := s.userRepo.Update(user); err != nil {
+		refreshToken, err := s.jwtManager.GenerateRefreshToken(user.ID, user.Email, user.Role)
+		if err != nil {
 			return nil, err
 		}
+
+		return &dto.AuthResponse{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			TokenType:    "Bearer",
+			ExpiresIn:    int(s.jwtManager.GetAccessTokenTTL().Hours() * 3600),
+			UserEmail:    user.Email,
+		}, nil
 	}
 
-	if !user.IsActive {
-		return nil, ErrUserInactive
+	// Case 2: New OAuth user - store in pending_oauth_users table
+	// DO NOT create in main users table - user must complete Step 2 first
+	pendingOAuth := &domain.PendingOAuthUser{
+		Email:      email,
+		FullName:   fullName,
+		Provider:   provider,
+		ProviderID: providerID,
+		Role:       defaultRole,
+		ExpiresAt:  time.Now().Add(24 * time.Hour),
+		CreatedAt:  time.Now(),
 	}
 
-	// Sign the standard system JWTs
+	if err := s.userRepo.CreatePendingOAuthUser(pendingOAuth); err != nil {
+		return nil, err
+	}
+
+	// Generate temporary token for pending user
+	// Using email as identifier since user_id doesn't exist yet
+	accessToken, err := s.jwtManager.GenerateAccessToken(0, email, defaultRole)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: "", // No refresh token for pending users
+		TokenType:    "Bearer",
+		ExpiresIn:    int(24 * 3600), // 24 hours
+		UserEmail:    email,
+	}, nil
+}
+
+// CompleteOAuthRegistration creates the actual user after OAuth user completes Step 2
+func (s *AuthService) CompleteOAuthRegistration(email string) (*dto.AuthResponse, error) {
+	// Find pending OAuth user
+	pendingOAuth, err := s.userRepo.FindPendingOAuthUserByEmail(email)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, errors.New("pending OAuth registration not found or expired")
+		}
+		return nil, err
+	}
+
+	// Check if expired
+	if time.Now().After(pendingOAuth.ExpiresAt) {
+		s.userRepo.DeletePendingOAuthUser(email)
+		return nil, errors.New("OAuth session expired, please sign in again")
+	}
+
+	// Check if user already exists (race condition protection)
+	existingUser, err := s.userRepo.FindByEmail(email)
+	if err != nil && !errors.Is(err, repository.ErrUserNotFound) {
+		return nil, err
+	}
+	if existingUser != nil {
+		// User was already created, delete pending and return tokens
+		s.userRepo.DeletePendingOAuthUser(email)
+		accessToken, _ := s.jwtManager.GenerateAccessToken(existingUser.ID, existingUser.Email, existingUser.Role)
+		refreshToken, _ := s.jwtManager.GenerateRefreshToken(existingUser.ID, existingUser.Email, existingUser.Role)
+		return &dto.AuthResponse{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			TokenType:    "Bearer",
+			ExpiresIn:    int(s.jwtManager.GetAccessTokenTTL().Hours() * 3600),
+			UserEmail:    existingUser.Email,
+		}, nil
+	}
+
+	// Create the actual user in users table
+	user := &domain.User{
+		Email:        email,
+		FullName:     pendingOAuth.FullName,
+		Role:         pendingOAuth.Role,
+		IsActive:     true,
+		IsVerified:   true,
+		AuthProvider: pendingOAuth.Provider,
+		ProviderID:   pendingOAuth.ProviderID,
+	}
+
+	if err := s.userRepo.Create(user); err != nil {
+		return nil, err
+	}
+
+	// Delete pending OAuth user
+	s.userRepo.DeletePendingOAuthUser(email)
+
+	// Generate real tokens with actual user_id
 	accessToken, err := s.jwtManager.GenerateAccessToken(user.ID, user.Email, user.Role)
 	if err != nil {
 		return nil, err
