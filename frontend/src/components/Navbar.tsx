@@ -109,12 +109,12 @@ const Navbar = () => {
     }, []);
 
     const navLinks = [
-        { icon: IoGridOutline, label: 'Dashboard', path: '/' },
-        { icon: IoFolderOutline, label: 'Contracts', path: '/contracts' },
+        { icon: IoGridOutline, label: 'Dashboard', path: '/dashboard' },
+        { icon: IoFolderOutline, label: 'Contracts', path: '/dashboard/contracts' },
     ];
 
     const isActive = (path: string) => {
-        if (path === '/') return location.pathname === '/';
+        if (path === '/dashboard') return location.pathname === '/dashboard';
         return location.pathname === path || location.pathname.startsWith(path + '/');
     };
 
@@ -123,7 +123,7 @@ const Navbar = () => {
         <nav
             className={
                 `h-16 fixed top-0 w-full px-6 py-10 flex items-center justify-between z-50` +
-                (location.pathname.startsWith('/profile')
+                (location.pathname.startsWith('/dashboard/profile')
                     ? ' bg-[#111f14]/10 backdrop-blur-md'
                     : '')
             }
@@ -131,11 +131,11 @@ const Navbar = () => {
             {/* Logo */}
             <div
                 className="flex items-center gap-2 cursor-pointer"
-                onClick={() => navigate('/')}
+                            onClick={() => navigate('/dashboard')}
                 role="button"
                 tabIndex={0}
                 onKeyPress={e => {
-                    if (e.key === "Enter" || e.key === " ") navigate('/');
+                    if (e.key === "Enter" || e.key === " ") navigate('/dashboard');
                 }}
             >
                 <img src={logo} alt="Defellix" className="w-52 h-auto" />
@@ -267,9 +267,9 @@ const Navbar = () => {
                                         closeContracts();
                                         const userName = user?.user_name;
                                         if (userName) {
-                                            navigate(`/${userName}`);
+                                            navigate(`/dashboard/${userName}`);
                                         } else {
-                                            navigate('/profile');
+                                            navigate('/dashboard/profile');
                                         }
                                         setIsDropdownOpen(false);
                                     }}

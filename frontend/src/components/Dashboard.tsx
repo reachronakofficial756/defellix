@@ -476,7 +476,7 @@ const Dashboard = () => {
                             <p className="text-gray-500 text-sm mt-1">Live updates on your ongoing work</p>
                         </div>
                         <button
-                            onClick={() => navigate("/contract")}
+                            onClick={() => navigate("/dashboard/contract")}
                             className="cursor-pointer text-sm font-semibold text-[#0d140d] border border-[#3cb44f]/30 hover:border-[#3cb44f] bg-[#3cb44f] px-4 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5"
                         >
                             <span className="text-2xl -mt-1 leading-none group-hover:scale-110 transition-transform duration-300">+</span>

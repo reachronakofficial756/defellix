@@ -315,7 +315,7 @@ export default function Profile() {
               </span>
             </div> */}
             <button
-              onClick={() => navigate('/profile/edit')}
+              onClick={() => navigate('/dashboard/profile/edit')}
               className="absolute right-0 top-0 items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-[#3cb44f]/15 text-white text-sm font-semibold transition-all border border-white/10 hover:border-[#3cb44f]/30 cursor-pointer shadow-sm"
             >
               <span className="text-white text-sm font-semibold flex items-center gap-2">

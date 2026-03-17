@@ -28,12 +28,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const res = await apiClient.get('/users/me');
       const apiData = res.data?.data || res.data;
-      
+
       // Backend response structure:
       // - Profile exists: apiData IS the User object directly
       // - Profile doesn't exist: apiData = {profile: null, user_id: X}
       const profile = apiData?.profile !== undefined ? apiData.profile : apiData;
-      
+
       // Profile is complete ONLY if user_name exists (required field)
       const profileComplete = !!(profile && profile !== null && profile.user_name);
       setAuthenticatedState(true);
@@ -49,6 +49,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refetch();
+  }, [refetch]);
+
+  // ── Cross-tab sync ──────────────────────────────────────────────────────────
+  // When another tab writes or removes `access_token` from localStorage,
+  // re-validate auth so this tab stays in sync instantly.
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key !== 'access_token') return;
+      if (e.newValue) {
+        // Another tab just logged in — apply the token and re-check
+        setSessionToken(e.newValue);
+        refetch();
+      } else {
+        // Another tab removed the token (logout)
+        setSessionToken(null);
+        setAuthenticatedState(false);
+        setIsProfileComplete(false);
+        setIsLoading(false);
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, [refetch]);
 
   const setAuthenticated = useCallback((value: boolean) => {

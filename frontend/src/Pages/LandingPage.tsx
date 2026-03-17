@@ -1,4 +1,6 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import Hero from '../components/landing/Hero';
 import TrustBanner from '../components/landing/TrustBanner';
 import PainSolution from '../components/landing/PainSolution';
@@ -10,6 +12,16 @@ import Testimonials from '../components/landing/Testimonials';
 import Footer from '../components/landing/Footer';
 
 const LandingPage = () => {
+  const { isAuthenticated, isProfileComplete, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  // If the user is already fully logged-in, skip the landing page
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && isProfileComplete) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoading, isAuthenticated, isProfileComplete, navigate]);
+
   return (
     <div className="min-h-screen bg-primary scroll-smooth selection:bg-accent selection:text-primary">
       {/* Navigation */}
@@ -26,7 +38,15 @@ const LandingPage = () => {
              <a href="#features" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Features</a>
              <a href="#how" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">How it works</a>
              <a href="#reviews" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Verification</a>
-             <NavLink to="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-white hover:bg-white/10 transition-colors">Sign In</NavLink>
+             {isAuthenticated && isProfileComplete ? (
+               <NavLink to="/dashboard" className="px-8 py-3 bg-accent/20 border border-accent/40 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-accent hover:bg-accent/30 transition-colors">
+                 Dashboard
+               </NavLink>
+             ) : (
+               <NavLink to="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-white hover:bg-white/10 transition-colors">
+                 Sign In
+               </NavLink>
+             )}
           </div>
 
           <div className="md:hidden">
