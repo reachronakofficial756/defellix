@@ -21,6 +21,7 @@ const (
 type Contract struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	FreelancerUserID uint    `gorm:"index;not null" json:"freelancer_user_id"` // from auth-service users.id
+	FreelancerName   string  `gorm:"type:varchar(200)" json:"freelancer_name,omitempty"` // display name of the freelancer
 
 	// Project details
 	ProjectCategory    string    `gorm:"type:varchar(80);not null" json:"project_category"`
@@ -37,9 +38,18 @@ type Contract struct {
 	ClientCompanyName  string `gorm:"type:varchar(120)" json:"client_company_name,omitempty"`
 	ClientEmail        string `gorm:"type:varchar(255);not null" json:"client_email"`
 	ClientPhone        string `gorm:"type:varchar(30)" json:"client_phone,omitempty"`
+	ClientCountry      string `gorm:"type:varchar(100)" json:"client_country,omitempty"`
 
 	// Terms
-	TermsAndConditions string `gorm:"type:text" json:"terms_and_conditions,omitempty"`
+	TermsAndConditions     string     `gorm:"type:text" json:"terms_and_conditions,omitempty"`
+	StartDate              *time.Time `gorm:"type:timestamptz" json:"start_date,omitempty"`
+	RevisionPolicy         string     `gorm:"type:text" json:"revision_policy,omitempty"`
+	OutOfScopeWork         string     `gorm:"type:text" json:"out_of_scope_work,omitempty"`
+	IntellectualProperty   string     `gorm:"type:text" json:"intellectual_property,omitempty"`
+	EstimatedDuration      string     `gorm:"type:varchar(100)" json:"estimated_duration,omitempty"`
+	PaymentMethod          string     `gorm:"type:varchar(50)" json:"payment_method,omitempty"`
+	AdvancePaymentRequired bool       `gorm:"default:false" json:"advance_payment_required"`
+	AdvancePaymentAmount   float64    `gorm:"type:decimal(12,2);default:0.00" json:"advance_payment_amount,omitempty"`
 
 	// Lifecycle
 	Status   string `gorm:"type:varchar(20);default:draft;index" json:"status"` // draft | sent | pending | signed | active | completed | cancelled
@@ -86,7 +96,6 @@ type ContractMilestone struct {
 	Description string  `gorm:"type:text" json:"description,omitempty"`
 	Amount      float64 `gorm:"type:decimal(12,2);not null" json:"amount"`
 	DueDate     *time.Time `gorm:"type:timestamptz" json:"due_date,omitempty"`
-	IsInitialPayment bool `gorm:"default:false" json:"is_initial_payment"`
 
 	// Phase 8: Structured Deliverables
 	SubmissionCriteria   string `gorm:"type:jsonb" json:"submission_criteria,omitempty"`

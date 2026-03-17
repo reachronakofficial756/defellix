@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"math"
+	"net/http"
 	"strings"
 
 	"encoding/json"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"github.com/saiyam0211/defellix/services/user-service/internal/domain"
 	"github.com/saiyam0211/defellix/services/user-service/internal/dto"
 	"github.com/saiyam0211/defellix/services/user-service/internal/repository"
@@ -47,14 +50,55 @@ func normaliseUserName(s string) (string, error) {
 
 // UserService handles user profile business logic
 type UserService struct {
-	userRepo repository.UserRepository
+	userRepo        repository.UserRepository
+	authServiceURL  string
 }
 
 // NewUserService creates a new user service
-func NewUserService(userRepo repository.UserRepository) *UserService {
+func NewUserService(userRepo repository.UserRepository, authServiceURL string) *UserService {
 	return &UserService{
-		userRepo: userRepo,
+		userRepo:       userRepo,
+		authServiceURL: authServiceURL,
 	}
+}
+
+// CompletePendingOAuthUser calls auth-service to complete OAuth registration
+// Returns the new user_id after user is created in main users table
+func (s *UserService) CompletePendingOAuthUser(ctx context.Context, email string) (uint, error) {
+	reqBody := map[string]string{"email": email}
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return 0, err
+	}
+
+	url := fmt.Sprintf("%s/api/v1/auth/complete-oauth", s.authServiceURL)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return 0, fmt.Errorf("failed to call auth-service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return 0, fmt.Errorf("auth-service returned status %d", resp.StatusCode)
+	}
+
+	// Parse response to get user info
+	var authResp struct {
+		Data struct {
+			UserEmail string `json:"user_email"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+		return 0, err
+	}
+
+	// Now find the newly created user by email
+	user, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return 0, fmt.Errorf("user was created but not found: %w", err)
+	}
+
+	return user.ID, nil
 }
 
 // GetProfile retrieves a user profile by ID
@@ -114,6 +158,20 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 
 	// Update fields
 
+	if req.FullName != "" {
+		profile.FullName = req.FullName
+	}
+	if req.UserName != "" {
+		// Validate and normalize username
+		normalizedUserName, err := normaliseUserName(req.UserName)
+		if err != nil {
+			return nil, err
+		}
+		profile.UserName = normalizedUserName
+	}
+	if req.Phone != "" {
+		profile.Phone = req.Phone
+	}
 	if req.WhatDoYouDo != "" {
 		profile.WhatDoYouDo = req.WhatDoYouDo
 	}
@@ -144,11 +202,14 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 	if req.Location != "" {
 		profile.Location = req.Location
 	}
-	if req.Timezone != "" {
-		profile.Timezone = req.Timezone
-	}
 	if req.CompanyName != "" {
 		profile.CompanyName = req.CompanyName
+	}
+	if req.Skills != nil {
+		skillsJSON, err := json.Marshal(req.Skills)
+		if err == nil {
+			profile.Skills = datatypes.JSON(skillsJSON)
+		}
 	}
 
 	if req.ShowProfile != nil {
@@ -166,6 +227,10 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 		err = s.userRepo.Create(ctx, profile)
 	} else {
 		err = s.userRepo.Update(ctx, profile)
+		// Explicitly update the JSON fields to ensure GORM doesn't drop them during .Save()
+		if req.Skills != nil && err == nil {
+			err = s.userRepo.UpdateSkills(ctx, profile.ID, profile.Skills)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -397,7 +462,6 @@ func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse 
 		Bio:               profile.Bio,
 		Location:          profile.Location,
 		Experience:        profile.Experience,
-		Timezone:          profile.Timezone,
 		Phone:             profile.Phone,
 		GitHubLink:        profile.GitHubLink,
 		LinkedInLink:      profile.LinkedInLink,

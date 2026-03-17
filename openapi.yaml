@@ -114,6 +114,9 @@ components:
           type: string
         experience:
           type: string
+        company_name:
+          type: string
+          description: Company name (optional)
         github_link:
           type: string
         linkedin_link:
@@ -130,36 +133,62 @@ components:
     UpdateProfileRequest:
       type: object
       properties:
+        full_name:
+          type: string
+          description: User's full name
+        user_name:
+          type: string
+          description: Unique username for public profile URL
+        phone:
+          type: string
+          description: Contact phone number
         photo:
           type: string
+          description: Profile photo URL (Cloudinary)
         what_do_you_do:
           type: string
+          description: Professional role/title
         short_headline:
           type: string
+          description: Professional tagline
         bio:
           type: string
+          description: Detailed bio
         location:
           type: string
+          description: City, Country
         experience:
           type: string
-        timezone:
-          type: string
-        github_link:
-          type: string
-        linkedin_link:
-          type: string
-        portfolio_link:
-          type: string
-        instagram_link:
-          type: string
+          description: Years of experience (e.g., "5+ years")
         company_name:
           type: string
+          description: Company name (optional)
+        github_link:
+          type: string
+          format: uri
+        linkedin_link:
+          type: string
+          format: uri
+        portfolio_link:
+          type: string
+          format: uri
+        instagram_link:
+          type: string
+          format: uri
+        skills:
+          type: array
+          items:
+            type: string
+          description: Array of skills/expertise
         show_profile:
           type: boolean
+          description: Whether profile is publicly visible
         show_projects:
           type: boolean
+          description: Whether projects are publicly visible
         show_contracts:
           type: boolean
+          description: Whether contracts are publicly visible
 
     PublicProfileResponse:
       type: object
@@ -236,8 +265,27 @@ components:
           format: email
         client_phone:
           type: string
+        client_country:
+          type: string
         terms_and_conditions:
           type: string
+        start_date:
+          type: string
+          format: date-time
+        revision_policy:
+          type: string
+        out_of_scope_work:
+          type: string
+        intellectual_property:
+          type: string
+        estimated_duration:
+          type: string
+        payment_method:
+          type: string
+        advance_payment_required:
+          type: boolean
+        advance_payment_amount:
+          type: number
         milestones:
           type: array
           items:
@@ -274,8 +322,27 @@ components:
           format: email
         client_phone:
           type: string
+        client_country:
+          type: string
         terms_and_conditions:
           type: string
+        start_date:
+          type: string
+          format: date-time
+        revision_policy:
+          type: string
+        out_of_scope_work:
+          type: string
+        intellectual_property:
+          type: string
+        estimated_duration:
+          type: string
+        payment_method:
+          type: string
+        advance_payment_required:
+          type: boolean
+        advance_payment_amount:
+          type: number
         milestones:
           type: array
           items:
@@ -298,8 +365,6 @@ components:
         due_date:
           type: string
           format: date-time
-        is_initial_payment:
-          type: boolean
         submission_criteria:
           description: Dynamic JSON, array, or string determining what specific deliverables (urls, files) are needed for this milestone.
           example: "Video URL"
@@ -320,8 +385,6 @@ components:
         due_date:
           type: string
           format: date-time
-        is_initial_payment:
-          type: boolean
         submission_criteria:
           description: Flexible string or JSON object defining what deliverables are needed.
           example: "Video URL"
@@ -561,6 +624,65 @@ paths:
         '307':
           description: Temporary redirect to LinkedIn Identity Provider
 
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout user
+      description: Instructs the browser to drop the HttpOnly access token seamlessly via `Max-Age=-1`.
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+
+  /api/v1/auth/complete-oauth:
+    post:
+      tags: [Auth]
+      summary: Complete OAuth registration
+      description: Promotes a pending OAuth user to the main users table after Step 2 completion. Called internally by user-service.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email of the pending OAuth user
+      responses:
+        '200':
+          description: OAuth registration completed, user created in main table
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      refresh_token:
+                        type: string
+                      token_type:
+                        type: string
+                      expires_in:
+                        type: integer
+                      user_email:
+                        type: string
+                  message:
+                    type: string
+        '400':
+          description: Pending OAuth registration not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1/auth/me:
     get:
       tags: [Auth]
@@ -750,6 +872,138 @@ paths:
       responses:
         '200':
           description: Contract sent successfully. Returns the shareable link.
+
+  /api/v1/contracts/prd-upload:
+    post:
+      tags: [Contract]
+      summary: Upload PRD file to Cloudinary
+      description: Accepts a PRD file (PDF, DOCX) and uploads it to Cloudinary. Returns the secure URL for the uploaded file.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PRD file (PDF or DOCX)
+      responses:
+        '200':
+          description: PRD uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      prd_file_url:
+                        type: string
+                        format: uri
+                        example: https://res.cloudinary.com/demo/raw/upload/v1234567890/prd.pdf
+                  message:
+                    type: string
+                    example: PRD uploaded
+        '400':
+          description: File is required or invalid
+        '500':
+          description: Cloudinary not configured or upload failed
+
+  /api/v1/contracts/extract-from-prd:
+    post:
+      tags: [Contract]
+      summary: Extract contract data from PRD using AI
+      description: Downloads the PRD file from the provided URL and uses Groq LLM to extract structured contract data (project details, client info, dates, terms, etc.). The extracted data can be used to auto-fill the contract creation form.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prd_file_url]
+              properties:
+                prd_file_url:
+                  type: string
+                  format: uri
+                  example: https://res.cloudinary.com/demo/raw/upload/v1234567890/prd.pdf
+      responses:
+        '200':
+          description: PRD data extracted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      project_title:
+                        type: string
+                        example: E-commerce Platform Development
+                      project_type:
+                        type: string
+                        example: Web Development
+                      project_description:
+                        type: string
+                        example: Build a modern e-commerce platform with payment integration
+                      terms_and_conditions:
+                        type: string
+                        example: Standard professional conduct and confidentiality terms apply
+                      start_date:
+                        type: string
+                        format: date
+                        example: 2026-03-15
+                      deadline:
+                        type: string
+                        format: date
+                        example: 2026-06-30
+                      client:
+                        type: object
+                        properties:
+                          name:
+                            type: string
+                            example: John Doe
+                          email:
+                            type: string
+                            format: email
+                            example: john@example.com
+                          phone:
+                            type: string
+                            example: +1234567890
+                          company:
+                            type: string
+                            example: Acme Corp
+                          country:
+                            type: string
+                            example: United States
+                      scope:
+                        type: string
+                        example: Full-stack development with payment integration
+                      deliverables:
+                        type: string
+                        example: Deployed application with admin panel
+                      payment_terms:
+                        type: string
+                        example: 50% upfront, 50% on completion
+                  message:
+                    type: string
+                    example: PRD extracted
+        '400':
+          description: Invalid or missing prd_file_url
+        '500':
+          description: Groq API error or extraction failed
 
   /api/v1/contracts/{id}/submissions:
     get:

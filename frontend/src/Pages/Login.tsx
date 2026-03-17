@@ -1,32 +1,21 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import axios from "axios";
-
+import { apiClient, setSessionToken, API_BASE } from "@/api/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { FaLinkedin, FaGoogle } from "react-icons/fa6";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import logo from "../assets/logo.svg";
 
 export default function LoginFormDemo() {
   const navigate = useNavigate();
+  const { setAuthenticated, refetch } = useAuth();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const parseJwtEmail = useMemo(() => {
-    return (token: string): string | null => {
-      try {
-        const payload = token.split(".")[1];
-        if (!payload) return null;
-        const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-        return typeof json?.email === "string" ? json.email : null;
-      } catch {
-        return null;
-      }
-    };
-  }, []);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleOAuth = (provider: "google" | "linkedin") => {
-    const base = "https://api.defellix.com";
-    const url = `${base}/api/v1/auth/oauth/${provider}?role=freelancer`;
+    const url = `${API_BASE}/api/v1/auth/oauth/${provider}?role=freelancer`;
     window.location.href = url;
   };
 
@@ -43,62 +32,69 @@ export default function LoginFormDemo() {
       params.get("jwt");
     if (!token) return;
 
-    const emailParam = params.get("email");
-    const emailFromJwt = parseJwtEmail(token);
-    const email = emailParam || emailFromJwt || "this email";
-
-    axios.defaults.headers.common.Authorization = `Bearer ${token}`;
+    setSessionToken(token);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("access_token", token);
+    }
 
     (async () => {
       try {
-        const res = await axios.get("https://api.defellix.com/api/v1/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await apiClient.get("/users/me");
+        const apiData = res.data?.data || res.data;
+        
+        // Backend response structure:
+        // - Profile exists: apiData IS the User object directly
+        // - Profile doesn't exist: apiData = {profile: null, user_id: X}
+        const profile = apiData?.profile !== undefined ? apiData.profile : apiData;
 
-        const profile = res?.data?.data ?? res?.data ?? {};
-        const hasProfile =
-          typeof profile?.user_name === "string" &&
-          profile.user_name.length >= 3 &&
-          typeof profile?.short_headline === "string" &&
-          profile.short_headline.length >= 10 &&
-          Array.isArray(profile?.skills) &&
-          profile.skills.length > 0;
+        // Profile is complete ONLY if user_name exists (required field)
+        const isProfileComplete = profile && profile !== null && profile.user_name;
 
-        if (!hasProfile) {
-          const msg = `Profile doesn’t exist for ${email}. Please set up your profile.`;
-          navigate(
-            `/signup?access_token=${encodeURIComponent(token)}&email=${encodeURIComponent(
-              emailParam || emailFromJwt || "",
-            )}&toast=${encodeURIComponent(msg)}`,
-          );
-          return;
+        if (isProfileComplete) {
+          // Fully onboarded → re-fetch context then go to dashboard
+          await refetch();
+          navigate("/", { replace: true });
+        } else {
+          // Auth user exists but has no completed profile → send to step 2 to finish onboarding
+          const emailParam = params.get("email") || apiData?.email;
+          let redirectUrl = `/signup?step=2&access_token=${token}`;
+          if (emailParam) redirectUrl += `&email=${encodeURIComponent(emailParam)}`;
+          navigate(redirectUrl, { replace: true });
         }
-
-        navigate("/dashboard");
       } catch {
-        const msg = `Profile doesn’t exist for ${email}. Please set up your profile.`;
-        navigate(
-          `/signup?access_token=${encodeURIComponent(token)}&email=${encodeURIComponent(
-            emailParam || emailFromJwt || "",
-          )}&toast=${encodeURIComponent(msg)}`,
-        );
+        // OAuth user but auth record does not exist at all → redirect to step 2
+        const emailParam = params.get("email");
+        let redirectUrl = `/signup?step=2&access_token=${token}`;
+        if (emailParam) redirectUrl += `&email=${encodeURIComponent(emailParam)}`;
+        navigate(redirectUrl, { replace: true });
       }
     })();
-  }, [navigate, parseJwtEmail]);
+  }, [navigate, setAuthenticated, refetch]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setToastMessage("User doesn't exist. Please create your account first!");
+    window.setTimeout(() => setToastMessage(null), 4500);
   };
 
   return (
     <div className="min-h-screen w-full bg-black text-white flex items-center justify-center px-4 sm:px-6 lg:px-10 scrBar">
       {toastMessage && (
         <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="fixed top-6 right-6 z-[9999] w-[min(520px,calc(100vw-3rem))] rounded-2xl border border-white/10 bg-black/70 px-4 py-3 text-xs text-white/90 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+          initial={{ opacity: 0, y: -20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className="fixed top-8 right-8 z-[9999] w-[min(480px,calc(100vw-4rem))] rounded-2xl border border-[#ef5350]/30 bg-[#ef5350]/10 px-5 py-4 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(239,83,80,0.3)] flex items-start gap-4 overflow-hidden"
         >
-          {toastMessage}
+          <div className="absolute top-0 left-0 w-1 h-full bg-[#ef5350]" />
+          <div className="w-8 h-8 rounded-full bg-[#ef5350]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <AlertCircle className="w-4 h-4 text-[#ef5350]" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-bold text-white tracking-tight">Access Denied</span>
+            <span className="text-[13px] text-white/80 leading-relaxed font-medium">
+              {toastMessage}
+            </span>
+          </div>
         </motion.div>
       )}
       <motion.div
@@ -214,9 +210,20 @@ export default function LoginFormDemo() {
                 <input
                   id="password"
                   placeholder="Enter your password"
-                  type="password"
-                  className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                  type={showPassword ? "text" : "password"}
+                  className="relative w-full z-10 py-7 px-4 pr-12 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-white/40 hover:text-white/70 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" />
+                  ) : (
+                    <Eye className="h-5 w-5" />
+                  )}
+                </button>
               </div>
             </LabelInputContainer>
 

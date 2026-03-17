@@ -32,9 +32,8 @@ type User struct {
 	Skills datatypes.JSON `gorm:"type:jsonb" json:"skills,omitempty"` // Stored as JSON array
 
 	// Extended Profile Fields (Added after contracts
-	Bio      string `gorm:"type:text" json:"bio,omitempty"` // Detailed bio
-	Timezone string `gorm:"type:varchar(50)" json:"timezone,omitempty"`
-	Phone    string `gorm:"type:varchar(20)" json:"phone,omitempty"`
+	Bio   string `gorm:"type:text" json:"bio,omitempty"`        // Detailed bio
+	Phone string `gorm:"type:varchar(20)" json:"phone,omitempty"`
 
 	// Reputation & Stats (Populated after contracts) - Using JSONB for flexibility
 	Stats                    datatypes.JSON `gorm:"type:jsonb" json:"stats,omitempty"` // {no_of_projects_done, on_time_completion, reputation_score}

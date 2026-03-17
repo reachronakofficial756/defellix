@@ -38,10 +38,11 @@ type DatabaseConfig struct {
 	SSLMode  string // sslmode for PostgreSQL (disable, require, verify-full, etc.)
 }
 
-// AuthConfig holds auth service configuration for gRPC (future)
+// AuthConfig holds auth service configuration
 type AuthConfig struct {
-	Host string
-	Port string
+	Host       string
+	Port       string
+	ServiceURL string // Full HTTP URL for internal service-to-service calls
 }
 
 // Load reads configuration from environment variables with defaults
@@ -67,8 +68,9 @@ func Load() *Config {
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		Auth: AuthConfig{
-			Host: getEnv("AUTH_SERVICE_HOST", "localhost"),
-			Port: getEnv("AUTH_SERVICE_PORT", "50051"),
+			Host:       getEnv("AUTH_SERVICE_HOST", "localhost"),
+			Port:       getEnv("AUTH_SERVICE_PORT", "50051"),
+			ServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
 		},
 	}
 }

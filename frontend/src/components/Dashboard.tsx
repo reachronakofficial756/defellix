@@ -1,6 +1,14 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { motion } from "motion/react";
 import { useContractsStore } from "@/store/useContractsStore";
+import { apiClient } from "@/api/client";
+import contract_completition from "@/assets/contract_completition.png";
+import client_reviews from "@/assets/client_reviews.png";
+import response_rate from "@/assets/response_rate.png";
+import on_time_delivery from "@/assets/on_time_delivery.png";
+import active_contracts from "@/assets/active_contracts.png";
+import disputes from "@/assets/disputes.png";
 
 // --- Types ---
 interface MetricCard {
@@ -18,7 +26,7 @@ interface Contract {
     name: string;
     client: string;
     updatedAgo: string;
-    status: "Active" | "In Review" | "Delayed";
+    status: "Active" | "In Review" | "Delayed" | "Sent";
     milestone: string;
     completion: number;
     color: string;
@@ -36,19 +44,15 @@ interface Contract {
 
 // --- Data ---
 const metrics: MetricCard[] = [
-    { label: "Contract Completion", value: "92", unit: "%", impact: "High Impact", impactDots: 3, icon: "✅", iconBg: "bg-green-900" },
-    { label: "Client Reviews", value: "100", unit: "%", impact: "High Impact", impactDots: 3, icon: "⭐", iconBg: "bg-yellow-900" },
-    { label: "Response Rate", value: "85", unit: "%", impact: "High Impact", impactDots: 3, icon: "💬", iconBg: "bg-blue-900" },
-    { label: "On-Time Delivery", value: "4 years", unit: " avg", impact: "Medium Impact", impactDots: 2, icon: "⏱️", iconBg: "bg-gray-800" },
-    { label: "Active Contracts", value: "12", unit: "", impact: "Low Impact", impactDots: 1, icon: "📁", iconBg: "bg-yellow-900" },
-    { label: "Disputes", value: "0", unit: "%", impact: "Low Impact", impactDots: 1, icon: "🛡️", iconBg: "bg-gray-800" },
+    { label: "Contract Completion", value: "92", unit: "%", impact: "High Impact", impactDots: 3, icon: contract_completition, iconBg: "bg-[#d4edda]" },
+    { label: "Client Reviews", value: "100", unit: "%", impact: "High Impact", impactDots: 3, icon: client_reviews, iconBg: "bg-[#d4edda]" },
+    { label: "Response Rate", value: "85", unit: "%", impact: "High Impact", impactDots: 3, icon: response_rate, iconBg: "bg-[#d4edda]" },
+    { label: "On-Time Delivery", value: "98", unit: "%", impact: "Medium Impact", impactDots: 2, icon: on_time_delivery, iconBg: "bg-[#d4edda]" },
+    { label: "Active Contracts", value: "12", unit: "", impact: "Low Impact", impactDots: 1, icon: active_contracts, iconBg: "bg-[#d4edda]" },
+    { label: "Disputes", value: "0", unit: "%", impact: "Low Impact", impactDots: 1, icon: disputes, iconBg: "bg-[#d4edda]" },
 ];
 
-const contracts: Contract[] = [
-    { id: 1, name: "E-Commerce React Frontend", client: "Sarah Miller", updatedAgo: "2h ago", status: "Active", milestone: "2/4", completion: 60, color: "#00e676", initials: "SM", avatarBg: "bg-green-700" },
-    { id: 2, name: "Mobile Banking App UI", client: "James Anderson", updatedAgo: "5h ago", status: "In Review", milestone: "5/5", completion: 90, color: "#fbc02d", initials: "JA", avatarBg: "bg-yellow-600" },
-    { id: 3, name: "SaaS Dashboard Design", client: "Priya Sharma", updatedAgo: "1d ago", status: "Delayed", milestone: "1/3", completion: 25, color: "#ef5350", initials: "PS", avatarBg: "bg-red-700" },
-];
+
 
 // const activities: Activity[] = [
 // { id: 1, text: "Sarah Miller approved milestone #2", highlight: "Sarah Miller", time: "2h ago", dotColor: "bg-[#00e676]" },
@@ -60,7 +64,7 @@ const contracts: Contract[] = [
 const ReputationGauge = ({ score, animated }: { score: number; animated: boolean }) => {
     const [normalized, setNormalized] = useState(0);
 
-    const min = 300;
+    const min = 0;
     const max = 900;
 
     useEffect(() => {
@@ -80,36 +84,71 @@ const ReputationGauge = ({ score, animated }: { score: number; animated: boolean
         <div className="relative w-[320px] max-w-full mx-auto mt-4">
             <svg viewBox="0 0 200 120" className="w-full overflow-visible">
                 <defs>
-                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#031b0e" />
-                        <stop offset="100%" stopColor="#00e676" />
+                    {/* Progress arc gradient */}
+                    <linearGradient id="progressGradient" x1="0%" y1="100%" x2="100%" y2="0%">
+                        {/* Dark base at the bottom-left arc start (20,100) */}
+                        <stop offset="0%" stopColor="#000" />
+                        <stop offset="70%" stopColor="#3cb44f" />
+                        <stop offset="100%" stopColor="#2d8a3e" />
                     </linearGradient>
-                    <filter id="hueGlow" x="-20%" y="-20%" width="140%" height="140%">
-                        <feGaussianBlur stdDeviation="7" />
+
+                    {/* True bottom-up radial fade for the glow layer */}
+                    {/* <radialGradient id="radialArcGlow" cx="20" cy="100" r="80" gradientUnits="userSpaceOnUse">
+                        <stop offset="5%" stopColor="#00e676" stopOpacity="0.85" />
+                        <stop offset="50%" stopColor="#00e676" stopOpacity="0.28" />
+                        <stop offset="95%" stopColor="#0d140d" stopOpacity="0" />
+                    </radialGradient> */}
+
+                    {/* Subtle outer glow filter */}
+                    <filter id="hueGlow" x="-10%" y="-10%" width="120%" height="120%">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur" />
+                        <feColorMatrix
+                            in="blur"
+                            type="matrix"
+                            values="
+                                1 0 0 0 0
+                                0 1 0 0 0
+                                0 0 1 0 0
+                                0 0 0 0.28 0
+                            "
+                            result="softGlow"
+                        />
+                        <feMerge>
+                            <feMergeNode in="softGlow" />
+                        </feMerge>
                     </filter>
+
+                    {/* Arrow shadow filter */}
                     <filter id="arrowShadow" x="-30%" y="-30%" width="160%" height="160%">
-                        <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000000" floodOpacity="0.8" />
+                        <feDropShadow
+                            dx="0"
+                            dy="1.5"
+                            stdDeviation="1.6"
+                            floodColor="#000000"
+                            floodOpacity="0.4"
+                        />
                     </filter>
                 </defs>
 
-                {/* Background arc ("remaining" empty part)  */}
+                {/* BG fade from arc bottom start */}
                 <path
                     d="M20 100 A80 80 0 0 1 180 100"
                     fill="none"
-                    stroke="rgba(255, 255, 255, 0.08)"
-                    strokeWidth="22"
-                    strokeLinecap="butt"
+                    stroke="url(#radialArcGlow)"
+                    strokeWidth="26"
+                    strokeLinecap="round"
+                    opacity="0.7"
                 />
 
-                {/* Glow layer following the exact gradient */}
+                {/* Subtle glow layer over main arc using the same bottom-up concept */}
                 <path
                     d="M20 100 A80 80 0 0 1 180 100"
                     fill="none"
                     stroke="url(#progressGradient)"
                     strokeWidth="22"
-                    strokeLinecap="butt"
+                    strokeLinecap="round"
                     filter="url(#hueGlow)"
-                    opacity={0.8}
+                    opacity={0.45}
                     style={{
                         strokeDasharray: arcLength,
                         strokeDashoffset: offset,
@@ -117,13 +156,13 @@ const ReputationGauge = ({ score, animated }: { score: number; animated: boolean
                     }}
                 />
 
-                {/* Core Progress arc top layer */}
+                {/* Core progress arc */}
                 <path
                     d="M20 100 A80 80 0 0 1 180 100"
                     fill="none"
                     stroke="url(#progressGradient)"
-                    strokeWidth="22"
-                    strokeLinecap="butt"
+                    strokeWidth="20"
+                    strokeLinecap="round"
                     style={{
                         strokeDasharray: arcLength,
                         strokeDashoffset: offset,
@@ -132,19 +171,23 @@ const ReputationGauge = ({ score, animated }: { score: number; animated: boolean
                 />
 
                 {/* Arrow Pointer Group */}
-                <g style={{
-                    transformOrigin: "100px 100px",
-                    transform: `rotate(${rotation}deg)`,
-                    transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
-                }}>
-                    {/* The Arrow anchored exactly at center */}
+                <g
+                    style={{
+                        transformOrigin: "100px 100px",
+                        transform: `rotate(${rotation}deg)`,
+                        transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
+                    }}
+                >
+                    {/* Arrow */}
                     <path
                         d="M 100 80 L 88 108 L 100 100 L 112 108 Z"
                         fill="#ffffff"
+                        opacity={0.9}
                         filter="url(#arrowShadow)"
                     />
                 </g>
             </svg>
+
         </div>
     );
 };
@@ -155,6 +198,7 @@ const StatusBadge = ({ status }: { status: Contract["status"] }) => {
         Active: "bg-green-900 text-green-400 border border-green-700",
         "In Review": "bg-yellow-900 text-yellow-400 border border-yellow-700",
         Delayed: "bg-red-900 text-red-400 border border-red-700",
+        Sent: "bg-blue-900 text-blue-400 border border-blue-700",
     };
     return (
         <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${map[status]}`}>
@@ -167,7 +211,7 @@ const StatusBadge = ({ status }: { status: Contract["status"] }) => {
 const ImpactDots = ({ count, max = 3 }: { count: number; max?: number }) => (
     <span className="flex items-center gap-0.5">
         {Array.from({ length: max }).map((_, i) => (
-            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i < count ? "bg-[#00e676]" : "bg-gray-700"}`} />
+            <span key={i} className={`w-1.5 h-1.5 rounded-full ${i < count ? "bg-[#00e676]" : "bg-transparent border border-gray-700"}`} />
         ))}
     </span>
 );
@@ -175,9 +219,79 @@ const ImpactDots = ({ count, max = 3 }: { count: number; max?: number }) => (
 // --- Main Dashboard ---
 const Dashboard = () => {
     const navigate = useNavigate();
-    const openContracts = useContractsStore((state) => state.openContracts);
+    const { openContracts } = useContractsStore();
+    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [loadingContracts, setLoadingContracts] = useState(true);
     const [animated, setAnimated] = useState(false);
-    const [tab, setTab] = useState<"Overall" | "Monthly">("Overall");
+    const [tab, setTab] = useState<"Overall" | "Last Project">("Overall");
+    const [scrollY, setScrollY] = useState(0);
+
+    useEffect(() => {
+        const fetchContracts = async () => {
+            try {
+                const res = await apiClient.get("/contracts");
+                const data = (res as any).data?.data?.contracts || [];
+
+                const mapped: Contract[] = data.map((c: any) => {
+                    let status: Contract["status"] = "Active";
+                    let color = "#00e676";
+                    let avatarBg = "bg-green-700";
+
+                    if (c.status === "sent") {
+                        status = "Sent";
+                        color = "#60a5fa"; // blue
+                        avatarBg = "bg-blue-600";
+                    } else if (c.status === "pending" || c.status === "draft") {
+                        status = "In Review";
+                        color = "#fbc02d";
+                        avatarBg = "bg-yellow-600";
+                    } else if (c.status === "disputed" || c.status === "delayed") {
+                        status = "Delayed";
+                        color = "#ef5350";
+                        avatarBg = "bg-red-700";
+                    }
+
+                    const totalMilestones = c.milestones?.length || 0;
+                    const completedMilestones = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').length || 0;
+
+                    const totalAmount = c.total_amount || 1;
+                    const completedAmount = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').reduce((sum: number, m: any) => sum + m.amount, 0) || 0;
+                    const completion = Math.round((completedAmount / totalAmount) * 100);
+
+                    const date = new Date(c.updated_at || c.created_at || Date.now());
+                    const now = new Date();
+                    const diffMs = now.getTime() - date.getTime();
+                    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                    const diffDays = Math.floor(diffHrs / 24);
+                    let updatedAgo = diffHrs < 24 ? `${diffHrs}h ago` : `${diffDays}d ago`;
+                    if (diffHrs === 0) updatedAgo = "Just now";
+
+                    const rawName = c.client_name || "CL";
+                    const initials = rawName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+
+                    return {
+                        id: c.id,
+                        name: c.project_name || "Untitled Project",
+                        client: c.client_name || "Unknown Client",
+                        updatedAgo,
+                        status,
+                        milestone: `${completedMilestones}/${totalMilestones}`,
+                        completion,
+                        color,
+                        initials,
+                        avatarBg
+                    };
+                });
+
+                setContracts(mapped);
+            } catch (err) {
+                console.error("Failed to fetch contracts", err);
+            } finally {
+                setLoadingContracts(false);
+            }
+        };
+        fetchContracts();
+    }, []);
 
     // Trigger animation on mount (and on every refresh via key state)
     useEffect(() => {
@@ -185,28 +299,51 @@ const Dashboard = () => {
         return () => clearTimeout(t);
     }, []);
 
-    const score = 832;
+    const score = 750;
+    const isEmpty = !loadingContracts && contracts.length === 0;
 
     return (
-        <div className="flex-1 bg-[#0f1117] min-h-screen text-white scrBar overflow-y-auto">
+        <motion.div
+            className="flex-1 bg-[#000] min-h-screen text-white scrBar overflow-y-auto"
+            onScroll={(e) => setScrollY(e.currentTarget.scrollTop)}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+            {/* --- TOP SECTION (fixed hero) --- */}
+            <div className="fixed inset-x-0 top-15 z-10 pointer-events-none">
+                <motion.div
+                    className="pointer-events-auto max-w-full mx-auto flex flex-col gap-6 p-8 pb-24"
+                    initial={{ opacity: 0, y: -16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.55, ease: "easeOut", delay: 0.1 }}
+                >
+                    {/* ── EMPTY STATE: just the gauge, centered ── */}
+                    {isEmpty ? (
+                        <div className="w-full flex flex-col items-center justify-center gap-6 pt-4 pb-4">
+                            {/* Score label */}
+                            <div className="text-center">
+                                <h2 className="text-5xl font-normal text-white leading-tight font-syne">Credibility Score</h2>
+                                <p className="text-gray-500 text-sm mt-2">Builds automatically as you complete contracts</p>
+                            </div>
 
-            {/* Main Layout */}
-            <div className="flex flex-col gap-6 p-8 pb-28">
+                            {/* Gauge */}
+                            <div className="flex flex-col items-center gap-2">
+                                <p className="text-sm font-medium text-[#3cb44f]">↗ Starting score</p>
+                                <h1 className="text-[96px] font-bold text-white tracking-tighter leading-none">750</h1>
+                                <p className="text-gray-400 text-sm font-medium">Excellent baseline</p>
+                                <div className="scale-[1.25] origin-top mt-2">
+                                    <ReputationGauge score={score} animated={animated} />
+                                </div>
+                            </div>
 
-                {/* --- TOP SECTION --- */}
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-
-                    {/* LEFT: Reputation Score */}
-                    <div className="xl:col-span-5 bg-[#161b27] rounded-[32px] p-8 border border-gray-800 flex flex-col justify-between shadow-sm">
-                        {/* Title row */}
-                        <div className="flex items-start justify-between mb-8">
-                            <h2 className="text-3xl font-bold text-white leading-tight">Reputation<br />Score</h2>
-                            <div className="flex gap-1 bg-[#0f1117] rounded-full p-1 border border-gray-800">
-                                {(["Overall", "Monthly"] as const).map((t) => (
+                            {/* Tab selector (still functional) */}
+                            <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800 mt-8">
+                                {(["Overall", "Last Project"] as const).map((t) => (
                                     <button
                                         key={t}
                                         onClick={() => setTab(t)}
-                                        className={`text-xs px-4 py-1.5 rounded-full font-medium transition-all duration-200 cursor-pointer ${tab === t ? "bg-[#00e676] text-black" : "text-gray-400 hover:text-white"
+                                        className={`text-xs px-4 py-1.5 rounded-full font-medium transition-all duration-200 cursor-pointer ${tab === t ? "bg-[#3cb44f] text-black" : "text-gray-400 hover:text-white"
                                             }`}
                                     >
                                         {t}
@@ -214,117 +351,255 @@ const Dashboard = () => {
                                 ))}
                             </div>
                         </div>
+                    ) : (
+                        /* ── NORMAL STATE: full 12-col grid ── */
+                        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
-                        {/* Middle: Score and Gauge */}
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-                            <div>
-                                <p className="text-sm font-medium text-[#00e676] mb-2">↗ 5 pts</p>
-                                <h1 className="text-[80px] font-bold text-white tracking-tighter leading-none mb-3">{score}</h1>
-                                <p className="text-gray-400 text-sm font-medium">Excellent · Checked Daily</p>
-                            </div>
-                            <div className="flex justify-center md:justify-end flex-1 origin-right scale-110 mr-4">
-                                <ReputationGauge score={score} animated={animated} />
+                            {/* LEFT: Reputation Score */}
+                            <motion.div
+                                className="xl:col-span-5 rounded-[32px] pl-8 pt-8 flex flex-col justify-between shadow-sm"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, ease: "easeOut", delay: 0.18 }}
+                            >
+                                {/* Title row */}
+                                <div className="flex items-start justify-between mb-8">
+                                    <h2 className="text-6xl font-normal text-white leading-tight -mt-8 font-syne">Credibility<br />Score</h2>
+                                    <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800">
+                                        {(["Overall", "Last Project"] as const).map((t) => (
+                                            <button
+                                                key={t}
+                                                onClick={() => setTab(t)}
+                                                className={`text-xs px-4 py-1.5 rounded-full font-medium transition-all duration-200 cursor-pointer ${tab === t ? "bg-[#3cb44f] text-black" : "text-gray-400 hover:text-white"
+                                                    }`}
+                                            >
+                                                {t}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Middle: Score and Gauge */}
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                                    <div>
+                                        <p className="text-sm font-medium text-[#00e676] mb-2">↗ 5 pts</p>
+                                        <h1 className="text-[80px] font-bold text-white tracking-tighter leading-none">{score}</h1>
+                                        <p className="text-gray-400 text-sm font-medium">Excellent</p>
+                                    </div>
+                                    <div className="flex justify-center md:justify-end flex-1 origin-right scale-110 mr-4">
+                                        <ReputationGauge score={score} animated={animated} />
+                                    </div>
+                                </div>
+
+                                {/* Bottom: Two stat cards */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-[#111f14] rounded-[40px] p-6 flex flex-col justify-between min-h-[140px]">
+                                        <div className="flex justify-between items-start">
+                                            <p className="text-gray-400 font-medium text-sm">Rising Talent</p>
+                                        </div>
+                                        <p className="text-white font-bold text-5xl">Tier 2</p>
+                                    </div>
+                                    <div className="bg-[#111f14] rounded-[40px] p-6 flex flex-col justify-between min-h-[140px]">
+                                        <div className="flex justify-between items-start">
+                                            <p className="text-gray-400 font-medium text-sm">Total Growth</p>
+                                        </div>
+                                        <p className="text-white font-bold text-5xl">$12<span className="text-xl text-gray-400 font-medium">.4k</span></p>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            {/* RIGHT: Metrics grid */}
+                            <div className="xl:col-span-7 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {metrics.map((m, i) => (
+                                    <motion.div
+                                        key={i}
+                                        className="bg-[#111f14] rounded-[40px] p-6 flex flex-col justify-between hover:border-gray-600 transition-colors shadow-sm min-h-[180px]"
+                                        initial={{ opacity: 0, y: 16 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.45, ease: "easeOut", delay: 0.22 + i * 0.05 }}
+                                        whileHover={{ y: -4, scale: 1.01 }}
+                                    >
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div className={`w-16 h-16 rounded-full ${m.iconBg} flex items-center justify-center text-xl`}>
+                                                <img src={m.icon} alt={m.label} className="w-10 h-10" />
+                                            </div>
+                                            <button className="text-gray-500 hover:text-white px-1 pb-2 h-12 w-12 mt-2 flex items-center justify-center rounded-full border border-gray-700 cursor-pointer transition-colors pt-2 rotate-90">
+                                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
+                                            </button>
+                                        </div>
+
+                                        <div className="mt-auto">
+                                            <h3 className="text-gray-400 text-sm font-medium tracking-tight mb-2 pr-2">{m.label}</h3>
+                                            <div className="flex items-end justify-between">
+                                                <div className="flex items-baseline gap-0.5">
+                                                    <span className="text-6xl font-bold text-white tracking-tight leading-none">{m.value}</span>
+                                                    {m.unit && <span className="text-gray-400 font-medium text-sm ml-1 mb-0.5">{m.unit}</span>}
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1.5 mb-1 pb-1">
+                                                    <ImpactDots count={m.impactDots} />
+                                                    <span className="text-gray-500 text-[10px] font-semibold">{m.impact}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                ))}
                             </div>
                         </div>
+                    )}
+                </motion.div>
+            </div>
 
-                        {/* Bottom: Two stat cards */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-[#0f1117] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between min-h-[140px]">
-                                <div className="flex justify-between items-start mb-4">
-                                    <p className="text-gray-400 font-medium text-sm">Rising Talent</p>
-                                    <div className="w-8 h-8 rounded-full border border-gray-700 flex items-center justify-center text-gray-400">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M17 7H7M17 7V17" /></svg>
-                                    </div>
-                                </div>
-                                <p className="text-white font-bold text-3xl">Tier 2</p>
-                            </div>
-                            <div className="bg-[#0f1117] rounded-3xl p-6 border border-gray-800 flex flex-col justify-between min-h-[140px]">
-                                <div className="flex justify-between items-start mb-4">
-                                    <p className="text-gray-400 font-medium text-sm">Total Growth</p>
-                                    <div className="w-8 h-8 rounded-full border border-gray-700 flex items-center justify-center text-gray-400">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M17 7H7M17 7V17" /></svg>
-                                    </div>
-                                </div>
-                                <p className="text-white font-bold text-3xl">$12<span className="text-xl text-gray-400 font-medium">.4k</span></p>
-                            </div>
-                        </div>
+            {/* --- BOTTOM SECTION (curved, overlaps, parallax) --- */}
+            <div className={`relative min-h-screen ${isEmpty ? 'pt-[560px]' : 'pt-[750px]'}`}>
+                <div
+                    className="relative z-20 -mt-12 rounded-t-[100px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
+                >
+                    {/* Centered handle / notch */}
+                    <div
+                        className="absolute top-0 left-1/2 transform -translate-x-1/2 mb-4"
+                        style={{
+                            width: "96px", // w-24
+                            height: "24px", // h-6
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "#050605",
+                            clipPath: "polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%)"
+                        }}
+                    >
+                        <div className="w-12 h-1 rounded-full mx-auto bg-[#d4edda] shadow-[0_0_10px_rgba(0,0,0,0.8)]" />
                     </div>
 
-                    {/* RIGHT: Metrics grid */}
-                    <div className="xl:col-span-7 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {metrics.map((m, i) => (
-                            <div key={i} className="bg-[#161b27] rounded-[32px] p-6 border border-gray-800 flex flex-col justify-between hover:border-gray-600 transition-colors shadow-sm min-h-[180px]">
-                                <div className="flex items-start justify-between mb-2">
-                                    <div className={`w-12 h-12 rounded-full ${m.iconBg} flex items-center justify-center text-xl`}>
-                                        {m.icon}
-                                    </div>
-                                    <button className="text-gray-500 hover:text-white px-1 pb-2 cursor-pointer transition-colors pt-2">
-                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
-                                    </button>
-                                </div>
-
-                                <div className="mt-auto">
-                                    <h3 className="text-gray-400 text-sm font-medium tracking-tight mb-2 pr-2">{m.label}</h3>
-                                    <div className="flex items-end justify-between">
-                                        <div className="flex items-baseline gap-0.5">
-                                            <span className="text-4xl font-bold text-white tracking-tight leading-none">{m.value}</span>
-                                            {m.unit && <span className="text-gray-400 font-medium text-sm ml-1 mb-0.5">{m.unit}</span>}
-                                        </div>
-                                        <div className="flex flex-col items-end gap-1.5 mb-1 pb-1">
-                                            <ImpactDots count={m.impactDots} />
-                                            <span className="text-gray-500 text-[10px] font-semibold">{m.impact}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* --- BOTTOM SECTION --- */}
-
-                {/* Active Contracts */}
-                <div className="bg-[#161b27] rounded-[32px] border border-gray-800 p-8 shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="sticky top-0 z-30 mx-0 mb-8 px-8 pt-2 pb-4 flex items-center justify-between backdrop-blur-md">
                         <div>
                             <h2 className="text-2xl font-bold text-white">Active Contracts</h2>
                             <p className="text-gray-500 text-sm mt-1">Live updates on your ongoing work</p>
                         </div>
                         <button
-                            onClick={openContracts}
-                            className="cursor-pointer text-sm font-semibold text-[#00e676] border border-[#00e676]/30 hover:border-[#00e676] bg-[#0f1117] px-4 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5"
+                            onClick={() => navigate("/contract")}
+                            className="cursor-pointer text-sm font-semibold text-[#0d140d] border border-[#3cb44f]/30 hover:border-[#3cb44f] bg-[#3cb44f] px-4 py-2 rounded-xl transition-all duration-200 flex items-center gap-1.5"
                         >
-                            View all <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                            <span className="text-2xl -mt-1 leading-none group-hover:scale-110 transition-transform duration-300">+</span>
+                            Create Contract
                         </button>
                     </div>
 
-                    <div className="flex flex-col gap-4">
-                        {contracts.map((contract) => (
-                            <div
+                    <motion.div
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5"
+                        style={{ transform: `translateY(${scrollY * -0.08}px)` }}
+                    >
+                        {loadingContracts ? (
+                            Array.from({ length: 6 }).map((_, i) => (
+                                <div key={i} className="bg-[#172b1c] rounded-[30px] p-5 animate-pulse h-[140px]" />
+                            ))
+                        ) : contracts.length === 0 ? (
+                            /* ── Premium empty-state CTA ── */
+                            <motion.div
+                                className="col-span-full"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, ease: 'easeOut', delay: 0.2 }}
+                            >
+                                <div
+                                    className="mx-auto max-w-xl rounded-[40px] p-10 flex flex-col items-center -mt-5 text-center gap-6"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #111f14 0%, #0d1a10 100%)',
+                                        border: '1px solid rgba(60,180,79,0.15)',
+                                        boxShadow: '0 0 60px rgba(60,180,79,0.06)',
+                                    }}
+                                >
+                                    {/* Icon */}
+                                    {/* <div
+                                        className="w-20 h-20 rounded-3xl flex items-center justify-center text-4xl"
+                                        style={{ background: 'rgba(60,180,79,0.1)', border: '1px solid rgba(60,180,79,0.2)' }}
+                                    >
+                                        📄
+                                    </div> */}
+
+                                    <div>
+                                        <h3 className="text-white text-2xl font-bold mb-2">Send your first contract</h3>
+                                        <p className="text-gray-500 text-sm leading-relaxed max-w-sm">
+                                            Contracts are how you get paid, protect your work, and build your credibility score.
+                                            Create one in under 2 minutes.
+                                        </p>
+                                    </div>
+
+                                    {/* Steps */}
+                                    <div className="w-full grid grid-cols-3 gap-3">
+                                        {[
+                                            { n: '1', label: 'Define scope & milestones' },
+                                            { n: '2', label: 'Send link to your client' },
+                                            { n: '3', label: 'Get paid on completion' },
+                                        ].map((s) => (
+                                            <div
+                                                key={s.n}
+                                                className="rounded-2xl p-4 flex flex-col items-center gap-2"
+                                                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+                                            >
+                                                <span
+                                                    className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black text-black"
+                                                    style={{ background: '#3cb44f' }}
+                                                >
+                                                    {s.n}
+                                                </span>
+                                                <p className="text-gray-400 text-xs leading-snug">{s.label}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* CTA */}
+                                    <button
+                                        onClick={() => navigate('/contract')}
+                                        className="cursor-pointer mt-2 px-8 py-3.5 rounded-2xl font-bold text-sm text-black transition-all duration-200 hover:scale-[1.03] active:scale-95"
+                                        style={{
+                                            background: '#3cb44f',
+                                            boxShadow: '0 8px 24px rgba(60,180,79,0.3)',
+                                        }}
+                                    >
+                                        + Create your first contract
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ) : contracts.map((contract, idx) => (
+                            <motion.div
                                 key={contract.id}
-                                className="bg-[#0f1117] rounded-2xl border border-gray-800 p-5 hover:border-gray-600 transition-all duration-200 cursor-pointer group"
+                                className="bg-[#172b1c] rounded-[30px] p-5 transition-all duration-200 cursor-pointer group"
+                                initial={{ opacity: 0, y: 18 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 + idx * 0.04 }}
+                                whileHover={{ y: -4, scale: 1.01 }}
                             >
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-4">
-                                        <div className={`w-11 h-11 rounded-xl ${contract.avatarBg} flex items-center justify-center text-white text-sm font-bold shrink-0`}>
+                                        {/* <div className={`w-11 h-11 rounded-xl ${contract.avatarBg} flex items-center justify-center text-white text-sm font-bold shrink-0`}>
                                             {contract.initials}
-                                        </div>
+                                        </div> */}
                                         <div>
                                             <h3 className="text-white font-semibold text-base group-hover:text-[#00e676] transition-colors">
                                                 {contract.name}
                                             </h3>
                                             <p className="text-gray-500 text-sm mt-0.5">
-                                                Client: <span className="text-gray-300">{contract.client}</span> · Updated {contract.updatedAgo}
+                                                Client: <span className="text-gray-300">{contract.client}</span><br /> Updated {contract.updatedAgo}
                                             </p>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-1.5">
                                         <StatusBadge status={contract.status} />
-                                        <span className="text-gray-500 text-xs font-medium mt-1">Milestone {contract.milestone}</span>
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                openContracts(contract.id);
+                                                navigate('/dashboard');
+                                            }}
+                                            className="mt-1 text-[11px] font-semibold text-[#3cb44f] hover:text-white transition-colors"
+                                        >
+                                            Open contract &rarr;
+                                        </button>
                                     </div>
                                 </div>
                                 {/* Progress bar */}
-                                <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden mt-1">
+                                <div className="w-full h-2 border border-gray-700 rounded-full overflow-hidden mt-1">
                                     <div
                                         className="h-full rounded-full transition-all duration-1000"
                                         style={{
@@ -335,22 +610,24 @@ const Dashboard = () => {
                                         }}
                                     />
                                 </div>
-                                <p className="text-gray-500 text-xs font-semibold mt-2">{contract.completion}% complete</p>
-                            </div>
+                                <div className="flex items-center justify-between">
+                                    <p className="text-gray-500 text-xs font-semibold mt-2">{contract.completion}% complete</p>
+                                    <span className="text-gray-500 text-xs font-medium mt-1">Milestone {contract.milestone}</span>
+                                </div>
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </div>
-
             {/* Floating Action Button */}
-            <button
+            {/* <button
                 onClick={() => navigate("/contract")}
                 className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-10 py-3.5 rounded-[20px] bg-[#00e676] text-black font-bold text-lg shadow-[0_8px_30px_rgba(0,230,118,0.25)] hover:shadow-[0_12px_40px_rgba(0,230,118,0.4)] transition-all duration-300 hover:-translate-y-1 active:scale-95 flex items-center gap-2 group cursor-pointer"
             >
                 <span className="text-2xl -mt-1 leading-none group-hover:scale-110 transition-transform duration-300">+</span>
                 Create Project
-            </button>
-        </div>
+            </button> */}
+        </motion.div>
     );
 };
 

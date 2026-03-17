@@ -1,18 +1,23 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ledongthuc/pdf"
 	"github.com/saiyam0211/defellix/services/contract-service/internal/blockchain"
 	"github.com/saiyam0211/defellix/services/contract-service/internal/domain"
 	"github.com/saiyam0211/defellix/services/contract-service/internal/dto"
@@ -69,6 +74,7 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 	}
 	c := &domain.Contract{
 		FreelancerUserID:   freelancerUserID,
+		FreelancerName:     req.FreelancerName,
 		ProjectCategory:    req.ProjectCategory,
 		ProjectName:        req.ProjectName,
 		Description:        req.Description,
@@ -80,8 +86,17 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 		ClientName:         req.ClientName,
 		ClientCompanyName:  req.ClientCompanyName,
 		ClientEmail:        req.ClientEmail,
-		ClientPhone:        req.ClientPhone,
-		TermsAndConditions: req.TermsAndConditions,
+		ClientPhone:            req.ClientPhone,
+		ClientCountry:          req.ClientCountry,
+		TermsAndConditions:     req.TermsAndConditions,
+		StartDate:              req.StartDate,
+		RevisionPolicy:         req.RevisionPolicy,
+		OutOfScopeWork:         req.OutOfScopeWork,
+		IntellectualProperty:   req.IntellectualProperty,
+		EstimatedDuration:      req.EstimatedDuration,
+		PaymentMethod:          req.PaymentMethod,
+		AdvancePaymentRequired: req.AdvancePaymentRequired,
+		AdvancePaymentAmount:   req.AdvancePaymentAmount,
 		Status:             domain.ContractStatusDraft,
 		ClientViewToken:    uuid.New().String(),
 	}
@@ -167,9 +182,6 @@ func (s *ContractService) Update(ctx context.Context, id uint, freelancerUserID 
 				if mReq.DueDate != nil {
 					m.DueDate = mReq.DueDate
 				}
-				if mReq.IsInitialPayment != nil {
-					m.IsInitialPayment = *mReq.IsInitialPayment
-				}
 				if mReq.SubmissionCriteria != nil {
 					if b, err := json.Marshal(mReq.SubmissionCriteria); err == nil {
 						m.SubmissionCriteria = string(b)
@@ -192,9 +204,6 @@ func (s *ContractService) Update(ctx context.Context, id uint, freelancerUserID 
 					m.Description = *mReq.Description
 				}
 				m.DueDate = mReq.DueDate
-				if mReq.IsInitialPayment != nil {
-					m.IsInitialPayment = *mReq.IsInitialPayment
-				}
 				if mReq.SubmissionCriteria != nil {
 					if b, err := json.Marshal(mReq.SubmissionCriteria); err == nil {
 						m.SubmissionCriteria = string(b)
@@ -488,6 +497,7 @@ func signMetadataFromRequest(req *dto.SignRequest) map[string]interface{} {
 func toPublicViewResponse(c *domain.Contract) *dto.PublicContractViewResponse {
 	return &dto.PublicContractViewResponse{
 		ID:                  c.ID,
+		FreelancerName:      c.FreelancerName,
 		ProjectCategory:     c.ProjectCategory,
 		ProjectName:         c.ProjectName,
 		Description:         c.Description,
@@ -499,8 +509,17 @@ func toPublicViewResponse(c *domain.Contract) *dto.PublicContractViewResponse {
 		ClientName:          c.ClientName,
 		ClientCompanyName:   c.ClientCompanyName,
 		ClientEmail:         c.ClientEmail,
-		ClientPhone:         c.ClientPhone,
-		TermsAndConditions:  c.TermsAndConditions,
+		ClientPhone:            c.ClientPhone,
+		ClientCountry:          c.ClientCountry,
+		TermsAndConditions:     c.TermsAndConditions,
+		StartDate:              c.StartDate,
+		RevisionPolicy:         c.RevisionPolicy,
+		OutOfScopeWork:         c.OutOfScopeWork,
+		IntellectualProperty:   c.IntellectualProperty,
+		EstimatedDuration:      c.EstimatedDuration,
+		PaymentMethod:          c.PaymentMethod,
+		AdvancePaymentRequired: c.AdvancePaymentRequired,
+		AdvancePaymentAmount:   c.AdvancePaymentAmount,
 		Status:              c.Status,
 		IsRevised:           c.IsRevised,
 		SentAt:              c.SentAt,
@@ -563,7 +582,6 @@ func milestonesFromInput(in []dto.MilestoneInput) []domain.ContractMilestone {
 			Description:          in[i].Description,
 			Amount:               in[i].Amount,
 			DueDate:              in[i].DueDate,
-			IsInitialPayment:     in[i].IsInitialPayment,
 			SubmissionCriteria:   subCriteriaStr,
 			CompletionCriteriaTC: in[i].CompletionCriteriaTC,
 			Status:               "pending",
@@ -609,8 +627,35 @@ func applyUpdate(c *domain.Contract, req *dto.UpdateContractRequest) {
 	if req.ClientPhone != nil {
 		c.ClientPhone = *req.ClientPhone
 	}
+	if req.ClientCountry != nil {
+		c.ClientCountry = *req.ClientCountry
+	}
 	if req.TermsAndConditions != nil {
 		c.TermsAndConditions = *req.TermsAndConditions
+	}
+	if req.StartDate != nil {
+		c.StartDate = req.StartDate
+	}
+	if req.RevisionPolicy != nil {
+		c.RevisionPolicy = *req.RevisionPolicy
+	}
+	if req.OutOfScopeWork != nil {
+		c.OutOfScopeWork = *req.OutOfScopeWork
+	}
+	if req.IntellectualProperty != nil {
+		c.IntellectualProperty = *req.IntellectualProperty
+	}
+	if req.EstimatedDuration != nil {
+		c.EstimatedDuration = *req.EstimatedDuration
+	}
+	if req.PaymentMethod != nil {
+		c.PaymentMethod = *req.PaymentMethod
+	}
+	if req.AdvancePaymentRequired != nil {
+		c.AdvancePaymentRequired = *req.AdvancePaymentRequired
+	}
+	if req.AdvancePaymentAmount != nil {
+		c.AdvancePaymentAmount = *req.AdvancePaymentAmount
 	}
 }
 
@@ -639,8 +684,17 @@ func (s *ContractService) toResponseWithShareable(c *domain.Contract, ms []domai
 		ClientName:         c.ClientName,
 		ClientCompanyName:  c.ClientCompanyName,
 		ClientEmail:        c.ClientEmail,
-		ClientPhone:        c.ClientPhone,
-		TermsAndConditions: c.TermsAndConditions,
+		ClientPhone:            c.ClientPhone,
+		ClientCountry:          c.ClientCountry,
+		TermsAndConditions:     c.TermsAndConditions,
+		StartDate:              c.StartDate,
+		RevisionPolicy:         c.RevisionPolicy,
+		OutOfScopeWork:         c.OutOfScopeWork,
+		IntellectualProperty:   c.IntellectualProperty,
+		EstimatedDuration:      c.EstimatedDuration,
+		PaymentMethod:          c.PaymentMethod,
+		AdvancePaymentRequired: c.AdvancePaymentRequired,
+		AdvancePaymentAmount:   c.AdvancePaymentAmount,
 		Status:             c.Status,
 		IsRevised:          c.IsRevised,
 		SentAt:             c.SentAt,
@@ -666,11 +720,148 @@ func milestonesToResponse(ms []domain.ContractMilestone) []dto.MilestoneResponse
 			Description:      ms[i].Description,
 			Amount:           ms[i].Amount,
 			DueDate:          ms[i].DueDate,
-			IsInitialPayment: ms[i].IsInitialPayment,
 			Status:           ms[i].Status,
 			CreatedAt:        ms[i].CreatedAt,
 			UpdatedAt:        ms[i].UpdatedAt,
 		}
 	}
 	return out
+}
+
+func (s *ContractService) ExtractFromPRD(ctx context.Context, prdURL string) (*dto.ExtractedContract, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, prdURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("invalid PRD URL: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download PRD: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("failed to download PRD: status %d", resp.StatusCode)
+	}
+
+	rawBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read PRD: %w", err)
+	}
+
+	return s.ExtractFromPRDBytes(ctx, rawBytes)
+}
+
+// ExtractFromPRDBytes intercepts a PRD document from memory and generates the contract structure 
+// using the Groq LLM API. It avoids network 401/404 CDN delivery blocks by processing the file internally.
+func (s *ContractService) ExtractFromPRDBytes(ctx context.Context, rawBytes []byte) (*dto.ExtractedContract, error) {
+	groqAPIKey := os.Getenv("GROQ_API_KEY")
+	groqModel := os.Getenv("GROQ_MODEL")
+	if groqModel == "" {
+		groqModel = "llama-3.3-70b-versatile"
+	}
+	if groqAPIKey == "" {
+		return nil, errors.New("GROQ_API_KEY not configured")
+	}
+
+	var rawText string
+	// Attempt to parse as PDF first
+	reader, err := pdf.NewReader(bytes.NewReader(rawBytes), int64(len(rawBytes)))
+	if err == nil {
+		b, err := reader.GetPlainText()
+		if err == nil {
+			buf := new(bytes.Buffer)
+			if _, err := buf.ReadFrom(b); err == nil {
+				rawText = buf.String()
+			}
+		}
+	}
+
+	// Fallback to raw string if PDF parsing yielded nothing or failed (e.g., standard text/markdown files)
+	if strings.TrimSpace(rawText) == "" {
+		rawText = string(rawBytes)
+	}
+
+	if len(rawText) > 100000 {
+		rawText = rawText[:100000]
+	}
+
+	systemPrompt := `You are an AI assistant that extracts structured contract data from PRD documents.
+Extract the following fields from the provided PRD text and return ONLY a valid JSON object (no extra text):
+
+{
+  "project_title": "string",
+  "project_type": "string (e.g. Web Development, Mobile App, Design, Marketing, Writing, Data Science, Other)",
+  "project_description": "string",
+  "terms_and_conditions": "string",
+  "start_date": "YYYY-MM-DD or empty",
+  "deadline": "YYYY-MM-DD or empty",
+  "client": {
+    "name": "string or empty",
+    "email": "string or empty",
+    "phone": "string or empty",
+    "company": "string or empty",
+    "country": "string or empty"
+  },
+  "scope": "string",
+  "deliverables": "string",
+  "payment_terms": "string"
+}
+
+If a field is not found, use an empty string or omit it. Ensure all dates are in YYYY-MM-DD format.`
+
+	groqPayload := map[string]interface{}{
+		"model": groqModel,
+		"messages": []map[string]interface{}{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": "Extract contract data from this PRD:\n\n" + rawText},
+		},
+		"temperature":     0.2,
+		"max_tokens":      2048,
+		"response_format": map[string]string{"type": "json_object"},
+	}
+
+	payloadBytes, err := json.Marshal(groqPayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal Groq request: %w", err)
+	}
+
+	groqReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Groq request: %w", err)
+	}
+	groqReq.Header.Set("Content-Type", "application/json")
+	groqReq.Header.Set("Authorization", "Bearer "+groqAPIKey)
+
+	groqResp, err := http.DefaultClient.Do(groqReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call Groq: %w", err)
+	}
+	defer groqResp.Body.Close()
+	if groqResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(groqResp.Body)
+		return nil, fmt.Errorf("Groq API error %d: %s", groqResp.StatusCode, string(body))
+	}
+
+	var groqOut struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(groqResp.Body).Decode(&groqOut); err != nil {
+		return nil, fmt.Errorf("failed to parse Groq response: %w", err)
+	}
+	if len(groqOut.Choices) == 0 {
+		return nil, errors.New("Groq returned no choices")
+	}
+
+	content := groqOut.Choices[0].Message.Content
+
+	var extracted dto.ExtractedContract
+	if err := json.Unmarshal([]byte(content), &extracted); err != nil {
+		return nil, fmt.Errorf("failed to parse extracted JSON: %w", err)
+	}
+
+	return &extracted, nil
 }

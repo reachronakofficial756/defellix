@@ -5,16 +5,10 @@ import (
 )
 
 // CORS is a middleware that handles Cross-Origin Resource Sharing
+// Relegated to a passthrough because NGINX handles CORS entirely at the API Gateway level.
 func CORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token")
-		w.Header().Set("Access-Control-Expose-Headers", "Link")
-		w.Header().Set("Access-Control-Max-Age", "300")
-
-		// Handle preflight requests
+		// Handle preflight requests natively offloaded to Nginx
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusNoContent)
 			return

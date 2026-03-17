@@ -7,11 +7,13 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	App      AppConfig
-	Database DatabaseConfig
-	JWT      JWTConfig
-	SMTP     SMTPConfig
+	Server     ServerConfig
+	App        AppConfig
+	Database   DatabaseConfig
+	JWT        JWTConfig
+	SMTP       SMTPConfig
+	Cloudinary CloudinaryConfig
+	Groq       GroqConfig
 }
 
 // SMTPConfig holds email sending credentials
@@ -58,6 +60,20 @@ type JWTConfig struct {
 	Secret string
 }
 
+// CloudinaryConfig holds Cloudinary credentials for PRD uploads
+type CloudinaryConfig struct {
+	CloudName    string
+	APIKey       string
+	APISecret    string
+	UploadPreset string
+}
+
+// GroqConfig holds Groq API credentials for PRD extraction
+type GroqConfig struct {
+	APIKey string
+	Model  string
+}
+
 // Load reads configuration from environment variables with defaults
 func Load() *Config {
 	return &Config{
@@ -94,6 +110,16 @@ func Load() *Config {
 			User:     getEnv("SMTP_USER", ""),
 			Password: getEnv("SMTP_PASS", ""),
 			FromName: getEnv("SMTP_FROM_NAME", "Defellix Contracts"),
+		},
+		Cloudinary: CloudinaryConfig{
+			CloudName:    getEnv("CLOUDINARY_CLOUD_NAME", ""),
+			APIKey:       getEnv("CLOUDINARY_API_KEY", ""),
+			APISecret:    getEnv("CLOUDINARY_API_SECRET", ""),
+			UploadPreset: getEnv("CLOUDINARY_UPLOAD_PRESET", ""),
+		},
+		Groq: GroqConfig{
+			APIKey: getEnv("GROQ_API_KEY", ""),
+			Model:  getEnv("GROQ_MODEL", "llama-3.3-70b-versatile"),
 		},
 	}
 }

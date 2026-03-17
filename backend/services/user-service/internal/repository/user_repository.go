@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/saiyam0211/defellix/services/user-service/internal/domain"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -26,6 +27,7 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uint) (*domain.User, error)
 	FindByUserID(ctx context.Context, userID uint) (*domain.User, error)
 	FindByUserName(ctx context.Context, userName string) (*domain.User, error)
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	Update(ctx context.Context, profile *domain.User) error
 	Search(ctx context.Context, filter map[string]interface{}, page, limit int64) ([]*domain.User, int64, error)
 	AddSkill(ctx context.Context, userID uint, skill string) error
@@ -33,6 +35,7 @@ type UserRepository interface {
 	AddPortfolioItem(ctx context.Context, userID uint, item *domain.PortfolioItem) error
 	UpdatePortfolioItem(ctx context.Context, userID uint, itemID string, item *domain.PortfolioItem) (*domain.PortfolioItem, error)
 	DeletePortfolioItem(ctx context.Context, userID uint, itemID string) error
+	UpdateSkills(ctx context.Context, userID uint, skills datatypes.JSON) error
 }
 
 // userRepository implements UserRepository interface
@@ -98,6 +101,18 @@ func (r *userRepository) FindByUserName(ctx context.Context, userName string) (*
 	return &profile, nil
 }
 
+// FindByEmail finds a user profile by email
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
+	var profile domain.User
+	if err := r.db.WithContext(ctx).Where("email = ?", email).First(&profile).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &profile, nil
+}
+
 // Update updates an existing user profile
 func (r *userRepository) Update(ctx context.Context, profile *domain.User) error {
 	profile.UpdatedAt = time.Now()
@@ -106,6 +121,11 @@ func (r *userRepository) Update(ctx context.Context, profile *domain.User) error
 		return err
 	}
 	return nil
+}
+
+// UpdateSkills explicitly updates just the skills JSON column
+func (r *userRepository) UpdateSkills(ctx context.Context, userID uint, skills datatypes.JSON) error {
+	return r.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", userID).Update("skills", skills).Error
 }
 
 // Search searches for user profiles with filters

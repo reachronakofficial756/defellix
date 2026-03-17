@@ -47,10 +47,85 @@ func (n *SMTPNotifier) sendEmail(to, subject, htmlBody string) {
 	}
 }
 
-// NotifyContractSent sends an email context
+// NotifyContractSent sends a professional HTML email to the client with the contract review link.
 func (n *SMTPNotifier) NotifyContractSent(ctx context.Context, contractID uint, clientEmail, shareableLink string) {
-	// Delegating to placeholder or resend if we want SMTP for everything.
-	// For now, implementing as a placeholder to satisfy the interface.
+	subject := fmt.Sprintf("📄 You've Received a New Contract to Review — Contract #%d", contractID)
+	html := fmt.Sprintf(`<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>New Contract</title></head>
+<body style="margin:0;padding:0;background:#f2f4f8;font-family:'Inter',Arial,sans-serif;">
+  <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f2f4f8;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <!-- Header -->
+        <tr>
+          <td style="background:linear-gradient(135deg,#0d1a10 0%%,#1e3824 100%%);padding:36px 48px 32px;text-align:center;">
+            <div style="font-size:28px;font-weight:900;letter-spacing:-1px;color:#ffffff;">defellix</div>
+            <div style="width:40px;height:2px;background:#3cb44f;margin:12px auto 0;border-radius:2px;"></div>
+          </td>
+        </tr>
+        <!-- Body -->
+        <tr>
+          <td style="padding:40px 48px;">
+            <h1 style="color:#0d1a10;font-size:24px;font-weight:800;margin:0 0 8px;">You have a new contract to review</h1>
+            <p style="color:#555;font-size:16px;line-height:1.7;margin:0 0 24px;">
+              A freelancer has sent you a <strong>digital service contract</strong> for your review and signature on <strong>Defellix</strong>.
+              Please review all terms carefully before signing.
+            </p>
+            <!-- Info Box -->
+            <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f8fdf9;border:1px solid #d4edda;border-radius:12px;margin:0 0 32px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;color:#555;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;">Contract Reference</p>
+                <p style="margin:0;color:#0d1a10;font-size:22px;font-weight:900;letter-spacing:-0.5px;">#DEF-%04d</p>
+              </td></tr>
+            </table>
+            <!-- CTA Button -->
+            <table width="100%%" cellpadding="0" cellspacing="0">
+              <tr><td align="center" style="padding:8px 0 32px;">
+                <a href="%s" style="display:inline-block;padding:18px 48px;background:linear-gradient(135deg,#3cb44f,#2d8a3e);color:#ffffff;text-decoration:none;border-radius:100px;font-size:16px;font-weight:800;letter-spacing:0.02em;box-shadow:0 8px 24px rgba(60,180,79,0.35);">
+                  Review &amp; Sign Contract →
+                </a>
+              </td></tr>
+            </table>
+            <!-- Steps -->
+            <table width="100%%" cellpadding="0" cellspacing="0" style="margin:0 0 32px;">
+              <tr>
+                <td width="33%%" style="padding:16px;text-align:center;vertical-align:top;">
+                  <div style="width:40px;height:40px;background:#e8f5e9;border-radius:50%%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:18px;">👁️</div>
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#0d1a10;text-transform:uppercase;letter-spacing:0.05em;">1. Review</p>
+                  <p style="margin:4px 0 0;font-size:12px;color:#888;">Read all terms carefully</p>
+                </td>
+                <td width="33%%" style="padding:16px;text-align:center;vertical-align:top;">
+                  <div style="width:40px;height:40px;background:#e8f5e9;border-radius:50%%;margin:0 auto 12px;font-size:18px;line-height:40px;">💬</div>
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#0d1a10;text-transform:uppercase;letter-spacing:0.05em;">2. Negotiate</p>
+                  <p style="margin:4px 0 0;font-size:12px;color:#888;">Request changes if needed</p>
+                </td>
+                <td width="33%%" style="padding:16px;text-align:center;vertical-align:top;">
+                  <div style="width:40px;height:40px;background:#e8f5e9;border-radius:50%%;margin:0 auto 12px;font-size:18px;line-height:40px;">✅</div>
+                  <p style="margin:0;font-size:12px;font-weight:700;color:#0d1a10;text-transform:uppercase;letter-spacing:0.05em;">3. Sign</p>
+                  <p style="margin:4px 0 0;font-size:12px;color:#888;">Sign with OTP verification</p>
+                </td>
+              </tr>
+            </table>
+            <!-- Link copy -->
+            <p style="color:#999;font-size:12px;text-align:center;margin:0 0 4px;">Or copy this link:</p>
+            <p style="color:#3cb44f;font-size:12px;text-align:center;word-break:break-all;margin:0;"><a href="%s" style="color:#3cb44f;">%s</a></p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8fdf9;border-top:1px solid #e8f0ea;padding:24px 48px;text-align:center;">
+            <p style="margin:0 0 4px;color:#aaa;font-size:12px;">🔒 Secured by <strong style="color:#0d1a10;">Defellix Protocol</strong> · Digital signatures are legally binding</p>
+            <p style="margin:0;color:#ccc;font-size:11px;">If you didn't expect this email, you can safely ignore it. This link will expire once the contract is signed.</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`, contractID, shareableLink, shareableLink, shareableLink)
+
+	go n.sendEmail(clientEmail, subject, html)
 }
 
 func (n *SMTPNotifier) NotifyWorkSubmitted(ctx context.Context, contractID uint, clientEmail, projectName, reviewLink string) {}
