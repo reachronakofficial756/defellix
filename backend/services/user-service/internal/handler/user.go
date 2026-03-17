@@ -305,6 +305,17 @@ func (h *UserHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If userID is 0, this is a pending OAuth user completing Step 2
+	// Call auth-service to complete OAuth registration first
+	if userID == 0 {
+		newUserID, err := h.userService.CompletePendingOAuthUser(r.Context(), userEmail)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "Failed to complete OAuth registration: "+err.Error(), "OAUTH_COMPLETION_FAILED")
+			return
+		}
+		userID = newUserID
+	}
+
 	profile, err := h.profileService.CreateProfile(r.Context(), userID, userEmail, &req)
 	if err != nil {
 		if errors.Is(err, service.ErrProfileExists) {
