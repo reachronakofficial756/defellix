@@ -7,8 +7,9 @@ import PainSolution from '../components/landing/PainSolution';
 import FeatureBento from '../components/landing/FeatureBento';
 import HowItWorks from '../components/landing/HowItWorks';
 import ScrollingCards from '../components/landing/ScrollingCards';
-import MarketplaceTabs from '../components/landing/MarketplaceTabs';
-import Testimonials from '../components/landing/Testimonials';
+import CircularSlider from '../components/landing/CircularSlider';
+import FeatureSlider from '../components/landing/FeatureSlider';
+import ScrollTestimonials from '../components/landing/ScrollTestimonials';
 import Footer from '../components/landing/Footer';
 
 const LandingPage = () => {
@@ -59,17 +60,20 @@ const LandingPage = () => {
 
       <main>
         <Hero />
+        <TrustBanner />
         
         <div id="how">
            <HowItWorks />
         </div>
 
         <ScrollingCards />
-        
-        <MarketplaceTabs />
+
+        <CircularSlider />
+
+        <FeatureSlider />
         
         <div id="reviews">
-           <Testimonials />
+           <ScrollTestimonials />
         </div>
       </main>
 
