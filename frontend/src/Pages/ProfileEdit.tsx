@@ -192,7 +192,7 @@ export default function ProfileEdit() {
       setSuccess(true);
 
       // Redirect after 2 seconds
-      setTimeout(() => navigate('/profile'), 2000);
+      setTimeout(() => navigate('/dashboard/profile'), 2000);
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || 'Failed to save profile. Please try again.';
       setError(message);
@@ -272,7 +272,7 @@ export default function ProfileEdit() {
       >
         {/* Back button */}
         <button
-          onClick={() => navigate('/profile')}
+          onClick={() => navigate('/dashboard/profile')}
           className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm font-medium"
         >
           <ArrowLeft size={16} />
@@ -628,7 +628,7 @@ export default function ProfileEdit() {
               <div className="pt-8 flex items-center justify-end gap-4">
                 <button
                   type="button"
-                  onClick={() => navigate('/profile')}
+                  onClick={() => navigate('/dashboard/profile')}
                   className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition-all text-sm font-medium"
                 >
                   Cancel

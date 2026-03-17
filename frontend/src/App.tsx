@@ -24,6 +24,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function CatchAll() {
+  const { isAuthenticated, isProfileComplete, isLoading } = useAuth()
+  if (isLoading) return null
+  if (isAuthenticated && isProfileComplete) return <Navigate to="/dashboard" replace />
+  return <Navigate to="/" replace />
+}
+
 function App() {
   return (
     <Routes>
@@ -34,10 +41,10 @@ function App() {
       <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
       <Route path="/submit-milestone/:contractId" element={<MilestoneSubmission />} />
       <Route path="/review-milestone/:contractId" element={<MilestoneReview />} />
-      {/* All dashboard/submit-milestone/:contractId routes are protected */}
-      <Route path="/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      {/* Catch-all → landing page */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* All dashboard routes are protected */}
+      <Route path="/dashboard/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      {/* Catch-all: go to dashboard if logged in, else landing */}
+      <Route path="*" element={<CatchAll />} />
     </Routes>
   )
 }

@@ -25,7 +25,7 @@ function HomePage() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/:userName" element={<Profile />} />
               <Route path="/profile/edit" element={<ProfileEdit />} />
-              <Route path="/contract" element={<CreateContractForm onClose={() => navigate("/")} />} />
+              <Route path="/contract" element={<CreateContractForm onClose={() => navigate("/dashboard")} />} />
             </Routes>
 
           </div>
