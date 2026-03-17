@@ -53,7 +53,7 @@ export default function LoginFormDemo() {
         if (isProfileComplete) {
           // Fully onboarded → re-fetch context then go to dashboard
           await refetch();
-          navigate("/", { replace: true });
+          navigate("/dashboard", { replace: true });
         } else {
           // Auth user exists but has no completed profile → send to step 2 to finish onboarding
           const emailParam = params.get("email") || apiData?.email;

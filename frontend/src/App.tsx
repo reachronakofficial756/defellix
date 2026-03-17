@@ -26,12 +26,13 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/dashboard/*" element={<HomePage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
-      
       <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
-       <Route path="/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      {/* All dashboard routes are protected */}
+      <Route path="/dashboard/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+      {/* Catch-all → landing page */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
