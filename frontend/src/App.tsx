@@ -1,6 +1,7 @@
 import './App.css'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import HomePage from './Pages/HomePage'
+import LandingPage from './Pages/LandingPage'
 import SignUp from './Pages/SignUp'
 import Login from './Pages/Login'
 import ClientContractReview from './Pages/ClientContractReview'
@@ -24,10 +25,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/dashboard/*" element={<HomePage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      
       <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
-      <Route path="/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+       <Route path="/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
     </Routes>
   )
 }
