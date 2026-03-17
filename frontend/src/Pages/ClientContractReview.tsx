@@ -131,7 +131,7 @@ export default function ClientContractReview() {
     setIsSendingOtp(true);
     setOtpError('');
     try {
-      const res = await fetch(`${API_BASE}/${contractId}/send-otp`, {
+      const res = await fetch(`${CONTRACT_API_BASE}/${contractId}/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: contract.client_email }),
@@ -154,7 +154,7 @@ export default function ClientContractReview() {
     setIsSigning(true);
     setOtpError('');
     try {
-      const res = await fetch(`${API_BASE}/${contractId}/sign`, {
+      const res = await fetch(`${CONTRACT_API_BASE}/${contractId}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otp, company_address: companyAddress, email: contract?.client_email }),
@@ -175,7 +175,7 @@ export default function ClientContractReview() {
     if (!negotiationText.trim()) return;
     setNegotiating(true);
     try {
-      const res = await fetch(`${API_BASE}/${contractId}/send-for-review`, {
+      const res = await fetch(`${CONTRACT_API_BASE}/${contractId}/send-for-review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ comment: negotiationText }),
