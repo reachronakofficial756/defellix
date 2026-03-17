@@ -6,13 +6,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { IconBrandGoogle } from "@tabler/icons-react";
 import { FaLinkedin } from "react-icons/fa6";
+import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import logo from "../assets/logo.svg";
 
 const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your first contract"];
 
 export default function SignUp() {
     const navigate = useNavigate();
-    const { setAuthenticated } = useAuth();
+    const { setAuthenticated, refetch } = useAuth();
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [isOtpStage, setIsOtpStage] = useState(false);
@@ -20,6 +21,7 @@ export default function SignUp() {
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [otp, setOtp] = useState("");
 
     const [profileHeadline, setProfileHeadline] = useState("");
@@ -29,6 +31,7 @@ export default function SignUp() {
     const [photo] = useState("");
     const [location, setLocation] = useState("");
     const [experience, setExperience] = useState("");
+    const [companyName, setCompanyName] = useState("");
     const [githubLink] = useState("");
     const [linkedinLink, setLinkedinLink] = useState("");
     const [portfolioLink] = useState("");
@@ -66,19 +69,37 @@ export default function SignUp() {
             setEmail(oauthEmail);
         }
 
-        // If user already exists, skip signup and go to dashboard.
-        // If /users/me fails (e.g. account doesn't exist), stay on signup step 2.
+        // Check profile completion FIRST before setting step from URL
+        // If user already exists AND has a completed profile, skip signup and go to dashboard.
+        // If /users/me fails OR profile is incomplete, stay on signup step 2.
         (async () => {
             try {
-                await apiClient.get("/users/me");
-                setAuthenticated(true);
-                navigate("/");
+                const res = await apiClient.get("/users/me");
+                const apiData = res.data?.data || res.data;
+                
+                // Backend response structure:
+                // - Profile exists: apiData IS the User object directly
+                // - Profile doesn't exist: apiData = {profile: null, user_id: X}
+                const profile = apiData?.profile !== undefined ? apiData.profile : apiData;
+
+                // Profile is complete ONLY if user_name exists (required field)
+                const isProfileComplete = profile && profile !== null && profile.user_name;
+                
+                if (isProfileComplete) {
+                    // Fully onboarded already → re-fetch auth state then go to dashboard
+                    await refetch();
+                    navigate("/", { replace: true });
+                } else {
+                    // Auth user but no completed profile → stay on step 2
+                    setIsOtpStage(false);
+                    setStep(2);
+                }
             } catch {
                 setIsOtpStage(false);
                 setStep(2);
             }
         })();
-    }, [email, navigate, setAuthenticated]);
+    }, [email, navigate, setAuthenticated, refetch]);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -172,14 +193,22 @@ export default function SignUp() {
                 return;
             }
 
+            // Username is required - cannot proceed without it
+            if (!userName || userName.trim() === "") {
+                setError("Username is required. Please enter a username to continue.");
+                setLoading(false);
+                return;
+            }
+
             await apiClient.post("/users/me/profile", {
                 phone,
-                user_name: userName || fullName,
+                user_name: userName,
                 what_do_you_do: whatDoYouDo,
                 short_headline: profileHeadline,
                 photo,
                 location,
                 experience,
+                company_name: companyName,
                 github_link: githubLink,
                 linkedin_link: linkedinLink,
                 portfolio_link: portfolioLink,
@@ -203,11 +232,20 @@ export default function SignUp() {
         <div className="min-h-screen w-full bg-black text-white flex items-center justify-center px-4 sm:px-6 lg:px-10 scrBar">
             {toastMessage && (
                 <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="fixed top-6 right-6 z-[9999] w-[min(520px,calc(100vw-3rem))] rounded-2xl border border-white/10 bg-black/70 px-4 py-3 text-xs text-white/90 backdrop-blur-md shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="fixed top-8 right-8 z-[9999] w-[min(480px,calc(100vw-4rem))] rounded-2xl border border-[#ef5350]/30 bg-[#ef5350]/10 px-5 py-4 backdrop-blur-xl shadow-[0_20px_60px_-15px_rgba(239,83,80,0.3)] flex items-start gap-4 overflow-hidden"
                 >
-                    {toastMessage}
+                    <div className="absolute top-0 left-0 w-1 h-full bg-[#ef5350]" />
+                    <div className="w-8 h-8 rounded-full bg-[#ef5350]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <AlertCircle className="w-4 h-4 text-[#ef5350]" />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <span className="text-sm font-bold text-white tracking-tight">Notice</span>
+                        <span className="text-[13px] text-white/80 leading-relaxed font-medium">
+                            {toastMessage}
+                        </span>
+                    </div>
                 </motion.div>
             )}
             <motion.div
@@ -409,11 +447,22 @@ export default function SignUp() {
                                             <input
                                                 id="password"
                                                 placeholder="Enter your password"
-                                                type="password"
+                                                type={showPassword ? "text" : "password"}
                                                 value={password}
                                                 onChange={(e: any) => setPassword(e.target.value)}
-                                                className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                                className="relative w-full z-10 py-7 px-4 pr-12 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword((prev) => !prev)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 text-white/40 hover:text-white/70 transition-colors"
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff className="h-5 w-5" />
+                                                ) : (
+                                                    <Eye className="h-5 w-5" />
+                                                )}
+                                            </button>
                                         </div>
                                         <p className="mt-1 ml-2 text-[10px] sm:text-xs text-white/40">
                                             Must be at least 8 characters.
@@ -583,7 +632,7 @@ export default function SignUp() {
                                         htmlFor="user-name"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
-                                        Username
+                                        Username <span className="text-red-400">*</span>
                                     </label>
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
                                         <input
@@ -592,6 +641,7 @@ export default function SignUp() {
                                             type="text"
                                             value={userName}
                                             onChange={(e: any) => setUserName(e.target.value)}
+                                            required
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
@@ -688,6 +738,25 @@ export default function SignUp() {
                                             type="text"
                                             value={experience}
                                             onChange={(e: any) => setExperience(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        />
+                                    </div>
+                                </LabelInputContainer>
+
+                                <LabelInputContainer>
+                                    <label
+                                        htmlFor="companyName"
+                                        className="text-xs sm:text-sm text-white/70"
+                                    >
+                                        Company Name (Optional)
+                                    </label>
+                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                        <input
+                                            id="companyName"
+                                            placeholder="eg. Acme Inc."
+                                            type="text"
+                                            value={companyName}
+                                            onChange={(e: any) => setCompanyName(e.target.value)}
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
@@ -851,8 +920,8 @@ export default function SignUp() {
 
                         <button
                             type="submit"
-                                disabled={loading}
-                                className="group relative mt-6 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70"
+                                disabled={loading || !userName || userName.trim() === ""}
+                                className="group relative mt-6 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                                 {loading ? "Saving..." : "Continue →"}
                             <BottomGradient />

@@ -21,26 +21,33 @@ type CreateProfileRequest struct {
 	// Skills (multiple)
 	Skills []string `json:"skills" validate:"required,min=1,dive,min=2,max=50"`
 
+	// Company name (optional)
+	CompanyName string `json:"company_name,omitempty" validate:"omitempty,max=100"`
 }
 
 // UpdateProfileRequest represents the request to update user profile
 // Includes all fields that can be updated after profile creation
 type UpdateProfileRequest struct {
+	// Basic information
+	FullName      string   `json:"full_name,omitempty" validate:"omitempty,min=2,max=100"`
+	UserName      string   `json:"user_name,omitempty" validate:"omitempty,min=3,max=30"`
+	Phone         string   `json:"phone,omitempty" validate:"omitempty,max=20"`
 	Photo         string   `json:"photo,omitempty" validate:"omitempty,url"`
 	WhatDoYouDo   string   `json:"what_do_you_do,omitempty" validate:"omitempty,min=2,max=150"`
 	ShortHeadline string   `json:"short_headline,omitempty" validate:"omitempty,min=10,max=150"`
 	Bio           string   `json:"bio,omitempty" validate:"omitempty,max=1000"`
 	Location      string   `json:"location,omitempty" validate:"omitempty,max=100"`
 	Experience    string   `json:"experience,omitempty" validate:"omitempty,max=50"`
-	Timezone      string   `json:"timezone,omitempty"`
+	CompanyName   string   `json:"company_name,omitempty" validate:"omitempty,max=100"`
 
 	// Social links
-	GitHubLink    string `json:"github_link,omitempty"`
-	LinkedInLink  string `json:"linkedin_link,omitempty"`
-	PortfolioLink string `json:"portfolio_link,omitempty"`
-	InstagramLink string `json:"instagram_link,omitempty"`
+	GitHubLink    string `json:"github_link,omitempty" validate:"omitempty,url"`
+	LinkedInLink  string `json:"linkedin_link,omitempty" validate:"omitempty,url"`
+	PortfolioLink string `json:"portfolio_link,omitempty" validate:"omitempty,url"`
+	InstagramLink string `json:"instagram_link,omitempty" validate:"omitempty,url"`
 
-	CompanyName string `json:"company_name,omitempty"`
+	// Skills (multiple)
+	Skills []string `json:"skills,omitempty" validate:"omitempty,dive,min=2,max=50"`
 
 	// Visibility: what to show on public profile
 	ShowProfile   *bool `json:"show_profile,omitempty"`

@@ -70,6 +70,7 @@ func (s *ProfileService) CreateProfile(ctx context.Context, userID uint, email s
 	user.WhatDoYouDo = req.WhatDoYouDo
 	user.Location = req.Location
 	user.Experience = req.Experience
+	user.CompanyName = req.CompanyName
 	user.GitHubLink = req.GitHubLink
 	user.LinkedInLink = req.LinkedInLink
 	user.PortfolioLink = req.PortfolioLink

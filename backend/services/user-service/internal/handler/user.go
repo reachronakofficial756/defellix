@@ -118,11 +118,23 @@ func (h *UserHandler) GetMyProfile(w http.ResponseWriter, r *http.Request) {
 // UpdateMyProfile updates the current user's profile
 func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 	userID := r.Context().Value("user_id").(uint)
+	userEmail := r.Context().Value("user_email").(string)
 
 	var req dto.UpdateProfileRequest
 	if err := h.validator.ValidateJSON(r, &req); err != nil {
 		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
 		return
+	}
+
+	// If userID is 0, this is a pending OAuth user completing Step 2
+	// Call auth-service to complete OAuth registration first
+	if userID == 0 {
+		newUserID, err := h.userService.CompletePendingOAuthUser(r.Context(), userEmail)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "Failed to complete OAuth registration: "+err.Error(), "OAUTH_COMPLETION_FAILED")
+			return
+		}
+		userID = newUserID
 	}
 
 	profile, err := h.userService.UpdateProfile(r.Context(), userID, &req)

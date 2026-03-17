@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = 'https://api.defellix.com';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.defellix.com';
 
 /**
  * API client with credentials so the browser sends httpOnly cookies.

@@ -27,6 +27,11 @@ type UserRepository interface {
 	CreatePendingRegistration(pr *domain.PendingRegistration) error
 	FindPendingRegistrationByEmail(email string) (*domain.PendingRegistration, error)
 	DeletePendingRegistration(email string) error
+
+	// PendingOAuthUser operations
+	CreatePendingOAuthUser(pou *domain.PendingOAuthUser) error
+	FindPendingOAuthUserByEmail(email string) (*domain.PendingOAuthUser, error)
+	DeletePendingOAuthUser(email string) error
 }
 
 // userRepository implements UserRepository interface
@@ -114,6 +119,34 @@ func (r *userRepository) FindPendingRegistrationByEmail(email string) (*domain.P
 // DeletePendingRegistration permanently deletes a pending registration via its primary key email
 func (r *userRepository) DeletePendingRegistration(email string) error {
 	if err := r.db.Where("email = ?", email).Delete(&domain.PendingRegistration{}).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// CreatePendingOAuthUser upserts a pending OAuth user
+func (r *userRepository) CreatePendingOAuthUser(pou *domain.PendingOAuthUser) error {
+	if err := r.db.Save(pou).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+// FindPendingOAuthUserByEmail looks up a pending OAuth user by email
+func (r *userRepository) FindPendingOAuthUserByEmail(email string) (*domain.PendingOAuthUser, error) {
+	var pou domain.PendingOAuthUser
+	if err := r.db.Where("email = ?", email).First(&pou).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &pou, nil
+}
+
+// DeletePendingOAuthUser permanently deletes a pending OAuth user
+func (r *userRepository) DeletePendingOAuthUser(email string) error {
+	if err := r.db.Where("email = ?", email).Delete(&domain.PendingOAuthUser{}).Error; err != nil {
 		return err
 	}
 	return nil

@@ -74,6 +74,7 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 	}
 	c := &domain.Contract{
 		FreelancerUserID:   freelancerUserID,
+		FreelancerName:     req.FreelancerName,
 		ProjectCategory:    req.ProjectCategory,
 		ProjectName:        req.ProjectName,
 		Description:        req.Description,
@@ -496,6 +497,7 @@ func signMetadataFromRequest(req *dto.SignRequest) map[string]interface{} {
 func toPublicViewResponse(c *domain.Contract) *dto.PublicContractViewResponse {
 	return &dto.PublicContractViewResponse{
 		ID:                  c.ID,
+		FreelancerName:      c.FreelancerName,
 		ProjectCategory:     c.ProjectCategory,
 		ProjectName:         c.ProjectName,
 		Description:         c.Description,

@@ -4,6 +4,7 @@ import { apiClient, setSessionToken } from '@/api/client';
 type AuthContextValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
+  isProfileComplete: boolean;
   refetch: () => Promise<void>;
   setAuthenticated: (value: boolean) => void;
   logout: () => Promise<void>;
@@ -14,6 +15,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setAuthenticatedState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isProfileComplete, setIsProfileComplete] = useState(false);
 
   const refetch = useCallback(async () => {
     try {
@@ -23,10 +25,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSessionToken(stored);
         }
       }
-      await apiClient.get('/users/me');
+      const res = await apiClient.get('/users/me');
+      const apiData = res.data?.data || res.data;
+      
+      // Backend response structure:
+      // - Profile exists: apiData IS the User object directly
+      // - Profile doesn't exist: apiData = {profile: null, user_id: X}
+      const profile = apiData?.profile !== undefined ? apiData.profile : apiData;
+      
+      // Profile is complete ONLY if user_name exists (required field)
+      const profileComplete = !!(profile && profile !== null && profile.user_name);
       setAuthenticatedState(true);
+      setIsProfileComplete(profileComplete);
     } catch {
       setAuthenticatedState(false);
+      setIsProfileComplete(false);
       setSessionToken(null);
     } finally {
       setIsLoading(false);
@@ -45,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     setSessionToken(null);
     setAuthenticatedState(false);
+    setIsProfileComplete(false);
     try {
       await apiClient.post('/auth/logout');
     } catch {
@@ -55,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextValue = {
     isAuthenticated,
     isLoading,
+    isProfileComplete,
     refetch,
     setAuthenticated,
     logout,

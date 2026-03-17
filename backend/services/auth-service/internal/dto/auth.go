@@ -34,3 +34,8 @@ type VerifyEmailRequest struct {
 	OTP   string `json:"otp" validate:"required,len=6"`
 }
 
+// CompleteOAuthRequest represents the request to complete OAuth registration
+type CompleteOAuthRequest struct {
+	Email string `json:"email" validate:"required,email"`
+}
+

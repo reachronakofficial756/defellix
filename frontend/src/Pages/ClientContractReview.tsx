@@ -1,436 +1,558 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  CheckCircle2, FileText,
-  MessageSquare, ShieldCheck,
-  ArrowLeft, Send
+  CheckCircle2, FileText, MessageSquare, ShieldCheck,
+  Send, DollarSign, Calendar, User, Building2, Phone,
+  Mail, Globe, CreditCard, Clock, AlertCircle, Copy, Check,
+  FileCheck, ArrowRight, Loader2, X
 } from 'lucide-react';
 import logo from '@/assets/logo.svg';
+import Navbar from '@/components/Navbar';
+import { useNavigate } from 'react-router-dom';
 
-/* ─── Mock Contract Data ─── */
-const MOCK_CONTRACT = {
-  id: 'ctx-89234',
-  projectTitle: 'E-Commerce Platform Redesign',
-  projectType: 'Web Development',
-  projectDesc: 'Redesigning the core customer journey and checkout flow to improve conversion rates by 25%. Includes a new design system and high-fidelity prototypes.',
-  freelancerName: 'Alex Morgan',
-  freelancerRole: 'Senior Product Designer',
-  clientName: 'Sarah Jenkins',
-  clientEmail: 'sarah.jenkins@aura-retail.com',
-  clientCompany: 'Aura Retail Group',
-  startDate: 'March 20, 2026',
-  deadline: 'May 15, 2026',
-  duration: '8 weeks',
-  currency: 'USD',
-  totalAmount: 12500,
-  paymentMethod: 'Bank Transfer',
-  revisionPolicy: '2 Rounds of Revisions',
-  intellectualProperty: 'Client owns all upon payment',
-  milestones: [
-    { title: 'Research & Wireframes', amount: 3000, due: 'March 30', desc: 'User flows, persona mapping, and low-fidelity wireframes.' },
-    { title: 'UI Design & Prototyping', amount: 5000, due: 'April 20', desc: 'High-fidelity UI components and interactive prototype.' },
-    { title: 'Delivery & Documentation', amount: 4500, due: 'May 15', desc: 'Final assets, design system documentation, and handoff.' },
-  ],
-  terms: 'Standard professional conduct and confidentiality terms apply. All assets will be delivered via Figma and Google Drive.'
-};
+
+const API_BASE = 'http://localhost:8080/api/v1/public/contracts';
+
+interface Milestone {
+  id: number;
+  order_index: number;
+  title: string;
+  description?: string;
+  amount: number;
+  due_date?: string;
+  status: string;
+}
+
+interface Contract {
+  id: number;
+  freelancer_name?: string;
+  project_name: string;
+  project_category: string;
+  description: string;
+  due_date?: string;
+  start_date?: string;
+  total_amount: number;
+  currency: string;
+  prd_file_url?: string;
+  client_name: string;
+  client_company_name?: string;
+  client_email: string;
+  client_phone?: string;
+  client_country?: string;
+  terms_and_conditions?: string;
+  revision_policy?: string;
+  out_of_scope_work?: string;
+  intellectual_property?: string;
+  estimated_duration?: string;
+  payment_method?: string;
+  advance_payment_required: boolean;
+  advance_payment_amount?: number;
+  status: string;
+  is_revised: boolean;
+  milestones: Milestone[];
+}
+
+function fmt(dt?: string | null): string {
+  if (!dt) return '—';
+  return new Date(dt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function InfoCard({ icon: Icon, label, value, color = '#3cb44f' }: { icon: any; label: string; value: string | number; color?: string }) {
+  return (
+    <div className="bg-white/4 border border-white/8 rounded-2xl p-5 flex flex-col gap-2">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+        <Icon size={17} style={{ color }} />
+      </div>
+      <p className="text-gray-500 text-xs font-medium">{label}</p>
+      <p className="text-white font-bold text-lg truncate">{value}</p>
+    </div>
+  );
+}
 
 export default function ClientContractReview() {
-  const { contractId } = useParams();
-  const navigate = useNavigate();
-  const [viewState, setViewState] = useState<'review' | 'negotiate' | 'otp' | 'success'>('review');
+  const { contractId } = useParams<{ contractId: string }>();
+  const [contract, setContract] = useState<Contract | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Sidebar flow state
+  const [viewState, setViewState] = useState<'review' | 'negotiate' | 'otp' | 'success' | 'already_signed'>('review');
   const [negotiationText, setNegotiationText] = useState('');
+  const [negotiating, setNegotiating] = useState(false);
+  const [negotiateSuccess, setNegotiateSuccess] = useState(false);
+  const [companyAddress, setCompanyAddress] = useState('');
   const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isSigning, setIsSigning] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Focus management for OTP
+  useEffect(() => {
+    if (!contractId) return;
+    const fetchContract = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/${contractId}`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.message || 'Not found');
+        const c: Contract = json.data;
+        setContract(c);
+        if (c.status === 'active' || c.status === 'signed') {
+          setViewState('already_signed');
+        }
+      } catch (e: any) {
+        setError(e.message || 'Failed to load contract');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchContract();
+  }, [contractId]);
+
   const handleOtpInput = (index: number, value: string) => {
-    if (value.length > 1) return;
+    if (!/^[0-9]?$/.test(value)) return;
     const newOtp = [...otpCode];
     newOtp[index] = value;
     setOtpCode(newOtp);
-
-    // Auto focus next
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-${index + 1}`);
-      nextInput?.focus();
-    }
+    if (value && index < 5) otpInputRefs.current[index + 1]?.focus();
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-${index - 1}`);
-      prevInput?.focus();
+      otpInputRefs.current[index - 1]?.focus();
     }
   };
 
-  const startOtpFlow = () => {
+  const handleRequestOTP = async () => {
+    if (!contract || !companyAddress.trim()) return;
     setIsSendingOtp(true);
-    setTimeout(() => {
-      setIsSendingOtp(false);
+    setOtpError('');
+    try {
+      const res = await fetch(`${API_BASE}/${contractId}/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: contract.client_email }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.message || 'Failed to send OTP');
+      }
       setViewState('otp');
-    }, 1500);
+    } catch (e: any) {
+      setOtpError(e.message);
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
-  const verifyOtp = () => {
-    setTimeout(() => {
+  const handleSign = async () => {
+    const otp = otpCode.join('');
+    if (otp.length < 6 || !companyAddress.trim()) return;
+    setIsSigning(true);
+    setOtpError('');
+    try {
+      const res = await fetch(`${API_BASE}/${contractId}/sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ otp, company_address: companyAddress, email: contract?.client_email }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.message || 'Invalid OTP. Please try again.');
+      }
       setViewState('success');
-    }, 2000);
+    } catch (e: any) {
+      setOtpError(e.message);
+    } finally {
+      setIsSigning(false);
+    }
   };
 
-  const renderContractPaper = () => (
-    <div className=" h-auto bg-white text-black w-full shadow-2xl overflow-hidden flex flex-col font-sans relative">
-      {/* Decorative Draft Badge */}
-      <div className="absolute top-8 right-8">
-        <div className="bg-[#3cb44f] text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-[#3cb44f]/20">
-          <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
-          Draft Contract
-        </div>
-      </div>
+  const handleNegotiate = async () => {
+    if (!negotiationText.trim()) return;
+    setNegotiating(true);
+    try {
+      const res = await fetch(`${API_BASE}/${contractId}/send-for-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment: negotiationText }),
+      });
+      if (!res.ok) {
+        const j = await res.json();
+        throw new Error(j.message || 'Failed to send request');
+      }
+      setNegotiateSuccess(true);
+      setTimeout(() => setViewState('review'), 2500);
+    } catch (e: any) {
+      setOtpError(e.message);
+    } finally {
+      setNegotiating(false);
+    }
+  };
 
-      <div className="p-12 sm:p-20 flex-1">
-        {/* Title */}
-        <div className="mb-16">
-          <h1 className="text-4xl font-black tracking-tight uppercase border-b-2 border-black pb-4 mb-2 leading-none">
-            Contract Agreement: {MOCK_CONTRACT.projectTitle}
-          </h1>
-        </div>
+  const handleCopy = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
-        <div className="space-y-12">
-          {/* Section 1 */}
-          <section>
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
-              <span className="w-1 h-6 bg-black block" /> 1. Parties Involved
-            </h2>
-            <p className="text-sm leading-relaxed mb-6">This Freelance Services Agreement ("Agreement") is entered into as of {new Date().toLocaleDateString()}, by and between:</p>
-            <ul className="space-y-3 text-sm ml-4">
-              <li className="flex items-start gap-2">
-                <span className="font-bold">• Service Provider:</span> Defellix Professional Services
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold">• Client:</span> {MOCK_CONTRACT.clientName} representing {MOCK_CONTRACT.clientCompany}
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold">• Client Contact:</span> {MOCK_CONTRACT.clientEmail} | +1 (555) 012-3456
-              </li>
-            </ul>
-          </section>
-
-          {/* Section 2 */}
-          <section>
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
-              <span className="w-1 h-6 bg-black block" /> 2. Project Scope & Deliverables
-            </h2>
-            <p className="text-sm leading-relaxed mb-4">The project involves {MOCK_CONTRACT.projectType} services as described below:</p>
-            <p className="text-sm text-gray-600 mb-8 italic">"{MOCK_CONTRACT.projectDesc}"</p>
-
-            <div className="space-y-6">
-              <div>
-                <h4 className="font-bold text-sm mb-2 uppercase tracking-wide">Core Deliverables:</h4>
-                <p className="text-sm leading-relaxed">Standard project deliverables as per specifications mentioned in the initial proposal. Includes all design assets and source files.</p>
-              </div>
-              <div>
-                <h4 className="font-bold text-sm mb-2 uppercase tracking-wide">Out of Scope:</h4>
-                <p className="text-sm leading-relaxed">Anything not explicitly mentioned in the scope is considered out of scope, including secondary domain hosting or premium plugin licenses.</p>
-              </div>
-            </div>
-          </section>
-
-          {/* Milestones */}
-          <section>
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-3">
-              <span className="w-1 h-6 bg-black block" /> 3. Payment Milestones
-            </h2>
-            <div className="border border-black/10 rounded-xl overflow-hidden">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 border-b border-black/10">
-                  <tr>
-                    <th className="px-6 py-4 font-bold">Milestone</th>
-                    <th className="px-6 py-4 font-bold">Amount</th>
-                    <th className="px-6 py-4 font-bold text-right">Due Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {MOCK_CONTRACT.milestones.map((ms, i) => (
-                    <tr key={i}>
-                      <td className="px-6 py-4">
-                        <p className="font-bold">{ms.title}</p>
-                        <p className="text-[10px] text-gray-500">{ms.desc}</p>
-                      </td>
-                      <td className="px-6 py-4 font-mono">{MOCK_CONTRACT.currency} {ms.amount.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-right text-gray-500 font-medium">{ms.due}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </div>
-
-      <div className="p-12 bg-gray-50 border-t border-black/5 text-[10px] text-gray-400 flex justify-between items-center">
-        <span>Digital Signature Verification ID: {MOCK_CONTRACT.id.toUpperCase()}</span>
-        <span className="font-bold uppercase tracking-widest">Defellix Protocol Secured</span>
+  if (loading) return (
+    <div className="min-h-screen bg-[#0d1a10] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="w-10 h-10 text-[#3cb44f] animate-spin" />
+        <p className="text-white/50 text-sm font-semibold tracking-widest uppercase">Loading Contract…</p>
       </div>
     </div>
   );
+
+  if (error) return (
+    <div className="min-h-screen bg-[#0d1a10] flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <AlertCircle className="w-16 h-16 text-red-400 mx-auto" />
+        <h2 className="text-white text-2xl font-bold">Contract Not Found</h2>
+        <p className="text-gray-500">{error}</p>
+      </div>
+    </div>
+  );
+
+  if (!contract) return null;
+
   return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-[#3cb44f]/30 overflow-x-hidden flex flex-col">
-      
-
+    <div className="min-h-screen bg-[#000] text-white font-sans selection:bg-[#3cb44f]/30 overflow-x-hidden">
       {/* TOP HEADER */}
-      <header className="fixed top-0 z-50 h-20 w-full bg-black  px-4 lg:px-8 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <img src={logo} alt="Defellix" className="w-52 h-20" />
+      <nav
+        className={
+          `h-16 fixed top-0 w-full px-6 py-10 flex items-center justify-center z-50 bg-[#111f14]/10 backdrop-blur-md`
+        }
+      >
+        {/* Logo */}
+        <div
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={() => navigate('/')}
+          role="button"
+          tabIndex={0}
+          onKeyPress={e => {
+            if (e.key === "Enter" || e.key === " ") navigate('/');
+          }}
+        >
+          <img src={logo} alt="Defellix" className="w-52 h-auto" />
         </div>
+      </nav>
 
-        <div className="flex mr-30 items-center gap-3">
-          <h2 className="text-lg font-bold text-gray-400 hidden sm:block">Client Contract Review</h2>
-        </div>
-      </header>
-
-      <div className="w-full flex-1 flex flex-col md:flex-row relative z-10 pt-20">
-        {/* LEFT COLUMN (75% - Contract Paper) */}
-        <div className="w-full md:w-[70%] lg:w-[75%] bg-black p-4 sm:p-8 lg:px-16 lg:pt-16 lg:pb-8 flex justify-center items-start overflow-y-auto scrBar h-[calc(100vh-80px)]">
-          <div className="w-full max-w-[850px]">
-            {renderContractPaper()}
+      <div className="flex flex-col lg:flex-row pt-16 min-h-screen">
+        {/* LEFT - Contract Details */}
+        <div className="flex-1 lg:max-w-[68%] p-6 lg:p-10 overflow-y-auto">
+          {/* Hero */}
+          <div className="mb-8 pt-4">
+            <p className="text-[#3cb44f] text-xs font-bold uppercase tracking-widest mb-2">{contract.project_category}</p>
+            <h1 className="text-3xl lg:text-4xl font-black text-white leading-tight mb-2">{contract.project_name}</h1>
+            <p className="text-gray-400 text-sm">Client: {contract.client_name}{contract.client_company_name ? ` · ${contract.client_company_name}` : ''}</p>
           </div>
+
+          {/* Stats Strip */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+            <InfoCard icon={DollarSign} label="Contract Value" value={`${contract.currency} ${contract.total_amount.toLocaleString()}`} color="#3cb44f" />
+            <InfoCard icon={Calendar} label="Deadline" value={fmt(contract.due_date)} color="#60a5fa" />
+            <InfoCard icon={FileText} label="Milestones" value={contract.milestones.length} color="#a78bfa" />
+            <InfoCard icon={Clock} label="Duration" value={contract.estimated_duration || '—'} color="#ffd166" />
+          </div>
+
+          {/* Description */}
+          {contract.description && (
+            <div className="bg-white/3 border border-white/8 rounded-3xl p-6 mb-4">
+              <h3 className="text-white font-semibold text-sm mb-3 flex items-center gap-2"><FileText size={16} className="text-[#60a5fa]" /> Project Overview</h3>
+              <p className="text-gray-300 text-sm leading-relaxed">{contract.description}</p>
+            </div>
+          )}
+
+          {/* Two-column layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-4">
+            <div className="lg:col-span-3 space-y-4">
+              {/* Freelancer / Service Provider */}
+              <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
+                <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2"><User size={16} className="text-[#f9a8d4]" /> Service Provider</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="col-span-2"><p className="text-gray-500 text-xs mb-0.5">Freelancer Name</p><p className="text-white font-bold text-base">{contract.freelancer_name || 'Defellix Verified Freelancer'}</p></div>
+                  <div className="col-span-2">
+                    <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-[#3cb44f]/5 border border-[#3cb44f]/15">
+                      <ShieldCheck size={13} className="text-[#3cb44f] shrink-0" />
+                      <span className="text-[#3cb44f] text-[10px] font-bold uppercase tracking-wider">Verified via Defellix Protocol</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Terms */}
+              <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
+                <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2"><CreditCard size={16} className="text-[#3cb44f]" /> Payment Terms</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                  <div><p className="text-gray-500 text-xs mb-0.5">Total Amount</p><p className="text-white font-bold text-base">{contract.currency} {contract.total_amount.toLocaleString()}</p></div>
+                  <div><p className="text-gray-500 text-xs mb-0.5">Payment Method</p><p className="text-white font-medium">{contract.payment_method || '—'}</p></div>
+                  {contract.advance_payment_required && <div className="col-span-2"><p className="text-gray-500 text-xs mb-0.5">Advance Payment</p><p className="text-[#ffd166] font-bold">{contract.currency} {contract.advance_payment_amount?.toLocaleString() || '0'}</p></div>}
+                </div>
+                {/* Milestone Schedule */}
+                {contract.milestones.length > 0 && (
+                  <div className="border-t border-white/6 pt-4">
+                    <p className="text-gray-400 text-xs font-semibold mb-3 uppercase tracking-wider">Milestone Payment Schedule</p>
+                    <div className="space-y-2">
+                      {contract.milestones.map((ms, i) => (
+                        <div key={ms.id} className="flex items-center justify-between text-sm py-2 border-b border-white/5 last:border-0">
+                          <div>
+                            <p className="text-white font-medium">{i + 1}. {ms.title}</p>
+                            {ms.due_date && <p className="text-gray-500 text-xs">Due: {fmt(ms.due_date)}</p>}
+                          </div>
+                          <span className="text-[#3cb44f] font-bold">{contract.currency} {ms.amount.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Timeline */}
+              <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
+                <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2"><Calendar size={16} className="text-[#60a5fa]" /> Timeline</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><p className="text-gray-500 text-xs mb-0.5">Start Date</p><p className="text-white font-medium">{fmt(contract.start_date)}</p></div>
+                  <div><p className="text-gray-500 text-xs mb-0.5">Deadline</p><p className="text-white font-medium">{fmt(contract.due_date)}</p></div>
+                  <div><p className="text-gray-500 text-xs mb-0.5">Duration</p><p className="text-white font-medium">{contract.estimated_duration || '—'}</p></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 space-y-4">
+              {/* Scope */}
+              <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
+                <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2"><FileCheck size={16} className="text-[#a78bfa]" /> Scope & Deliverables</h3>
+                <div className="space-y-3 text-sm">
+                  {contract.revision_policy && <div><p className="text-gray-500 text-xs mb-0.5">Revision Policy</p><p className="text-white font-medium">{contract.revision_policy}</p></div>}
+                  {contract.intellectual_property && <div><p className="text-gray-500 text-xs mb-0.5">Intellectual Property</p><p className="text-white font-medium">{contract.intellectual_property}</p></div>}
+                  {contract.out_of_scope_work && <div><p className="text-gray-500 text-xs mb-0.5">Out of Scope</p><p className="text-gray-300 leading-relaxed text-xs">{contract.out_of_scope_work}</p></div>}
+                </div>
+              </div>
+
+              {/* Milestones Detail */}
+              {contract.milestones.length > 0 && (
+                <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
+                  <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2"><Building2 size={16} className="text-[#ffd166]" /> Milestones</h3>
+                  <div className="space-y-3">
+                    {contract.milestones.map((ms, i) => (
+                      <div key={ms.id} className={`p-4 rounded-xl border ${ms.status === 'approved' || ms.status === 'paid' ? 'border-[#3cb44f]/25 bg-[#3cb44f]/5' : 'border-white/6 bg-white/2'}`}>
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="text-white font-semibold text-xs">#{i + 1} {ms.title}</p>
+                          <span className="text-[#3cb44f] font-bold text-xs">{contract.currency} {ms.amount.toLocaleString()}</span>
+                        </div>
+                        {ms.description && <p className="text-gray-500 text-xs leading-relaxed">{ms.description}</p>}
+                        {ms.due_date && <p className="text-gray-600 text-[10px] mt-1">Due: {fmt(ms.due_date)}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Terms */}
+              {contract.terms_and_conditions && (
+                <div className="bg-white/3 border border-white/8 rounded-3xl p-6">
+                  <h3 className="text-white font-semibold text-sm mb-3">Terms & Conditions</h3>
+                  <p className="text-gray-400 text-xs leading-relaxed">{contract.terms_and_conditions}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* PRD viewer */}
+          {contract.prd_file_url && (
+            <div className="bg-white/3 border border-white/8 rounded-3xl p-6 mb-4">
+              <h3 className="text-white font-semibold text-sm mb-3 flex items-center gap-2"><FileText size={16} className="text-[#60a5fa]" /> Project Requirements Document</h3>
+              <iframe src={contract.prd_file_url} className="w-full h-[600px] rounded-xl border border-white/8" title="PRD" />
+            </div>
+          )}
         </div>
 
-        {/* RIGHT COLUMN (25% - Action Sidebar) */}
-        <div className="w-full md:w-[30%] lg:w-[25%] p-8 lg:p-12 flex flex-col justify-center items-center md:items-start text-center md:text-left gap-10 md:sticky md:top-20 md:h-[calc(100vh-80px)] bg-black">
+        {/* RIGHT - Action Sidebar */}
+        <div className="lg:w-[32%] justify-center overflow-y-hidden items-center fixed top-1/2 right-0 transform -translate-y-1/2 mx-auto p-6 bg-[#000] border-l border-white/5">
           <AnimatePresence mode="wait">
+
+            {/* REVIEW STATE */}
             {viewState === 'review' && (
-              <motion.div
-                key="review-actions"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="w-full max-w-sm space-y-8"
-              >
-                <div className="space-y-6">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3cb44f] mb-3">Escrow Protected</p>
-                    <h3 className="text-2xl font-bold text-white mb-2">Final Step</h3>
-                    <p className="text-gray-500 text-sm leading-relaxed">Review the terms on the left. Once confirmed, sign below.</p>
-                  </div>
+              <motion.div key="review" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-6">
+                <div>
+                  <p className="text-[#3cb44f] text-[10px] font-black uppercase tracking-widest mb-2">Escrow Protected</p>
+                  <h2 className="text-2xl font-bold mb-1">Review & Sign</h2>
+                  <p className="text-gray-500 text-sm">Review all terms carefully. When ready, provide your company address and sign digitally with OTP verification.</p>
+                </div>
 
-                  <div className="space-y-4">
-                    <button
-                      onClick={startOtpFlow}
-                      disabled={isSendingOtp}
-                      className="w-full py-5 rounded-2xl bg-[#3cb44f] text-black font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 hover:translate-y-[-4px] transition-all hover:shadow-[0_15px_40px_rgba(60,180,79,0.3)] cursor-pointer active:scale-95 disabled:opacity-50"
-                    >
-                      {isSendingOtp ? (
-                        <div className="w-5 h-5 border-3 border-black border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Send size={18} strokeWidth={3} />
-                      )}
-                      Accept & Generate OTP
-                    </button>
+                <div>
+                  <label className="text-gray-400 text-xs font-bold uppercase tracking-wider block mb-2">Your Company / Address *</label>
+                  <textarea
+                    rows={3}
+                    value={companyAddress}
+                    onChange={e => setCompanyAddress(e.target.value)}
+                    placeholder="e.g. Remote / 42, MG Road, Bengaluru / maps.google.com/..."
+                    className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm focus:outline-none focus:border-[#3cb44f]/60 transition-all resize-none"
+                  />
+                </div>
 
-                    <button
-                      onClick={() => window.print()}
-                      className="w-full py-5 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-white/10 transition-all cursor-pointer group"
-                    >
-                      <FileText size={18} className="text-[#3cb44f] group-hover:scale-110 transition-transform" />
-                      Get PDF Copy
-                    </button>
-                  </div>
+                {otpError && <p className="text-red-400 text-xs font-medium">{otpError}</p>}
 
-                  <hr className="border-white/5" />
-
+                <div className="space-y-3">
                   <button
-                    onClick={() => setViewState('negotiate')}
-                    className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white transition-colors text-[11px] font-bold uppercase tracking-widest group cursor-pointer"
+                    onClick={handleRequestOTP}
+                    disabled={isSendingOtp || !companyAddress.trim()}
+                    className="w-full py-4 rounded-2xl bg-[#3cb44f] text-black font-black uppercase text-xs tracking-widest flex items-center justify-center gap-3 hover:bg-[#4dd464] transition-all cursor-pointer shadow-lg shadow-[#3cb44f]/20 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <MessageSquare size={16} className="group-hover:translate-y-[-2px] transition-transform" />
-                    Request Re-iteration
+                    {isSendingOtp ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} strokeWidth={3} />}
+                    {isSendingOtp ? 'Sending OTP…' : 'Accept & Generate OTP'}
+                  </button>
+
+                  <button onClick={() => window.print()} className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold uppercase text-xs tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all cursor-pointer">
+                    <FileText size={16} className="text-[#3cb44f]" /> Download PDF
                   </button>
                 </div>
 
-                <div className="bg-[#172b1c]/30 p-6 rounded-3xl border border-[#3cb44f]/10">
+                <hr className="border-white/5" />
+
+                <button onClick={() => { setViewState('negotiate'); setOtpError(''); }} className="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-white transition-colors text-[11px] font-bold uppercase tracking-widest group cursor-pointer py-3">
+                  <MessageSquare size={15} className="group-hover:scale-110 transition-transform" />
+                  Request Re-iteration
+                </button>
+
+                <div className="bg-[#3cb44f]/5 border border-[#3cb44f]/15 rounded-2xl p-5">
                   <div className="flex items-center gap-2 mb-2">
-                    <ShieldCheck size={16} className="text-[#3cb44f]" />
+                    <ShieldCheck size={15} className="text-[#3cb44f]" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-[#3cb44f]">Secure Verified</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed font-medium">This contract is cryptographically signed and legally binding upon acceptance.</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed">Signed via Defellix — cryptographically secured and legally binding upon OTP confirmation.</p>
                 </div>
               </motion.div>
             )}
 
-            {(viewState !== 'review') && (
-              <motion.div
-                key="back-action"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="w-full max-w-sm"
-              >
-                <div className="p-6 rounded-3xl border border-white/10 bg-white/5 space-y-6">
-                   <p className="text-xs text-gray-500 font-medium leading-relaxed">Please complete the action in the central window to proceed.</p>
-                   <button
-                    onClick={() => setViewState('review')}
-                    className="w-full flex items-center justify-center gap-3 text-gray-400 hover:text-white transition-all text-sm font-bold group cursor-pointer py-4 px-6 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10"
-                  >
-                    <ArrowLeft size={18} className="group-hover:-translate-x-2 transition-transform" />
-                    Back to Review
-                  </button>
+            {/* NEGOTIATE STATE */}
+            {viewState === 'negotiate' && (
+              <motion.div key="negotiate" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setViewState('review')} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer"><X size={16} /></button>
+                  <h2 className="text-xl font-bold">Request Changes</h2>
+                </div>
+                {negotiateSuccess ? (
+                  <div className="text-center py-8 space-y-4">
+                    <CheckCircle2 size={60} className="text-[#3cb44f] mx-auto" />
+                    <p className="text-white font-bold">Revision request sent!</p>
+                    <p className="text-gray-500 text-sm">The freelancer will review your feedback and reach back out.</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-gray-400 text-sm">List specific points you'd like the freelancer to revisit before you sign.</p>
+                    <textarea
+                      rows={7}
+                      value={negotiationText}
+                      onChange={e => setNegotiationText(e.target.value)}
+                      placeholder="e.g. Can we adjust the milestone 2 delivery date? I'd also like to revise the payment term..."
+                      className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white text-sm focus:outline-none focus:border-[#3cb44f]/60 transition-all resize-none"
+                    />
+                    {otpError && <p className="text-red-400 text-xs">{otpError}</p>}
+                    <div className="flex gap-3">
+                      <button onClick={() => setViewState('review')} className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold text-xs uppercase tracking-widest hover:bg-white/10 transition-all cursor-pointer">Cancel</button>
+                      <button
+                        onClick={handleNegotiate}
+                        disabled={!negotiationText.trim() || negotiating}
+                        className="flex-[2] py-4 rounded-2xl bg-[#3cb44f] text-black font-black text-xs uppercase tracking-widest disabled:opacity-30 cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {negotiating ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
+                        {negotiating ? 'Sending…' : 'Send for Review'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {/* OTP STATE */}
+            {viewState === 'otp' && (
+              <motion.div key="otp" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-6 justify-center items-center flex flex-col">
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setViewState('review')} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer"><X size={16} /></button>
+                  <h2 className="text-xl font-bold">Verify Identity</h2>
+                </div>
+                <div className="w-16 h-16 bg-[#3cb44f]/10 border border-[#3cb44f]/30 rounded-2xl flex items-center justify-center">
+                  <ShieldCheck size={32} className="text-[#3cb44f]" />
+                </div>
+                <p className="text-gray-400 text-sm leading-relaxed text-center">
+                  A 6-digit verification code was sent to <br />
+                  <span className="text-[#3cb44f] font-bold">{contract.client_email}</span>
+                </p>
+                <div className="flex justify-center gap-2">
+                  {otpCode.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={el => { otpInputRefs.current[i] = el; }}
+                      id={`otp-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleOtpInput(i, e.target.value)}
+                      onKeyDown={e => handleKeyDown(i, e)}
+                      className="w-11 h-14 bg-white/5 border border-white/10 rounded-xl text-center text-2xl font-black text-[#3cb44f] outline-none focus:border-[#3cb44f] transition-all"
+                    />
+                  ))}
+                </div>
+                {otpError && <p className="text-red-400 text-xs font-medium text-center">{otpError}</p>}
+                <button
+                  onClick={handleSign}
+                  disabled={otpCode.join('').length < 6 || isSigning}
+                  className="w-full py-4 rounded-2xl bg-[#3cb44f] text-black font-black text-sm uppercase tracking-widest cursor-pointer flex items-center justify-center gap-3 shadow-lg shadow-[#3cb44f]/20 disabled:opacity-30 hover:bg-[#4dd464] transition-all"
+                >
+                  {isSigning ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                  {isSigning ? 'Signing…' : 'Sign Agreement'}
+                </button>
+                <button
+                  onClick={() => { setOtpCode(['','','','','','']); setViewState('review'); }}
+                  className="w-full py-3 text-gray-500 hover:text-white text-xs uppercase tracking-widest font-bold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            )}
+
+            {/* SUCCESS */}
+            {viewState === 'success' && (
+              <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center space-y-6 py-6">
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}>
+                  <CheckCircle2 size={80} className="text-[#3cb44f] mx-auto" />
+                </motion.div>
+                <div>
+                  <h2 className="text-4xl font-black mb-2">Signed!</h2>
+                  <p className="text-gray-400 text-sm">The agreement is now legally binding and cryptographically secured on Defellix.</p>
+                </div>
+                <div className="bg-white/3 border border-white/8 rounded-2xl p-5 text-left space-y-3">
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 uppercase tracking-wider">Contract</span><span className="text-white font-bold">#{contract.id}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 uppercase tracking-wider">Signed By</span><span className="text-white font-bold truncate ml-4">{contract.client_email}</span></div>
+                  <div className="flex justify-between text-xs"><span className="text-gray-500 uppercase tracking-wider">Timestamp</span><span className="text-white font-bold">{new Date().toLocaleString('en-IN')}</span></div>
+                </div>
+                <button onClick={() => window.print()} className="w-full py-4 rounded-2xl bg-[#3cb44f] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 cursor-pointer hover:bg-[#4dd464] transition-all">
+                  <FileText size={16} /> Download Signed Copy
+                </button>
+              </motion.div>
+            )}
+
+            {/* ALREADY SIGNED */}
+            {viewState === 'already_signed' && (
+              <motion.div key="signed" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-5 py-8">
+                <CheckCircle2 size={64} className="text-[#3cb44f] mx-auto" />
+                <h2 className="text-2xl font-black">Already Signed</h2>
+                <p className="text-gray-400 text-sm">This contract has already been signed and is active. No further action is required.</p>
+                <div className="bg-[#3cb44f]/5 border border-[#3cb44f]/20 rounded-2xl p-4">
+                  <p className="text-[#3cb44f] text-xs font-bold">🔒 Defellix Protocol Secured</p>
                 </div>
               </motion.div>
             )}
+
           </AnimatePresence>
         </div>
       </div>
-
-      {/* MODAL OVERLAY */}
-      <AnimatePresence>
-        {viewState !== 'review' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
-          >
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setViewState('review')}
-              className="absolute inset-0 bg-[#0f1117]/90 backdrop-blur-md" 
-            />
-
-            {/* Modal Content */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-2xl bg-[#0f1117] border border-white/10 rounded-[40px] shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden"
-            >
-              <div className="p-8 sm:p-12 overflow-y-auto max-h-[90vh]">
-                {viewState === 'negotiate' && (
-                  <div className="text-center space-y-8">
-                    <div className="w-20 h-20 bg-[#3cb44f]/10 border border-[#3cb44f]/30 rounded-3xl flex items-center justify-center mx-auto text-[#3cb44f]">
-                      <MessageSquare size={40} />
-                    </div>
-                    <div>
-                      <h2 className="text-4xl font-black text-white mb-2">Request Changes</h2>
-                      <p className="text-gray-400 text-sm">List your specific points for re-iteration below.</p>
-                    </div>
-                    <textarea
-                      rows={6}
-                      value={negotiationText}
-                      onChange={(e) => setNegotiationText(e.target.value)}
-                      placeholder="e.g. Can we adjust the milestone delivery dates?"
-                      className="w-full bg-black/50 border border-white/10 rounded-2xl p-6 text-white text-lg focus:outline-none focus:border-[#3cb44f]/50 transition-all font-sans"
-                    />
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      <button
-                        onClick={() => setViewState('review')}
-                        className="flex-1 py-5 rounded-2xl bg-white/5 text-white font-bold uppercase text-xs tracking-widest hover:bg-white/10 transition-all"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        disabled={!negotiationText.trim()}
-                        className="flex-[2] py-5 rounded-2xl bg-[#3cb44f] text-black font-black uppercase text-xs tracking-widest shadow-xl disabled:opacity-20 cursor-pointer hover:shadow-[0_10px_30px_rgba(60,180,79,0.3)] transition-all"
-                      >
-                        Return for Revision
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {viewState === 'otp' && (
-                  <div className="text-center space-y-10">
-                    <div className="w-20 h-20 bg-[#3cb44f]/10 border border-[#3cb44f]/30 rounded-3xl flex items-center justify-center mx-auto text-[#3cb44f]">
-                      <ShieldCheck size={40} />
-                    </div>
-                    <div>
-                      <h2 className="text-4xl font-black text-white mb-2">Verify Identity</h2>
-                      <p className="text-gray-400 text-sm leading-relaxed">
-                        A secure 6-digit code has been sent to <br />
-                        <span className="text-[#3cb44f] font-bold">{MOCK_CONTRACT.clientEmail}</span>
-                      </p>
-                    </div>
-
-                    <div className="space-y-8">
-                      <div className="flex justify-center gap-2 sm:gap-3">
-                        {otpCode.map((digit, i) => (
-                          <input 
-                            key={i} 
-                            id={`otp-${i}`} 
-                            type="text" 
-                            maxLength={1} 
-                            value={digit} 
-                            onChange={(e) => handleOtpInput(i, e.target.value)} 
-                            onKeyDown={(e) => handleKeyDown(i, e)} 
-                            className="w-10 h-14 sm:w-12 sm:h-16 bg-black/50 border border-white/10 rounded-xl text-center text-3xl font-black text-[#3cb44f] outline-none focus:border-[#3cb44f] transition-all" 
-                          />
-                        ))}
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        <button
-                          onClick={() => setViewState('review')}
-                          className="flex-1 py-5 rounded-2xl bg-white/5 text-white font-bold uppercase text-xs tracking-widest hover:bg-white/10 transition-all"
-                        >
-                          Cancel
-                        </button>
-                        <button 
-                          onClick={verifyOtp} 
-                          className="flex-[2] py-5 rounded-2xl bg-[#3cb44f] text-black font-black uppercase tracking-widest cursor-pointer shadow-lg shadow-[#3cb44f]/20 hover:scale-[1.02] transition-transform"
-                        >
-                          Sign Agreement
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {viewState === 'success' && (
-                  <div className="text-center py-6">
-                    <CheckCircle2 size={80} className="text-[#3cb44f] mx-auto mb-8 animate-bounce" />
-                    <h2 className="text-5xl font-black mb-4">Signed!</h2>
-                    <p className="text-gray-400 text-lg mb-8">The agreement is now legally binding and secured.</p>
-                    
-                    <div className="p-8 bg-black/50 rounded-3xl border border-white/5 text-left w-full space-y-4 mb-10">
-                      <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-bold text-gray-500">
-                        <span>Authorized By</span>
-                        <span className="text-white">{MOCK_CONTRACT.clientEmail}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] uppercase tracking-widest font-bold text-gray-500">
-                        <span>Timestamp</span>
-                        <span className="text-white">{new Date().toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-4">
-                      <button
-                        onClick={() => window.print()}
-                        className="w-full py-5 rounded-2xl bg-[#3cb44f] text-black font-black uppercase text-xs tracking-widest hover:shadow-[0_10px_30px_rgba(60,180,79,0.3)] transition-all flex items-center justify-center gap-3"
-                      >
-                        <FileText size={18} /> Download Signed Copy
-                      </button>
-                      <button
-                        onClick={() => setViewState('review')}
-                        className="w-full py-5 rounded-2xl bg-white/5 text-white font-bold uppercase text-xs tracking-widest hover:bg-white/10 transition-all"
-                      >
-                        Close Portal
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Secure Footer */}
-              <div className="bg-black/50 p-6 border-t border-white/5 flex items-center justify-center gap-2">
-                <ShieldCheck size={16} className="text-[#3cb44f]" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3cb44f]">Defellix Secure Signature Portal</span>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

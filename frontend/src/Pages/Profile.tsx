@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { motion } from 'motion/react';
 import {
-  MapPin, Clock, Building, Briefcase,
-  ShieldCheck, Check, Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Eye, Sparkles
+  MapPin, Building, Briefcase,
+  Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Eye, Sparkles
 } from 'lucide-react';
 
 interface UserProfile {
@@ -18,7 +18,6 @@ interface UserProfile {
   bio?: string;
   location?: string;
   experience?: string;
-  timezone?: string;
   company_name?: string;
   github_link?: string;
   linkedin_link?: string;
@@ -34,7 +33,7 @@ function InfoField({ label, value }: { label: string, value?: string }) {
   return (
     <div className="group">
       <div className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.12em] mb-1.5">{label}</div>
-      <div className="text-sm font-medium text-white group-hover:text-[#3cb44f]/90 transition-colors">{value || '—'}</div>
+      <div className="text-sm font-medium text-white group-hover:text-[#3cb44f]/90 transition-colors">{value || '-'}</div>
     </div>
   );
 }
@@ -225,26 +224,6 @@ export default function Profile() {
     return () => clearTimeout(t);
   }, []);
 
-  // Default values for showcase if API doesn't populate
-  const defaultData: UserProfile = {
-    full_name: 'Alex Morgan',
-    user_name: 'alexmorgan',
-    what_do_you_do: 'Product Designer',
-    short_headline: 'Building trusted digital experiences for SaaS teams, startups, and marketplaces that need clarity, confidence, and conversion.',
-    bio: 'I help startups and product teams turn rough ideas into polished interfaces with strong usability foundations. My work spans UX strategy, design systems, high-fidelity product design, and developer collaboration. I care deeply about clarity, credibility, and creating profiles that make someone feel trustworthy before they ever send a message.',
-    location: 'San Francisco, California',
-    experience: '8 years',
-    timezone: 'Pacific Time (UTC-8)',
-    company_name: 'Pixel Foundry',
-    github_link: 'https://github.com/alexmorgan',
-    linkedin_link: 'https://linkedin.com/in/alexmorgan',
-    portfolio_link: 'https://alexmorgan.design',
-    instagram_link: 'https://instagram.com/alexmorgan.design',
-    show_profile: true,
-    show_projects: true,
-    show_contracts: true,
-    skills: ['Figma', 'React', 'TypeScript', 'Design Systems', 'UX Research', 'Product Strategy']
-  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -271,7 +250,7 @@ export default function Profile() {
     );
   }
 
-  const data = { ...defaultData, ...profile };
+  const data = profile || {};
 
   return (
     <motion.div
@@ -367,10 +346,9 @@ export default function Profile() {
 
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-8 pt-6 border-t border-white/[0.06]">
                 {[
-                  { Icon: Building, text: data.company_name || 'Individual' },
-                  { Icon: MapPin, text: data.location },
-                  { Icon: Clock, text: data.timezone },
-                  { Icon: Briefcase, text: `Senior · ${data.experience}` },
+                  { Icon: Building, text: data.company_name || '-' },
+                  { Icon: MapPin, text: data.location || '-' },
+                  { Icon: Briefcase, text: data.experience || '-' },
                 ].map(({ Icon, text }, i) => (
                   <span key={i} className="flex items-center gap-2 px-4 py-2 bg-[#0d1a10]/80 rounded-2xl border border-white/5 text-xs text-gray-300 font-medium">
                     <Icon size={14} className="text-[#3cb44f]/80 shrink-0" /> {text}
@@ -407,7 +385,6 @@ export default function Profile() {
                   <InfoField label="Short headline" value={data.short_headline} />
                   <InfoField label="Location" value={data.location} />
                   <InfoField label="Experience" value={data.experience} />
-                  <InfoField label="Timezone" value={data.timezone} />
                   <InfoField label="Company Name" value={data.company_name} />
                   <InfoField label="Phone" value={data.phone as string | undefined} />
                 </div>

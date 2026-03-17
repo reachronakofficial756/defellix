@@ -37,6 +37,7 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router, jwtManager *jwt.JWTManager) {
 		r.Post("/login", h.Login)
 		r.Post("/refresh", h.Refresh)
 		r.Post("/logout", h.Logout)
+		r.Post("/complete-oauth", h.CompleteOAuth)
 		
 		// Protected routes
 		r.With(middleware.RequireAuth(jwtManager)).Get("/me", h.Me)
@@ -462,3 +463,22 @@ func (h *AuthHandler) OAuthGitHubCallback(w http.ResponseWriter, r *http.Request
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
+// CompleteOAuth completes OAuth registration by moving user from pending to main users table
+func (h *AuthHandler) CompleteOAuth(w http.ResponseWriter, r *http.Request) {
+	var req dto.CompleteOAuthRequest
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+
+	authResp, err := h.authService.CompleteOAuthRegistration(req.Email)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "OAUTH_COMPLETION_FAILED")
+		return
+	}
+
+	// Set the new real access token in httpOnly cookie
+	h.setAuthCookie(w, authResp.AccessToken)
+
+	respondSuccess(w, http.StatusOK, authResp, "OAuth registration completed successfully")
+}

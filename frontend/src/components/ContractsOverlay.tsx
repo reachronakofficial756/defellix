@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { useContractsStore } from '../store/useContractsStore';
 import { apiClient } from "@/api/client";
-import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid } from 'lucide-react';
+import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid, Copy, ExternalLink, FilePen, Send, MessageSquareMore, PenLine, Banknote, CheckCircle2, XCircle, Flag } from 'lucide-react';
 import contractsBg3d from '@/assets/contracts_bg_3d.png';
 
 /** Milestone row as in CreateContractForm (Scope & Deliverables / Payment) */
@@ -51,6 +51,13 @@ export interface ContractItem {
   isAdvancePayment?: boolean;
   advanceAmount?: string | number;
   milestonesDetail?: MilestoneDetail[];
+  clientViewToken?: string;
+  shareableLink?: string;
+  // Timeline data
+  rawStatus?: string;
+  sentAt?: string;
+  createdAt?: string;
+  clientReviewComment?: string;
 }
 
 
@@ -214,12 +221,8 @@ const ContractTabCard = memo(function ContractTabCard({
 });
 
 export default function ContractsOverlay() {
-  const { closeContracts, activeContractId } = useContractsStore();
-  // If opened from a notification, start at that contract; otherwise default to first
-  const initialIndex = activeContractId != null
-    ? Math.max(0, CONTRACTS.findIndex((c) => c.id === activeContractId))
-    : 0;
-  const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const { activeContractId } = useContractsStore();
+  const [activeIndex, setActiveIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'details' | 'all'>('details');
 
   const pageRef = useRef<HTMLDivElement>(null);
@@ -238,68 +241,79 @@ export default function ContractsOverlay() {
         const res = await apiClient.get("/contracts");
         const data = (res as any).data?.data?.contracts || [];
         const mapped: ContractItem[] = data.map((c: any) => {
-            const dummyChecklist = c.milestones?.map((m: any) => ({
-                label: m.title,
-                done: m.status === 'approved' || m.status === 'paid'
-            })) || [];
+          const dummyChecklist = c.milestones?.map((m: any) => ({
+            label: m.title,
+            done: m.status === 'approved' || m.status === 'paid'
+          })) || [];
 
-            const mappedMilestonesDetail = c.milestones?.map((m: any) => ({
-                title: m.title,
-                description: m.description,
-                amount: m.amount,
-                due_date: m.due_date ? new Date(m.due_date).toLocaleDateString() : 'TBD',
-                is_initial_payment: m.order_index === 0,
-                submission_criteria: m.submission_criteria,
-                completion_criteria_tc: m.completion_criteria_tc
-            })) || [];
+          const mappedMilestonesDetail = c.milestones?.map((m: any) => ({
+            title: m.title,
+            description: m.description,
+            amount: m.amount,
+            due_date: m.due_date ? new Date(m.due_date).toLocaleDateString() : 'TBD',
+            is_initial_payment: m.order_index === 0,
+            submission_criteria: m.submission_criteria,
+            completion_criteria_tc: m.completion_criteria_tc
+          })) || [];
 
-            let status: "Active" | "In Review" | "Delayed" | "Sent" = "Active";
-            if (c.status === "sent") status = "Sent";
-            else if (c.status === "pending" || c.status === "draft") status = "In Review";
-            else if (c.status === "disputed" || c.status === "delayed") status = "Delayed";
+          let status: "Active" | "In Review" | "Delayed" | "Sent" = "Active";
+          if (c.status === "sent") status = "Sent";
+          else if (c.status === "pending" || c.status === "draft") status = "In Review";
+          else if (c.status === "disputed" || c.status === "delayed") status = "Delayed";
 
-            const totalMilestones = c.milestones?.length || 0;
-            const completedMilestones = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').length || 0;
-            
-            const totalAmount = c.total_amount || 1;
-            const completedAmount = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').reduce((sum: number, m: any) => sum + m.amount, 0) || 0;
-            const completion = Math.round((completedAmount / totalAmount) * 100);
+          const totalMilestones = c.milestones?.length || 0;
+          const completedMilestones = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').length || 0;
 
-            return {
-                id: c.id,
-                title: c.project_name || "Untitled",
-                client: c.client_name || "Unknown Client",
-                milestoneDeadline: c.due_date ? new Date(c.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD',
-                status: status,
-                date: c.start_date ? `${new Date(c.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${c.due_date ? new Date(c.due_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'TBD'}` : 'TBD',
-                budget: `${c.currency || 'USD'} ${c.total_amount?.toLocaleString() || '0'}`,
-                completion: completion,
-                milestone: `${completedMilestones} / ${totalMilestones}`,
-                tags: [c.project_category || 'Other'],
-                details: c.description || '',
-                milestones: dummyChecklist,
-                projectType: c.project_category || 'Other',
-                projectDesc: c.description || '',
-                startDate: c.start_date ? new Date(c.start_date).toISOString().split('T')[0] : 'TBD',
-                deadline: c.due_date ? new Date(c.due_date).toISOString().split('T')[0] : 'TBD',
-                duration: c.estimated_duration || 'Unknown',
-                customTerms: c.terms_and_conditions || 'None',
-                clientName: c.client_name || '',
-                clientEmail: c.client_email || '',
-                clientPhone: c.client_phone || '',
-                clientCountry: c.client_country || '',
-                clientCompany: c.client_company_name || '',
-                outOfScope: c.out_of_scope_work || '',
-                coreDeliverable: c.submission_criteria || '',
-                revisionPolicy: c.revision_policy || '',
-                intellectualProperty: c.intellectual_property || '',
-                contractCurrency: c.currency || 'USD',
-                contractAmount: c.total_amount || 0,
-                paymentMethod: c.payment_method || '',
-                isAdvancePayment: c.advance_payment_required || false,
-                advanceAmount: c.advance_payment_amount || 0,
-                milestonesDetail: mappedMilestonesDetail
-            };
+          const totalAmount = c.total_amount || 1;
+          const completedAmount = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').reduce((sum: number, m: any) => sum + m.amount, 0) || 0;
+          const completion = Math.round((completedAmount / totalAmount) * 100);
+
+          return {
+            id: c.id,
+            title: c.project_name || "Untitled",
+            client: c.client_name || "Unknown Client",
+            milestoneDeadline: (() => {
+              const currentMs = c.milestones?.find((m: any) => m.status !== 'approved' && m.status !== 'paid');
+              return currentMs?.due_date
+                ? new Date(currentMs.due_date).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+                : 'TBD';
+            })(),
+            status: status,
+            date: c.start_date ? `${new Date(c.start_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - ${c.due_date ? new Date(c.due_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'TBD'}` : 'TBD',
+            budget: `${c.currency || 'USD'} ${c.total_amount?.toLocaleString() || '0'}`,
+            completion: completion,
+            milestone: `${completedMilestones} / ${totalMilestones}`,
+            tags: [c.project_category || 'Other'],
+            details: c.description || '',
+            milestones: dummyChecklist,
+            projectType: c.project_category || 'Other',
+            projectDesc: c.description || '',
+            startDate: c.start_date ? new Date(c.start_date).toISOString().split('T')[0] : 'TBD',
+            deadline: c.due_date ? new Date(c.due_date).toISOString().split('T')[0] : 'TBD',
+            duration: c.estimated_duration || 'Unknown',
+            customTerms: c.terms_and_conditions || 'None',
+            clientName: c.client_name || '',
+            clientEmail: c.client_email || '',
+            clientPhone: c.client_phone || '',
+            clientCountry: c.client_country || '',
+            clientCompany: c.client_company_name || '',
+            outOfScope: c.out_of_scope_work || '',
+            coreDeliverable: c.submission_criteria || '',
+            revisionPolicy: c.revision_policy || '',
+            intellectualProperty: c.intellectual_property || '',
+            contractCurrency: c.currency || 'USD',
+            contractAmount: c.total_amount || 0,
+            paymentMethod: c.payment_method || '',
+            isAdvancePayment: c.advance_payment_required || false,
+            advanceAmount: c.advance_payment_amount || 0,
+            milestonesDetail: mappedMilestonesDetail,
+            clientViewToken: c.client_view_token || '',
+            shareableLink: c.shareable_link || '',
+            rawStatus: c.status || '',
+            sentAt: c.sent_at || '',
+            createdAt: c.created_at || '',
+            clientReviewComment: c.client_review_comment || '',
+          };
         });
         setContracts(mapped);
       } catch (err) {
@@ -318,9 +332,8 @@ export default function ContractsOverlay() {
     if (idx !== -1) {
       setActiveIndex(idx);
       setViewMode('details');
-      setActiveContractId(null); // clear after use
     }
-  }, [activeContractId, contracts, setActiveContractId]);
+  }, [activeContractId, contracts]);
 
   const active = contracts[activeIndex] || contracts[0];
   const cfg = active ? statusConfig[active.status] : null;
@@ -425,16 +438,16 @@ export default function ContractsOverlay() {
       <motion.div ref={pageRef} className="h-full bg-[#1e3824] flex items-center justify-center overflow-hidden">
         {loadingContracts ? (
           <div className="flex flex-col items-center gap-5">
-               <svg className="animate-spin h-10 w-10 text-[#00e676]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <p className="text-[#00e676] font-bold tracking-widest text-xs uppercase">Loading Contracts...</p>
+            <svg className="animate-spin h-10 w-10 text-[#00e676]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p className="text-[#00e676] font-bold tracking-widest text-xs uppercase">Loading Contracts...</p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-5">
-              <AlertCircle className="w-14 h-14 text-white/50" />
-              <p className="text-white/50 font-bold tracking-widest text-xs uppercase">No Active Contracts</p>
+            <AlertCircle className="w-14 h-14 text-white/50" />
+            <p className="text-white/50 font-bold tracking-widest text-xs uppercase">No Active Contracts</p>
           </div>
         )}
       </motion.div>
@@ -474,7 +487,7 @@ export default function ContractsOverlay() {
         >
           <Calendar size={24} className="text-black" />
         </button>
-                </div>
+      </div>
 
       {/* ─── Tabs row: project cards, or (when view all) only centered "Go back to project details" ─────────────────── */}
       <div ref={tabsRef} className="relative z-0 shrink-0 px-10 pt-2 min-h-[11rem]">
@@ -518,8 +531,8 @@ export default function ContractsOverlay() {
                       onSelect={handleSelectTab}
                       setButtonRef={setTabButtonRef}
                     />
-            );
-          })}
+                  );
+                })}
                 {showViewAllCard && (
                   <button
                     type="button"
@@ -539,10 +552,10 @@ export default function ContractsOverlay() {
       </div>
 
       {/* ─── Active Contract Detail Panel: fixed position, in front of tabs (no movement on project change) ───────────────────────────────── */}
-        <motion.div
-          ref={detailsRef}
+      <motion.div
+        ref={detailsRef}
         className="relative z-10 flex-1 mx-1 -mt-[22px] pt-6 overflow-hidden rounded-t-[40px] min-h-0 flex flex-col flex-shrink-0"
-          style={{
+        style={{
           background: '#0d1a10',
         }}
       >
@@ -611,44 +624,44 @@ export default function ContractsOverlay() {
                 transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
               >
                 <>
-            {/* ─── HERO ROW ── large title + key stats ─── */}
+                  {/* ─── HERO ROW ── large title + key stats ─── */}
                   <div className="px-4 pb-6">
-              {/* Stats strip */}
+                    {/* Stats strip */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                {[
+                      {[
                         { icon: DollarSign, label: 'Revenue', value: active.budget, color: '#00e676' },
-                  { icon: Calendar, label: 'Timeline', value: active.date, color: '#60a5fa' },
-                  { icon: FileText, label: 'Milestones', value: active.milestone, color: '#a78bfa' },
+                        { icon: Calendar, label: 'Timeline', value: active.date, color: '#60a5fa' },
+                        { icon: FileText, label: 'Milestones', value: active.milestone, color: '#a78bfa' },
                         { icon: Calendar, label: 'Current Milestone Deadline', value: (active as { milestoneDeadline?: string }).milestoneDeadline ?? '—', color: '#ffd166' },
-                ].map(({ icon: Icon, label, value, color }) => (
+                      ].map(({ icon: Icon, label, value, color }) => (
                         <div key={label} className="bg-white/4 rounded-3xl p-5 border border-white/6 flex flex-col gap-2">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
-                      <Icon size={17} style={{ color }} />
-                    </div>
-                    <div>
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}15` }}>
+                            <Icon size={17} style={{ color }} />
+                          </div>
+                          <div>
                             <p className="text-gray-500 text-sm font-medium mb-0.5">{label}</p>
                             <p className="text-white font-bold text-2xl truncate">{value}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
 
-              {/* Progress bar — full width */}
-              <div className="mb-8">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-gray-400 text-sm font-medium">Overall Progress</p>
-                  <p className="font-bold text-sm" style={{ color: cfg.color }}>{active.completion}%</p>
-                </div>
-                <div className="h-2.5 bg-white/8 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${active.completion}%` }}
-                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: cfg.color, boxShadow: `0 0 10px ${cfg.color}55` }}
-                  />
-                </div>
-              </div>
+                    {/* Progress bar — full width */}
+                    <div className="mb-8">
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="text-gray-400 text-sm font-medium">Overall Progress</p>
+                        <p className="font-bold text-sm" style={{ color: cfg.color }}>{active.completion}%</p>
+                      </div>
+                      <div className="h-2.5 bg-white/8 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${active.completion}%` }}
+                          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+                          className="h-full rounded-full"
+                          style={{ backgroundColor: cfg.color, boxShadow: `0 0 10px ${cfg.color}55` }}
+                        />
+                      </div>
+                    </div>
 
                     {/* ─── CreateContractForm-aligned sections ─── */}
                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-2">
@@ -667,7 +680,7 @@ export default function ContractsOverlay() {
                             <div><dt className="text-gray-500 mb-0.5">Duration</dt><dd className="text-white font-medium">{(active as { duration?: string }).duration ?? '—'}</dd></div>
                             <div className="sm:col-span-2"><dt className="text-gray-500 mb-0.5">Terms & Conditions</dt><dd className="text-gray-300 leading-relaxed">{(active as { customTerms?: string }).customTerms ?? '—'}</dd></div>
                           </dl>
-                  </div>
+                        </div>
 
 
 
@@ -683,7 +696,7 @@ export default function ContractsOverlay() {
                             <div><dt className="text-gray-500 mb-0.5">Client Country</dt><dd className="text-white font-medium">{(active as { clientCountry?: string }).clientCountry ?? '—'}</dd></div>
                             <div className="sm:col-span-2"><dt className="text-gray-500 mb-0.5">Company Name</dt><dd className="text-white font-medium">{(active as { clientCompany?: string }).clientCompany ?? active.client}</dd></div>
                           </dl>
-                    </div>
+                        </div>
                         {/* 4. Payment Terms (Step 4) */}
                         <div className="rounded-3xl border border-white/8 p-6 bg-white/3 space-y-4">
                           <h3 className="text-white font-semibold text-base flex items-center gap-2">
@@ -702,38 +715,16 @@ export default function ContractsOverlay() {
                                   <div key={idx} className="flex justify-between items-center text-sm py-2 border-b border-white/6 last:border-0">
                                     <span className="text-gray-400">{idx + 1}. {ms.title || 'Untitled'}</span>
                                     <span className="text-white font-bold">{(active as { contractCurrency?: string }).contractCurrency ?? 'USD'} {ms.amount?.toLocaleString() ?? '0'}</span>
-                    </div>
+                                  </div>
                                 ))}
-                    </div>
-                    </div>
+                              </div>
+                            </div>
                           )}
-                  </div>
-
-                        {/* Activity */}
-                        <div className="rounded-3xl border border-white/8 p-6 bg-white/3">
-                    <h4 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
-                      <Clock size={15} className="text-gray-400" /> Activity
-                    </h4>
-                    <div className="space-y-4 relative before:content-[''] before:absolute before:left-[7px] before:top-0 before:bottom-0 before:w-px before:bg-white/8">
-                      {['Contract signed', 'Kicked off phase 1', 'Milestone review', 'Ongoing work'].map((a, i) => (
-                        <div key={i} className="flex items-start gap-4 pl-5 relative">
-                          <div className="absolute left-0 top-1 w-3.5 h-3.5 rounded-full bg-[#161b27] border-2 shrink-0" style={{ borderColor: i === 0 ? cfg.color : 'rgba(255,255,255,0.12)' }} />
-                          <div>
-                            <p className="text-white text-xs font-medium">{a}</p>
-                            <p className="text-gray-600 text-[10px] mt-0.5">{i === 0 ? 'Jan 2025' : i === 1 ? 'Feb 2025' : i === 2 ? 'Mar 2025' : 'Now'}</p>
-                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-
-
-
                       </div>
 
                       {/* Sidebar */}
-                      <div className="lg:col-span-2 space-y-4">
+                      <div className="lg:col-span-2 space-y-2">
 
 
                         {/* 3. Scope & Deliverables (Step 3) */}
@@ -803,38 +794,145 @@ export default function ContractsOverlay() {
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2">
-                  <button
-                            className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
-                    style={{
-                      background: `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`,
-                      border: `1px solid ${cfg.color}40`,
-                      color: cfg.color,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = `${cfg.color}22`)}
-                    onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`)}
-                  >
-                            Submit Work
-                  </button>
-                  <button
-                            className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
-                            style={{
-                              background: `#2d8a3e`,
-                              border: `1px solid #3cb44f40`,
-                              color: "#fff",
-                            }}
-                          >
-                            Get Section 65b Certificate
-                  </button>
-                </div>
+                        {/* Activity — dynamic timeline */}
+                        <div className="rounded-3xl border border-white/8 p-6 bg-white/3">
+                          <h4 className="text-white font-semibold text-sm mb-5 flex items-center gap-2">
+                            <Clock size={15} className="text-gray-400" /> Activity
+                          </h4>
+                          {(() => {
+                            const a = active as {
+                              rawStatus?: string; sentAt?: string; createdAt?: string;
+                              clientReviewComment?: string; milestonesDetail?: MilestoneDetail[];
+                              deadline?: string;
+                            };
+                            const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+                            type ActivityEvent = { label: string; sub?: string; date: string; color: string; icon: React.ReactNode };
+                            const events: ActivityEvent[] = [];
 
-              </div>
-            </div>
-          </div>
+                            // Contract created
+                            if (a.createdAt) events.push({ label: 'Contract drafted', sub: 'Contract was created as a draft', date: fmtDate(a.createdAt), color: 'rgba(255,255,255,0.25)', icon: <FilePen size={11} /> });
+
+                            // Contract sent
+                            if (a.sentAt) events.push({ label: 'Contract sent to client', sub: `Shared with ${(active as { clientEmail?: string }).clientEmail || 'client'} for review`, date: fmtDate(a.sentAt), color: '#60a5fa', icon: <Send size={11} /> });
+
+                            // Review / revision requested
+                            if (a.rawStatus === 'pending') events.push({ label: 'Revision request received', sub: a.clientReviewComment ? `"${a.clientReviewComment.slice(0, 80)}${a.clientReviewComment.length > 80 ? '…' : ''}"` : 'Client requested changes before signing', date: 'Recently', color: '#fbbf24', icon: <MessageSquareMore size={11} /> });
+
+                            // Client signed
+                            if (a.rawStatus === 'signed' || a.rawStatus === 'active' || a.rawStatus === 'completed') {
+                              events.push({ label: 'Client signed the contract', sub: 'Digitally signed and verified via OTP', date: fmtDate(a.sentAt), color: '#3cb44f', icon: <PenLine size={11} /> });
+                            }
+
+                            // Milestones paid/approved
+                            a.milestonesDetail?.forEach((ms, i) => {
+                              if (ms.amount > 0 && ms.due_date && (a.rawStatus === 'active' || a.rawStatus === 'completed')) {
+                                events.push({ label: `Milestone ${i + 1} paid — ${ms.title}`, sub: `${(active as { contractCurrency?: string }).contractCurrency ?? 'INR'} ${ms.amount.toLocaleString()}`, date: fmtDate(ms.due_date), color: '#a78bfa', icon: <Banknote size={11} /> });
+                              }
+                            });
+
+                            // Contract completed/cancelled
+                            if (a.rawStatus === 'completed') events.push({ label: 'Contract completed', sub: 'All milestones delivered and accepted', date: fmtDate(a.deadline), color: '#3cb44f', icon: <Flag size={11} /> });
+                            if (a.rawStatus === 'cancelled') events.push({ label: 'Contract cancelled', sub: 'Contract was cancelled', date: 'Recently', color: '#ef5350', icon: <XCircle size={11} /> });
+
+                            if (events.length === 0) return <p className="text-gray-600 text-xs">No activity yet.</p>;
+
+                            return (
+                              <div className="space-y-0 relative">
+                                {/* Vertical line */}
+                                <div className="absolute left-[10px] top-3 bottom-3 w-px bg-white/8" />
+                                {events.map((ev, i) => (
+                                  <div key={i} className="flex items-start gap-4 pl-7 relative pb-5 last:pb-0">
+                                    {/* Icon dot */}
+                                    <div
+                                      className="absolute left-0 top-1 w-5 h-5 rounded-full flex items-center justify-center bg-[#0d1a10] border-2"
+                                      style={{ borderColor: ev.color, color: ev.color }}
+                                    >
+                                      {ev.icon}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-white text-xs font-semibold leading-snug">{ev.label}</p>
+                                      {ev.sub && <p className="text-gray-500 text-[11px] mt-0.5 leading-relaxed">{ev.sub}</p>}
+                                      {ev.date && <p className="text-gray-600 text-[10px] mt-1 font-medium">{ev.date}</p>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        <div className="flex flex-col gap-2 mt-2">
+                          {active.status === 'Sent' ? (
+                            /* ── Sent contract: show client-facing shareable URL ── */
+                            <div className="p-5 rounded-2xl border border-[#60a5fa]/25 bg-[#60a5fa]/5 space-y-3">
+                              <div className="flex items-center gap-2 mb-1">
+                                <ExternalLink size={15} className="text-[#60a5fa]" />
+                                <p className="text-[#60a5fa] text-xs font-bold uppercase tracking-widest">Client Review Link</p>
+                              </div>
+                              <p className="text-gray-400 text-xs leading-relaxed">Share this link with your client so they can review, negotiate, and sign the contract.</p>
+                              {(active as { shareableLink?: string }).shareableLink ? (
+                                <>
+                                  <div className="bg-black/30 border border-white/8 rounded-xl px-3 py-2 text-[10px] text-gray-400 font-mono break-all">
+                                    {(active as { shareableLink?: string }).shareableLink}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText((active as { shareableLink?: string }).shareableLink || '');
+                                      }}
+                                      className="flex-1 py-3 rounded-xl bg-[#60a5fa]/15 border border-[#60a5fa]/30 text-[#60a5fa] font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#60a5fa]/25 transition-all cursor-pointer"
+                                    >
+                                      <Copy size={13} /> Copy Link
+                                    </button>
+                                    <a
+                                      href={(active as { shareableLink?: string }).shareableLink}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex-1 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-xs flex items-center justify-center gap-2 hover:bg-white/10 transition-all"
+                                    >
+                                      <ExternalLink size={13} /> Open
+                                    </a>
+                                  </div>
+                                </>
+                              ) : (
+                                <p className="text-gray-600 text-xs italic">Link not available — resend contract to generate.</p>
+                              )}
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
+                                style={{
+                                  background: `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`,
+                                  border: `1px solid ${cfg.color}40`,
+                                  color: cfg.color,
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.background = `${cfg.color}22`)}
+                                onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`)}
+                              >
+                                Submit Work
+                              </button>
+                              <button
+                                className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
+                                style={{
+                                  background: `#2d8a3e`,
+                                  border: `1px solid #3cb44f40`,
+                                  color: "#fff",
+                                }}
+                              >
+                                Get Section 65b Certificate
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
                 </>
-        </motion.div>
+              </motion.div>
             )}
-      </AnimatePresence>
+          </AnimatePresence>
         </div>
       </motion.div>
     </motion.div>

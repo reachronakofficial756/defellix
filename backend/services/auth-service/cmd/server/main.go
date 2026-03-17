@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Run migrations
-	if err := config.AutoMigrate(db, &domain.User{}, &domain.OAuthProvider{}, &domain.PendingRegistration{}); err != nil {
+	if err := config.AutoMigrate(db, &domain.User{}, &domain.OAuthProvider{}, &domain.PendingRegistration{}, &domain.PendingOAuthUser{}); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 	log.Println("Database migrations completed")

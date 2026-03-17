@@ -40,6 +40,8 @@ const Navbar = () => {
     const [userLoading, setUserLoading] = useState(true);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [hasContracts, setHasContracts] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -55,6 +57,9 @@ const Navbar = () => {
                     email: apiData?.email ?? profile?.email,
                     photo: profile?.photo ?? apiData?.photo
                 });
+                // Store name for CreateContractForm freelancer_name field
+                const name = profile?.full_name ?? apiData?.full_name ?? profile?.user_name ?? apiData?.user_name;
+                if (name) window.localStorage.setItem('profile_name', name);
             } catch {
                 setUser(null);
             } finally {
@@ -62,6 +67,35 @@ const Navbar = () => {
             }
         };
         fetchUser();
+    }, []);
+
+    // Derive unread notification count from contracts
+    useEffect(() => {
+        const fetchCount = async () => {
+            try {
+                const res = await apiClient.get('/contracts');
+                const contracts: any[] = (res as any).data?.data?.contracts || [];
+                setHasContracts(contracts.length > 0);
+                const now = new Date();
+                let count = 0;
+                contracts.forEach((c) => {
+                    if (c.status === 'pending') count++; // revision request
+                    if (c.status === 'sent') count++;     // awaiting client signature
+                    if (c.status === 'signed') count++;   // freshly signed
+                    // overdue milestones
+                    (c.milestones || []).forEach((ms: any) => {
+                        if (ms.status === 'approved' || ms.status === 'paid') return;
+                        if (ms.due_date && new Date(ms.due_date) < now) count++;
+                        else if (ms.due_date) {
+                            const days = Math.ceil((new Date(ms.due_date).getTime() - now.getTime()) / 86400000);
+                            if (days <= 2) count++;
+                        }
+                    });
+                });
+                setUnreadCount(count);
+            } catch { /* silent */ }
+        };
+        fetchCount();
     }, []);
 
     useEffect(() => {
@@ -110,11 +144,12 @@ const Navbar = () => {
             {/* Nav Links */}
             <div className="flex items-center">
                 {navLinks.map((link) => {
+                    if (link.label === 'Contracts' && !hasContracts) return null;
                     const active = isActive(link.path);
                     return link.label === 'Contracts' ? (
                         <button
                             key={link.path}
-                            onClick={openContracts}
+                            onClick={() => openContracts()}
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer ${contractsOpen
                                     ? 'bg-[#3cb44f] text-[#0d140d]'
                                     : 'bg-[#d4edda]/20 text-gray-400'
@@ -155,8 +190,12 @@ const Navbar = () => {
                     aria-label="Notifications"
                 >
                     <BiSolidBellRing className="text-xl transition-colors" />
-                    {/* Unread dot */}
-                    <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-[#3cb44f] shadow-[0_0_6px_rgba(60,180,79,0.9)]" />
+                    {/* Dynamic unread badge */}
+                    {unreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#3cb44f] text-[#0d140d] text-[9px] font-black flex items-center justify-center shadow-[0_0_8px_rgba(60,180,79,0.8)] leading-none">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                    )}
                 </button>
 
                 <div className="relative" ref={dropdownRef}>

@@ -5,6 +5,7 @@ import "time"
 // CreateContractRequest is the payload for creating or saving a contract as draft
 type CreateContractRequest struct {
 	// Project
+	FreelancerName     string     `json:"freelancer_name,omitempty" validate:"omitempty,max=200"`
 	ProjectCategory    string     `json:"project_category" validate:"required,max=80"`
 	ProjectName        string     `json:"project_name" validate:"required,min=2,max=200"`
 	Description        string     `json:"description" validate:"omitempty,max=5000"`
@@ -145,6 +146,7 @@ type ListContractsQuery struct {
 // PublicContractViewResponse is returned by GET /api/v1/public/contracts/:token (no auth). Safe for client view.
 type PublicContractViewResponse struct {
 	ID                  uint                 `json:"id"`
+	FreelancerName      string               `json:"freelancer_name,omitempty"` // display name of the service provider
 	ProjectCategory     string               `json:"project_category"`
 	ProjectName         string               `json:"project_name"`
 	Description         string               `json:"description"`

@@ -7,7 +7,7 @@ import ClientContractReview from './Pages/ClientContractReview'
 import { useAuth } from './contexts/AuthContext'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth()
+  const { isAuthenticated, isLoading, isProfileComplete } = useAuth()
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0f1117]">
@@ -16,6 +16,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  // Authenticated but profile not completed → force them through the signup wizard
+  if (!isProfileComplete) return <Navigate to="/signup?step=2" replace />
   return <>{children}</>
 }
 

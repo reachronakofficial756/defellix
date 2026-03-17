@@ -365,6 +365,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
         }
 
         return {
+            freelancer_name: (typeof window !== 'undefined' && window.localStorage.getItem('profile_name')) || '',
             project_category: displayProjectType,
             project_name: projectTitle,
             description: projectDesc,

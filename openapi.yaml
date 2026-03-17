@@ -114,6 +114,9 @@ components:
           type: string
         experience:
           type: string
+        company_name:
+          type: string
+          description: Company name (optional)
         github_link:
           type: string
         linkedin_link:
@@ -130,36 +133,62 @@ components:
     UpdateProfileRequest:
       type: object
       properties:
+        full_name:
+          type: string
+          description: User's full name
+        user_name:
+          type: string
+          description: Unique username for public profile URL
+        phone:
+          type: string
+          description: Contact phone number
         photo:
           type: string
+          description: Profile photo URL (Cloudinary)
         what_do_you_do:
           type: string
+          description: Professional role/title
         short_headline:
           type: string
+          description: Professional tagline
         bio:
           type: string
+          description: Detailed bio
         location:
           type: string
+          description: City, Country
         experience:
           type: string
-        timezone:
-          type: string
-        github_link:
-          type: string
-        linkedin_link:
-          type: string
-        portfolio_link:
-          type: string
-        instagram_link:
-          type: string
+          description: Years of experience (e.g., "5+ years")
         company_name:
           type: string
+          description: Company name (optional)
+        github_link:
+          type: string
+          format: uri
+        linkedin_link:
+          type: string
+          format: uri
+        portfolio_link:
+          type: string
+          format: uri
+        instagram_link:
+          type: string
+          format: uri
+        skills:
+          type: array
+          items:
+            type: string
+          description: Array of skills/expertise
         show_profile:
           type: boolean
+          description: Whether profile is publicly visible
         show_projects:
           type: boolean
+          description: Whether projects are publicly visible
         show_contracts:
           type: boolean
+          description: Whether contracts are publicly visible
 
     PublicProfileResponse:
       type: object
@@ -606,6 +635,53 @@ paths:
       responses:
         '200':
           description: Logged out successfully
+
+  /api/v1/auth/complete-oauth:
+    post:
+      tags: [Auth]
+      summary: Complete OAuth registration
+      description: Promotes a pending OAuth user to the main users table after Step 2 completion. Called internally by user-service.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email of the pending OAuth user
+      responses:
+        '200':
+          description: OAuth registration completed, user created in main table
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      access_token:
+                        type: string
+                      refresh_token:
+                        type: string
+                      token_type:
+                        type: string
+                      expires_in:
+                        type: integer
+                      user_email:
+                        type: string
+                  message:
+                    type: string
+        '400':
+          description: Pending OAuth registration not found or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /api/v1/auth/me:
     get:

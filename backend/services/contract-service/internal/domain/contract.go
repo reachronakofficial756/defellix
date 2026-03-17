@@ -21,6 +21,7 @@ const (
 type Contract struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	FreelancerUserID uint    `gorm:"index;not null" json:"freelancer_user_id"` // from auth-service users.id
+	FreelancerName   string  `gorm:"type:varchar(200)" json:"freelancer_name,omitempty"` // display name of the freelancer
 
 	// Project details
 	ProjectCategory    string    `gorm:"type:varchar(80);not null" json:"project_category"`
