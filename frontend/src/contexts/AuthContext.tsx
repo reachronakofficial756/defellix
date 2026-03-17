@@ -7,6 +7,7 @@ type AuthContextValue = {
   isProfileComplete: boolean;
   refetch: () => Promise<void>;
   setAuthenticated: (value: boolean) => void;
+  setProfileComplete: (value: boolean) => void;
   logout: () => Promise<void>;
 };
 
@@ -55,6 +56,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  const setProfileComplete = useCallback((value: boolean) => {
+    setIsProfileComplete(value);
+  }, []);
+
   const logout = useCallback(async () => {
     setSessionToken(null);
     setAuthenticatedState(false);
@@ -72,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isProfileComplete,
     refetch,
     setAuthenticated,
+    setProfileComplete,
     logout,
   };
 

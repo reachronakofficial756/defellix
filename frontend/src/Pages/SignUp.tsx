@@ -13,7 +13,7 @@ const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your f
 
 export default function SignUp() {
     const navigate = useNavigate();
-    const { setAuthenticated, refetch } = useAuth();
+    const { setAuthenticated, setProfileComplete, refetch } = useAuth();
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [isOtpStage, setIsOtpStage] = useState(false);
@@ -200,7 +200,7 @@ export default function SignUp() {
                 return;
             }
 
-            await apiClient.post("/users/me/profile", {
+            const profileRes = await apiClient.post("/users/me/profile", {
                 phone,
                 user_name: userName,
                 what_do_you_do: whatDoYouDo,
@@ -216,7 +216,18 @@ export default function SignUp() {
                 skills,
             });
 
-            // Refresh auth context to update profile completion status
+            // For OAuth users the backend returns a new access_token alongside the profile.
+            // Response shape: { data: { profile: {...}, access_token: "..." } }
+            // We must store it immediately so that the subsequent refetch() and all future
+            // API calls use the real JWT (user_id != 0) instead of the temporary one.
+            const newToken: string | undefined =
+                profileRes.data?.data?.access_token ?? profileRes.data?.access_token;
+            if (newToken) {
+                setSessionToken(newToken);
+                window.localStorage.setItem("access_token", newToken);
+            }
+
+            // Refresh auth context so isProfileComplete becomes true with the correct user
             await refetch();
             setStep(3);
         } catch (err: any) {
@@ -936,6 +947,7 @@ export default function SignUp() {
                             <button
                                 type="button"
                                 onClick={async () => {
+                                    // Ensure auth context is fully updated before navigation
                                     await refetch();
                                     navigate("/contract");
                                 }}
@@ -946,6 +958,7 @@ export default function SignUp() {
                             <button
                                 type="button"
                                 onClick={async () => {
+                                    // Ensure auth context is fully updated before navigation
                                     await refetch();
                                     navigate("/");
                                 }}

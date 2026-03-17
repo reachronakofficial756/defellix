@@ -62,43 +62,53 @@ func NewUserService(userRepo repository.UserRepository, authServiceURL string) *
 	}
 }
 
-// CompletePendingOAuthUser calls auth-service to complete OAuth registration
-// Returns the new user_id after user is created in main users table
-func (s *UserService) CompletePendingOAuthUser(ctx context.Context, email string) (uint, error) {
+// OAuthCompletionResult holds the result of completing OAuth registration
+type OAuthCompletionResult struct {
+	UserID      uint
+	AccessToken string
+}
+
+// CompletePendingOAuthUser calls auth-service to complete OAuth registration.
+// Returns the new user_id and new access token so the handler can forward the
+// token to the browser (cookie + response body).
+func (s *UserService) CompletePendingOAuthUser(ctx context.Context, email string) (*OAuthCompletionResult, error) {
 	reqBody := map[string]string{"email": email}
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	url := fmt.Sprintf("%s/api/v1/auth/complete-oauth", s.authServiceURL)
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return 0, fmt.Errorf("failed to call auth-service: %w", err)
+		return nil, fmt.Errorf("failed to call auth-service: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("auth-service returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("auth-service returned status %d", resp.StatusCode)
 	}
 
-	// Parse response to get user info
+	// Parse response to get access token
 	var authResp struct {
 		Data struct {
-			UserEmail string `json:"user_email"`
+			AccessToken string `json:"access_token"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	// Now find the newly created user by email
+	// Find the newly created user by email to get the real ID
 	user, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
-		return 0, fmt.Errorf("user was created but not found: %w", err)
+		return nil, fmt.Errorf("user was created but not found: %w", err)
 	}
 
-	return user.ID, nil
+	return &OAuthCompletionResult{
+		UserID:      user.ID,
+		AccessToken: authResp.Data.AccessToken,
+	}, nil
 }
 
 // GetProfile retrieves a user profile by ID

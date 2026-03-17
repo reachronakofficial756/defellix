@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/saiyam0211/defellix/services/user-service/internal/dto"
@@ -126,15 +127,17 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If userID is 0, this is a pending OAuth user completing Step 2
-	// Call auth-service to complete OAuth registration first
+	// If userID is 0, this is a pending OAuth user completing Step 2.
+	// Complete OAuth registration first and get the real user ID + new access token.
+	var newAccessToken string
 	if userID == 0 {
-		newUserID, err := h.userService.CompletePendingOAuthUser(r.Context(), userEmail)
+		oauthResult, err := h.userService.CompletePendingOAuthUser(r.Context(), userEmail)
 		if err != nil {
 			respondError(w, http.StatusBadRequest, "Failed to complete OAuth registration: "+err.Error(), "OAUTH_COMPLETION_FAILED")
 			return
 		}
-		userID = newUserID
+		userID = oauthResult.UserID
+		newAccessToken = oauthResult.AccessToken
 	}
 
 	profile, err := h.userService.UpdateProfile(r.Context(), userID, &req)
@@ -151,7 +154,24 @@ func (h *UserHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondSuccess(w, http.StatusOK, profile, "Profile updated successfully")
+	// Forward the new access token to the browser for OAuth users
+	if newAccessToken != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "access_token",
+			Value:    newAccessToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteNoneMode,
+			Expires:  time.Now().Add(24 * time.Hour),
+		})
+	}
+
+	type profileWithToken struct {
+		Profile     interface{} `json:"profile"`
+		AccessToken string      `json:"access_token,omitempty"`
+	}
+	respondSuccess(w, http.StatusOK, profileWithToken{Profile: profile, AccessToken: newAccessToken}, "Profile updated successfully")
 }
 
 // SearchProfiles searches for user profiles
@@ -305,15 +325,17 @@ func (h *UserHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// If userID is 0, this is a pending OAuth user completing Step 2
-	// Call auth-service to complete OAuth registration first
+	// If userID is 0, this is a pending OAuth user completing Step 2.
+	// Complete OAuth registration first and get the real user ID + new access token.
+	var newAccessToken string
 	if userID == 0 {
-		newUserID, err := h.userService.CompletePendingOAuthUser(r.Context(), userEmail)
+		oauthResult, err := h.userService.CompletePendingOAuthUser(r.Context(), userEmail)
 		if err != nil {
 			respondError(w, http.StatusBadRequest, "Failed to complete OAuth registration: "+err.Error(), "OAUTH_COMPLETION_FAILED")
 			return
 		}
-		userID = newUserID
+		userID = oauthResult.UserID
+		newAccessToken = oauthResult.AccessToken
 	}
 
 	profile, err := h.profileService.CreateProfile(r.Context(), userID, userEmail, &req)
@@ -334,7 +356,26 @@ func (h *UserHandler) CreateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondSuccess(w, http.StatusCreated, profile, "Profile created successfully")
+	// Forward the new access token to the browser so the frontend can update its stored token.
+	// This is required for OAuth users whose temporary JWT (user_id=0) must be replaced.
+	if newAccessToken != "" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "access_token",
+			Value:    newAccessToken,
+			Path:     "/",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteNoneMode,
+			Expires:  time.Now().Add(24 * time.Hour),
+		})
+	}
+
+	// Build response, embedding the new token so the frontend can store it in localStorage
+	type profileWithToken struct {
+		Profile     interface{} `json:"profile"`
+		AccessToken string      `json:"access_token,omitempty"`
+	}
+	respondSuccess(w, http.StatusCreated, profileWithToken{Profile: profile, AccessToken: newAccessToken}, "Profile created successfully")
 }
 
 // AddProject adds a project to user profile
