@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { useContractsStore } from '../store/useContractsStore';
@@ -120,7 +121,7 @@ const ContractTabCard = memo(function ContractTabCard({
         <>
           <div className="rotate-180">
             <svg
-              className="absolute left-47.5 bottom-15.5 h-14 w-14 pointer-events-none"
+              className="absolute left-47 bottom-15.5 h-14 w-14 pointer-events-none"
               viewBox="0 0 40 40"
               xmlns="http://www.w3.org/2000/svg"
             >
@@ -432,6 +433,8 @@ export default function ContractsOverlay() {
     : baseVisibleCount;
   const visibleContracts = contracts.slice(visibleStart, visibleStart + visibleCount);
 
+  const navigate = useNavigate();
+
   // Early return if loading or empty
   if (loadingContracts || contracts.length === 0) {
     return (
@@ -476,7 +479,7 @@ export default function ContractsOverlay() {
       <div className="absolute top-52 right-20 flex flex-row items-end gap-4 mb-4">
         <button
           className="cursor-pointer px-5 py-3 bg-green-600 text-white rounded-full font-medium shadow hover:bg-green-700 transition"
-          onClick={() => { /* TODO: hook up submit work logic */ }}
+          onClick={() => navigate(`/submit-milestone/${active.id}`)}
         >
           Submit Work
         </button>
@@ -909,6 +912,7 @@ export default function ContractsOverlay() {
                                 }}
                                 onMouseEnter={e => (e.currentTarget.style.background = `${cfg.color}22`)}
                                 onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`)}
+                                onClick={() => navigate(`/submit-milestone/${active.id}`)}
                               >
                                 Submit Work
                               </button>
