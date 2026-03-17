@@ -5,6 +5,7 @@ import LandingPage from './Pages/LandingPage'
 import SignUp from './Pages/SignUp'
 import Login from './Pages/Login'
 import ClientContractReview from './Pages/ClientContractReview'
+import MilestoneSubmission from './Pages/MilestoneSubmission'
 import { useAuth } from './contexts/AuthContext'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
