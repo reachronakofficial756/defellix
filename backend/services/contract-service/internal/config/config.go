@@ -36,13 +36,13 @@ type ServerConfig struct {
 
 // AppConfig holds application-level configuration
 type AppConfig struct {
-	Environment               string
-	LogLevel                  string
-	ShareableLinkBaseURL      string // Base for contract links, e.g. https://app.ourdomain.com/contract
-	DraftExpiryDays           int    // Delete drafts older than this (default 14)
-	DraftCleanupIntervalMins  int    // Run draft-cleanup job every N minutes (default 360 = 6h)
-	BlockchainServiceURL      string // Base URL for blockchain-service (e.g. http://localhost:8083)
-	BlockchainServiceAPIKey   string // Optional: API key for service-to-service auth (if blockchain-service requires it)
+	Environment              string
+	LogLevel                 string
+	ShareableLinkBaseURL     string // Base for contract links, e.g. https://app.ourdomain.com/contract
+	DraftExpiryDays          int    // Delete drafts older than this (default 14)
+	DraftCleanupIntervalMins int    // Run draft-cleanup job every N minutes (default 360 = 6h)
+	BlockchainServiceURL     string // Base URL for blockchain-service (e.g. http://localhost:8083)
+	BlockchainServiceAPIKey  string // Optional: API key for service-to-service auth (if blockchain-service requires it)
 }
 
 // DatabaseConfig holds PostgreSQL configuration
@@ -88,7 +88,7 @@ func Load() *Config {
 			Environment:              getEnv("APP_ENV", "development"),
 			LogLevel:                 getEnv("LOG_LEVEL", "info"),
 			ShareableLinkBaseURL:     getEnv("SHAREABLE_LINK_BASE_URL", ""),
-			DraftExpiryDays:           getEnvAsInt("DRAFT_EXPIRY_DAYS", 14),
+			DraftExpiryDays:          getEnvAsInt("DRAFT_EXPIRY_DAYS", 14),
 			DraftCleanupIntervalMins: getEnvAsInt("DRAFT_CLEANUP_INTERVAL_MINS", 360),
 			BlockchainServiceURL:     getEnv("BLOCKCHAIN_SERVICE_URL", ""),
 			BlockchainServiceAPIKey:  getEnv("BLOCKCHAIN_SERVICE_API_KEY", ""),

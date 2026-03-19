@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   X, Bell, Send, MessageSquareMore, PenLine,
   Flag, AlertTriangle, Loader2, RotateCcw,
@@ -52,8 +53,9 @@ function deriveNotifications(contracts: any[]): Notification[] {
 
     // ── Sent to client (always, if ever sent) ──────────────────────
     if (c.sent_at) {
+      const ts = new Date(c.sent_at).getTime();
       out.push({
-        id: `sent-${id}`, type: 'sent',
+        id: `sent-${id}-${ts}`, type: 'sent',
         title: 'Contract sent to client',
         message: `Shared with ${c.client_name || c.client_email || 'client'} for review and signature · ${name}`,
         contractName: name, contractId: id,
@@ -63,9 +65,10 @@ function deriveNotifications(contracts: any[]): Notification[] {
 
     // ── Revision / iteration requested (pending) ───────────────────
     if (c.status === 'pending') {
+      const ts = new Date(c.updated_at || c.sent_at || c.created_at).getTime();
       const comment = c.client_review_comment;
       out.push({
-        id: `review-${id}`, type: 'review',
+        id: `review-${id}-${ts}`, type: 'review',
         title: 'Revision requested by client',
         message: comment
           ? `"${comment.slice(0, 80)}${comment.length > 80 ? '…' : ''}" · ${name}`
@@ -78,18 +81,67 @@ function deriveNotifications(contracts: any[]): Notification[] {
 
     // ── Signed / active ────────────────────────────────────────────
     if (c.status === 'signed' || c.status === 'active') {
+      const ts = new Date(c.client_signed_at || c.updated_at || c.created_at).getTime();
       out.push({
-        id: `signed-${id}`, type: 'signed',
+        id: `signed-${id}-${ts}`, type: 'signed',
         title: 'Client signed the contract',
         message: `${c.client_name || 'Your client'} digitally signed — the project is now active · ${name}`,
         contractName: name, contractId: id,
-        timestamp: c.updated_at || c.created_at, isNew: c.status === 'signed',
+        timestamp: c.client_signed_at || c.updated_at || c.created_at, isNew: c.status === 'signed',
       });
     }
 
-    // ── Milestone warnings — only for active/signed contracts ──────
-    if (milestoneStatuses.has(c.status)) {
-      (c.milestones || []).forEach((ms: any) => {
+    // ── Milestone warnings / Submissions / Drafts ──────────────────
+    (c.milestones || []).forEach((ms: any) => {
+      // Handle Submitted status specifically
+      if (ms.status === 'submitted') {
+        out.push({
+          id: `submitted-${id}-${ms.id}`, type: 'review',
+          title: 'Milestone submitted for review',
+          message: `You submitted work for "${ms.title}". Awaiting client approval · ${name}`,
+          contractName: name, contractId: id,
+          timestamp: ms.latest_submission?.submitted_at || ms.updated_at || c.updated_at || c.created_at, isNew: true,
+          action: { label: 'View submission' },
+        });
+      }
+
+      // Handle Revision/Feedback (Milestones)
+      if (ms.status === 'revision') {
+        const ts = new Date(ms.latest_submission?.reviewed_at || ms.updated_at || c.updated_at).getTime();
+        out.push({
+          id: `revision-${id}-${ms.id}-${ts}`, type: 'review',
+          title: 'Feedback received',
+          message: `The client requested changes on "${ms.title}" · ${name}`,
+          contractName: name, contractId: id,
+          timestamp: ms.latest_submission?.reviewed_at || ms.updated_at || c.updated_at, isNew: true,
+          action: { label: 'View feedback' },
+        });
+      }
+
+      // Handle Approved
+      if (ms.status === 'approved' || ms.status === 'paid') {
+        out.push({
+          id: `approved-${id}-${ms.id}`, type: 'completed',
+          title: 'Milestone approved!',
+          message: `The client approved "${ms.title}". Funds will be released soon · ${name}`,
+          contractName: name, contractId: id,
+          timestamp: ms.latest_submission?.reviewed_at || ms.updated_at || c.updated_at, isNew: ms.status === 'approved',
+        });
+      }
+
+      // Handle Drafts
+      if (ms.last_draft_at) {
+        out.push({
+          id: `draft-${id}-${ms.id}`, type: 'draft',
+          title: 'Draft submission saved',
+          message: `You have a saved draft for "${ms.title}". You can continue editing before sending · ${name}`,
+          contractName: name, contractId: id,
+          timestamp: ms.last_draft_at, isNew: true,
+          action: { label: 'Continue draft' },
+        });
+      }
+
+      if (milestoneStatuses.has(c.status)) {
         if (ms.status === 'approved' || ms.status === 'paid' || !ms.due_date) return;
         const due = new Date(ms.due_date);
         const diff = Math.ceil((due.getTime() - now.getTime()) / 86400000);
@@ -110,8 +162,8 @@ function deriveNotifications(contracts: any[]): Notification[] {
             timestamp: ms.due_date, isNew: diff <= 2,
           });
         }
-      });
-    }
+      }
+    });
 
     // ── Completed ──────────────────────────────────────────────────
     if (c.status === 'completed') {
@@ -125,10 +177,8 @@ function deriveNotifications(contracts: any[]): Notification[] {
     }
   });
 
-  return out.sort((a, b) => {
-    if (a.isNew !== b.isNew) return a.isNew ? -1 : 1;
-    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-  });
+  // Sort purely by timestamp descending (newest first) — industry standard
+  return out.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 }
 
 function timeAgo(iso: string): string {
@@ -149,11 +199,25 @@ interface Props { isOpen: boolean; onClose: () => void; }
 export default function NotificationPanel({ isOpen, onClose }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const { openContracts } = useContractsStore();
+  const navigate = useNavigate();
 
   const [all, setAll] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+
+  // Auto-load saved read/dismissed IDs from sessionStorage
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('notif_read');
+      if (saved) setReadIds(new Set(JSON.parse(saved)));
+    } catch {}
+  }, []);
+
+  const persistRead = useCallback((ids: Set<string>) => {
+    setReadIds(ids);
+    try { sessionStorage.setItem('notif_read', JSON.stringify([...ids])); } catch {}
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -166,6 +230,20 @@ export default function NotificationPanel({ isOpen, onClose }: Props) {
   }, []);
 
   useEffect(() => { if (isOpen) load(); }, [isOpen, load]);
+
+  // Auto-mark-as-read after 3s of the panel being open (industry standard)
+  useEffect(() => {
+    if (!isOpen) return;
+    const t = setTimeout(() => {
+      setAll(prev => {
+        const newRead = new Set(readIds);
+        prev.filter(n => n.isNew).forEach(n => newRead.add(n.id));
+        persistRead(newRead);
+        return prev;
+      });
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isOpen) return;
@@ -182,16 +260,32 @@ export default function NotificationPanel({ isOpen, onClose }: Props) {
     return () => document.removeEventListener('keydown', fn);
   }, [onClose]);
 
-  const go = (contractId: number, id: string) => {
-    setReadIds(p => new Set([...p, id]));
-    openContracts(contractId);
-    onClose();
+  // go — navigate to the right page based on notification type
+  const go = (n: Notification) => {
+    const newRead = new Set([...readIds, n.id]);
+    persistRead(newRead);
+    if (n.type === 'review' && n.id.startsWith('submitted-')) {
+      // Navigate to the milestone submission page so freelancer can view their submission
+      navigate(`/submit-milestone/${n.contractId}`);
+      onClose();
+    } else if (n.type === 'review' && !n.id.startsWith('submitted-')) {
+      // Revision requested — open the contract overlay
+      openContracts(n.contractId);
+      onClose();
+    } else if (n.type === 'draft') {
+      navigate(`/submit-milestone/${n.contractId}`);
+      onClose();
+    } else {
+      openContracts(n.contractId);
+      onClose();
+    }
   };
 
   const dismiss = (id: string) => setDismissed(p => new Set([...p, id]));
-  const markAllRead = () => setReadIds(new Set(all.map(n => n.id)));
+  const markAllRead = () => persistRead(new Set(all.map(n => n.id)));
 
   const visible = all.filter(n => !dismissed.has(n.id));
+  // New = unread AND isNew (isNew comes from data, readIds tracks user-read state)
   const fresh = visible.filter(n => n.isNew && !readIds.has(n.id));
   const earlier = visible.filter(n => !n.isNew || readIds.has(n.id));
   const unread = fresh.length;
@@ -306,7 +400,7 @@ export default function NotificationPanel({ isOpen, onClose }: Props) {
                     <GroupLabel label="New" />
                     <AnimatePresence initial={false}>
                       {fresh.map((n, i) => (
-                        <Card key={n.id} n={n} i={i} onGo={() => go(n.contractId, n.id)} onDismiss={() => dismiss(n.id)} />
+                        <Card key={n.id} n={n} i={i} onGo={() => go(n)} onDismiss={() => dismiss(n.id)} />
                       ))}
                     </AnimatePresence>
                   </>
@@ -318,7 +412,7 @@ export default function NotificationPanel({ isOpen, onClose }: Props) {
                     <GroupLabel label={fresh.length ? 'Earlier' : 'Activity'} />
                     <AnimatePresence initial={false}>
                       {earlier.map((n, i) => (
-                        <Card key={n.id} n={n} i={i + fresh.length} onGo={() => go(n.contractId, n.id)} onDismiss={() => dismiss(n.id)} />
+                        <Card key={n.id} n={n} i={i + fresh.length} onGo={() => go(n)} onDismiss={() => dismiss(n.id)} />
                       ))}
                     </AnimatePresence>
                   </>
@@ -366,6 +460,7 @@ function Card({
 }: { n: Notification; i: number; onGo: () => void; onDismiss: () => void }) {
   const c = TYPE_CFG[n.type];
   const Icon = c.Icon;
+  const isRead = !n.isNew;
 
   return (
     <motion.div

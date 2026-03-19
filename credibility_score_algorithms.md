@@ -1,454 +1,653 @@
 # Defellix Credibility Score — Deep Research & Algorithm Proposals
 
-> Researched and authored as a Senior PM exercise. Draws from FICO credit scoring, Upwork JSS, Stanford's EigenTrust, Bayesian reputation systems (Wilson score / Beta distribution), Octan Network's adaptive PageRank, and Defellix's own research docs on trust-as-a-service for Indian freelancers.
+> **Author perspective**: Senior PM at Google · March 2026
+> **Objective**: Design a rock-solid, industry-disrupting credibility scoring system that defines what **trust** means in freelancing.
 
 ---
 
-## Executive Summary
+## Part 1 — Current State Analysis
 
-The Credibility Score is Defellix's **primary disruptive USP** — a tamper-proof, on-chain reputation number that answers one question: *"Can I trust this freelancer with my project and money?"*
+### What We Have Today
 
-This document proposes **4 distinct algorithm architectures** for computing:
-1. **Per-Project Score** — how well did the freelancer perform on *this* contract?
-2. **Overall Profile Score** — how trustworthy is this freelancer *as a whole*?
+The existing [reputation_service.go](file:///home/saiyam/Documents/decentralized_freelancer_trust_platform/backend/services/user-service/internal/service/reputation_service.go) uses a simplistic additive formula:
 
-Each algorithm also defines: **default onboarding score**, **deduction mechanics**, and **tier classification**.
+```
+base_score  = client_rating × 10   (range 10–50)
+deadline    = +10 if on time
+penalty     = revision_count × 5
+final       = base_score + deadline − penalty   (floor 0)
+aggregate   = SUM of all contract final scores
+```
+
+> [!CAUTION]
+> **Critical flaws in the current system:**
+> 1. **Unbounded cumulative score** — a freelancer with 100 average projects will always outrank one with 5 exceptional projects.
+> 2. **No time decay** — work done 3 years ago carries identical weight to work done yesterday.
+> 3. **Easily gamed** — create many small contracts with friendly clients → infinite score growth.
+> 4. **No cold-start solution** — new freelancers start at 0, which feels punitive and disconnects from profile quality.
+> 5. **No client-quality weighting** — a review from a verified Fortune-500 client counts the same as one from a brand-new throwaway account.
+> 6. **No deduction for abandonment, ghosting, or contract cancellation.**
+
+### Available Data Signals (from codebase audit)
+
+| Source | Signals |
+|--------|---------|
+| **User Profile** | `full_name`, `skills`, `experience`, `github_link`, `linkedin_link`, `portfolio_link`, `is_verified`, `is_profile_complete`, `photo`, `bio`, `phone`, `testimonials`, `projects` |
+| **Contract** | [status](file:///home/saiyam/Documents/decentralized_freelancer_trust_platform/frontend/src/Pages/MilestoneSubmission.tsx#54-65) (draft→sent→pending→signed→active→completed→cancelled), `is_revised`, `total_amount`, `milestones[]`, `created_at`, `sent_at`, `client_signed_at`, `blockchain_status` |
+| **Milestone** | [status](file:///home/saiyam/Documents/decentralized_freelancer_trust_platform/frontend/src/Pages/MilestoneSubmission.tsx#54-65) (pending→submitted→approved→paid→revision), `due_date`, `amount`, `submission_criteria` |
+| **Submission** | [status](file:///home/saiyam/Documents/decentralized_freelancer_trust_platform/frontend/src/Pages/MilestoneSubmission.tsx#54-65) (draft→pending_review→accepted→revision_requested→ghosted), `submitted_at`, `reviewed_at`, `revision_history` |
+| **Reputation** | `base_rating` (1–5), `deadline_bonus`, `revision_penalty`, `calculated_score`, `client_feedback` |
+| **Testimonial** | `rating` (1–10), `comment`, `is_verified`, `client_name`, `client_email` |
 
 ---
 
-## Core Design Principles
+## Part 2 — Design Principles (Inspired by FICO, PageRank, ELO, Bayesian, Airbnb)
 
-Before diving into algorithms, every proposal adheres to these non-negotiable principles derived from Defellix's research:
+Before presenting the 4 algorithms, here are the non-negotiable design axioms:
 
-| Principle | Rationale |
-|---|---|
-| **Verifiable & tamper-proof** | Stored on-chain (Base L2), immutable. No one can delete a bad review. |
-| **Portable** | Score travels with the freelancer's DID — not locked to Defellix. |
-| **Deductions matter as much as gains** | Unlike Upwork where you only accumulate, here bad behavior *actively hurts*. |
-| **Recency bias** | Recent performance weighted heavier — people improve, people decline. |
-| **Cold-start fairness** | New freelancers get a minimal but non-zero score — enough to get started, low enough to incentivize proving themselves. |
-| **Multi-dimensional** | No single factor can dominate — prevents gaming. |
-| **Resistant to collusion** | Cross-validation, Bayesian priors, and transitive trust prevent fake review farming. |
-
----
-
-## Per-Project Score — Universal Inputs
-
-All 4 algorithms use these **raw signals** from each completed contract. These are the measurable events on the platform:
-
-### Positive Signals (Earned)
-
-| Signal | What it Measures | How Captured |
-|---|---|---|
-| `milestone_completion_rate` | % of milestones delivered and approved | Smart contract state |
-| `on_time_delivery` | Was each milestone submitted ≤ `due_date`? | Timestamp comparison |
-| `client_public_rating` | 1–5 star rating from client (public) | Post-contract form |
-| `client_private_rating` | 0–10 NPS-style (private, anonymous) | Post-contract form |
-| `client_recommend` | "Would you hire again?" binary | Post-contract form |
-| `scope_adherence` | Did final deliverables match SoW? | Client confirmation |
-| `communication_score` | Response time to messages (avg hours) | Platform messaging data |
-| `revision_efficiency` | Revisions used / revisions allowed | Contract metadata |
-| `budget_adherence` | Final amount ≤ agreed amount | Payment data |
-| `contract_value` | Total $ value of the contract | Payment data |
-
-### Negative Signals (Deducted)
-
-| Signal | Penalty Trigger | Severity |
-|---|---|---|
-| `late_milestone` | Submission after `due_date` | Medium per late day |
-| `missed_milestone` | Never submitted | High |
-| `dispute_raised` | Client opens formal dispute | High |
-| `dispute_lost` | Freelancer loses dispute resolution | Critical |
-| `contract_abandoned` | Freelancer stops responding/working | Critical |
-| `scope_exceeded_unilateral` | Freelancer adds charges without approval | Medium |
-| `refund_issued` | Partial or full refund from escrow | High |
-| `contract_terminated_by_client` | Client ends contract early citing freelancer fault | High |
-| `NDA_violation` | Verified breach of confidentiality | Critical — permanent flag |
+| # | Principle | Inspiration |
+|---|-----------|-------------|
+| 1 | **Bounded range** — score must have a fixed max (e.g. 0–1000) for comparability | FICO (300–850) |
+| 2 | **Time decay** — recent work matters more than old work | ELO, Bayesian |
+| 3 | **Quality > Quantity** — 5 exceptional projects > 50 mediocre ones | PageRank |
+| 4 | **Cold-start fairness** — new users get a non-zero score based on profile signals | FICO "thin file" |
+| 5 | **Deductions are real** — score MUST go down for bad behavior | Credit scoring |
+| 6 | **Client-quality weighting** — reviews from verified, high-spend clients matter more | PageRank |
+| 7 | **Manipulation-resistant** — bulk small contracts shouldn't inflate score | Sybil resistance |
+| 8 | **Transparent factors, opaque weights** — users know WHAT is measured, not exact weights | Airbnb |
+| 9 | **Blockchain-verifiable** — key score events are anchored on-chain | Defellix USP |
 
 ---
 
-## Overall Profile Score — Universal Inputs
-
-Beyond individual projects, the overall score incorporates **profile-level signals** that measure the freelancer's holistic platform behavior:
-
-### Identity & Verification Signals
-
-| Signal | Impact | How Captured |
-|---|---|---|
-| `kyc_verified` | Baseline trust boost | Aadhaar/PAN verification |
-| `portfolio_items` | Proves capability | Self-uploaded, verified by clients |
-| `skills_verified` | Platform skill assessments | Defellix skill tests |
-| `linkedin_connected` | Cross-platform identity proof | OAuth integration |
-| `education_credentials` | VC-based degree verification | Verifiable Credentials |
-| `certification_count` | Industry certifications | VC-based |
-
-### Behavioral Signals (Non-Project)
-
-| Signal | Impact | How Captured |
-|---|---|---|
-| `profile_completeness` | Minor positive | % of fields filled |
-| `platform_tenure` | Minor positive (length of credit history) | Registration date |
-| `login_consistency` | Minor positive (platform engagement) | Auth logs |
-| `community_contributions` | Minor positive (helps others) | Forum/dispute participation |
-| `client_diversity` | Positive — not dependent on one client | Unique client count |
-| `consecutive_negative_contracts` | Major penalty multiplier | Pattern detection |
-| `account_warnings` | Deduction | Admin-issued flags |
-| `inactivity_period` | Score decay over time if inactive | Last contract date |
+## Part 3 — The Four Algorithm Proposals
 
 ---
 
-## Algorithm 1: "FICO-Inspired" Weighted Pillar Model
+### Algorithm A — "FICO-Inspired Weighted Category Model" 🏦
 
-> **Philosophy**: Inspired by the FICO credit score (300–850 range, 5 pillars with fixed weights). Deterministic, transparent, easy to explain to users.
+**Philosophy**: Mirror FICO's proven category-weighted approach. Divide the score into 5 weighted pillars, each with its own sub-formula. Total score: **0–1000**.
 
-### Per-Project Score (0–100)
+#### A.1 — Score Categories & Weights
 
-```
-ProjectScore = (Delivery × 0.35) + (Quality × 0.30) + (Professionalism × 0.20) + (Client Satisfaction × 0.15)
-```
+| Category | Weight | Max Points | What It Measures |
+|----------|--------|------------|------------------|
+| **Delivery History** | 35% | 350 | On-time completion, milestone adherence |
+| **Client Satisfaction** | 30% | 300 | Ratings, testimonials, repeat clients |
+| **Professional Profile** | 15% | 150 | Profile completeness, verifications, social proof |
+| **Financial Reliability** | 10% | 100 | Contract value history, no cancellations |
+| **Platform Engagement** | 10% | 100 | Response time, activity recency, revision turnaround |
 
-| Pillar | Weight | Components |
-|---|---|---|
-| **Delivery** | 35% | `milestone_completion_rate`, `on_time_delivery`, `scope_adherence` |
-| **Quality** | 30% | `client_public_rating` (normalized to 0–1), `revision_efficiency`, `budget_adherence` |
-| **Professionalism** | 20% | `communication_score`, no disputes, no abandonment |
-| **Client Satisfaction** | 15% | `client_private_rating` (0–10 → 0–1), `client_recommend` |
-
-**Deductions on project score:**
-- Late milestone: −3 per milestone, per day late (capped at −15 per milestone)
-- Dispute raised: −10
-- Dispute lost: −25
-- Contract abandoned: −40 (project score floors at 0)
-- Refund issued: −20
-
-### Overall Score (300–900)
+#### A.2 — Per-Project Score (0–100)
 
 ```
-OverallScore = BaseScore + ProjectContribution + IdentityBonus − Penalties − DecayPenalty
+project_score = (
+    client_rating_normalized × 0.40        # 0–40 pts (1-5 stars → 0-40)
+  + on_time_factor × 0.25                  # 0–25 pts
+  + first_attempt_acceptance × 0.15        # 0–15 pts (fewer revisions = higher)
+  + milestone_completion_rate × 0.10       # 0–10 pts
+  + contract_value_tier × 0.10             # 0–10 pts (higher value = more trust signal)
+)
 ```
 
-| Component | Calculation |
-|---|---|
-| **BaseScore** | 350 (new user after KYC) |
-| **ProjectContribution** | Weighted moving average of all ProjectScores, weighted by `contract_value` and recency factor `e^(−λt)` where `t` = months since completion, `λ` = 0.05 |
-| **IdentityBonus** | +20 (KYC) + +10 (LinkedIn) + +5 per verified credential (capped at +50) |
-| **Penalties** | Accumulated deductions: −30 per dispute lost, −50 per abandonment, −15 per account warning |
-| **DecayPenalty** | If no contract completed in 90 days: −2/month (capped at −60) |
-
-**Cold start**: New user with KYC verified = **370**. With LinkedIn + 2 certifications = **395**. Minimum possible = **300**.
-
-### Tier Classification
-
-| Score | Tier | Badge |
-|---|---|---|
-| 300–449 | **Newcomer** | 🌱 |
-| 450–549 | **Building** | 🔨 |
-| 550–699 | **Rising Talent** | ⭐ |
-| 700–799 | **Trusted Pro** | 💎 |
-| 800–900 | **Elite** | 👑 |
-
-### Strengths & Weaknesses
-
-| ✅ Strengths | ❌ Weaknesses |
-|---|---|
-| Very transparent — users know exactly what affects their score | Static weights don't adapt to market conditions |
-| Easy to implement and explain | Simple weighted average can be gamed by doing many tiny cheap projects |
-| FICO familiarity makes it intuitive | Doesn't account for the *quality* of the client giving the review |
-
----
-
-## Algorithm 2: "Bayesian Trust" — Beta Distribution + Wilson Confidence
-
-> **Philosophy**: Inspired by academic reputation systems. Uses Bayesian updating with beta distributions to model uncertainty. New freelancers have high uncertainty (wide distribution) that narrows with more data. The Wilson lower-bound prevents gaming with few projects.
-
-### Per-Project Score (0–100)
-
-Same formula as Algorithm 1 for individual project computation. The difference is in how projects roll up to the overall score.
-
-### Overall Score (300–900)
-
-Instead of a simple weighted average, the system maintains a **beta distribution** for each freelancer:
-
+**On-time factor formula:**
 ```
-α = sum of positive outcomes (successful contracts, good ratings)
-β = sum of negative outcomes (disputes, bad ratings, penalties)
-
-Raw reputation = α / (α + β)                    # Expected value
-Wilson lower bound = (p̂ + z²/2n − z√(p̂(1−p̂)/n + z²/4n²)) / (1 + z²/n)
-    where p̂ = α/(α+β), n = α+β, z = 1.96 (95% confidence)
+days_delta = due_date − submitted_at (in days)
+if days_delta >= 0:       on_time = 25                     # on time or early
+elif days_delta >= -3:    on_time = 15                     # 1-3 days late
+elif days_delta >= -7:    on_time = 5                      # 4-7 days late
+else:                     on_time = 0                      # >7 days late
 ```
 
-The **Wilson lower bound** is the actual displayed score, mapped to 300–900:
-
+**First-attempt factor:**
 ```
-OverallScore = 300 + (WilsonLowerBound × 600)
-```
-
-**How interactions update α and β:**
-
-| Event | α increment | β increment |
-|---|---|---|
-| Contract completed, ProjectScore ≥ 80 | +3.0 × value_weight | +0 |
-| Contract completed, ProjectScore 60–79 | +1.5 × value_weight | +0.5 × value_weight |
-| Contract completed, ProjectScore 40–59 | +0.5 × value_weight | +1.5 × value_weight |
-| Contract completed, ProjectScore < 40 | +0 | +3.0 × value_weight |
-| Dispute lost | +0 | +5.0 |
-| Contract abandoned | +0 | +8.0 |
-| Client recommends rehire | +1.0 | +0 |
-| Verified credential added | +0.5 | +0 |
-| 90 days inactivity | +0 | +0.3 (monthly decay) |
-
-Where `value_weight = log2(1 + contract_value / 500)` — higher-value contracts carry more weight.
-
-**Cold start**: New user starts with `α = 2, β = 3` (prior: weak negative → score ≈ 340). After KYC: `α = 3, β = 3` → score ≈ 360. This Bayesian prior means the system starts skeptical and gains confidence as evidence accumulates.
-
-### Strengths & Weaknesses
-
-| ✅ Strengths | ❌ Weaknesses |
-|---|---|
-| **Mathematically rigorous** — handles uncertainty properly | Harder to explain to users (beta distribution is not intuitive) |
-| **Self-correcting** — few data points = wide uncertainty = conservative score | Score moves slowly with many contracts (high n) — hard to recover |
-| **Wilson bound prevents gaming** — 2 projects with 5-star won't outrank 50 projects with 4.5-star | Requires careful tuning of priors and increment values |
-| **Naturally anti-fraud** — fake reviews from new accounts (low n) have minimal impact | |
-
----
-
-## Algorithm 3: "EigenTrust Hybrid" — Graph-Based Transitive Trust
-
-> **Philosophy**: Inspired by Stanford's EigenTrust and Google PageRank. Trust is not just about *your* performance — it's about *who* trusts you and how trustworthy *they* are. A 5-star review from a high-reputation client is worth more than one from a brand-new account.
-
-### Per-Project Score (0–100)
-
-Same base formula as Algorithm 1, but with a **Client Quality Multiplier**:
-
-```
-AdjustedProjectScore = BaseProjectScore × ClientQualityMultiplier
+if revision_count == 0:   first_attempt = 15
+elif revision_count == 1: first_attempt = 10
+elif revision_count == 2: first_attempt = 5
+else:                     first_attempt = 0
 ```
 
-Where `ClientQualityMultiplier` = `0.7 + (0.3 × ClientTrustRank)`. ClientTrustRank is the client's own normalized trust score (0–1), computed from their payment history, dispute rate, and how many successful contracts they've completed.
-
-This means:
-- A review from a verified, long-term client with many successful contracts counts for **more**
-- A review from a brand-new client with no history counts for **less**
-- A review from a client with dispute history counts for **even less**
-
-### Overall Score (300–900)
-
-Uses iterative eigenvector computation on a bipartite trust graph:
-
+**Contract value tier (anti-gaming: prevents flooding with $10 contracts):**
 ```
-1. Build trust matrix T where T[i][j] = normalized trust from entity j → entity i
-2. Normalize each column of T (each entity's outgoing trust sums to 1)
-3. Initialize trust vector t⁰ = uniform distribution
-4. Iterate: t^(k+1) = (1 − d) × T × t^k + d × p
-   where d = 0.15 (damping factor), p = pre-trusted distribution (KYC-verified users)
-5. Converge when ||t^(k+1) − t^k|| < ε
-6. Map converged trust value to 300–900 range
+if amount >= ₹1,00,000:  tier = 10
+elif amount >= ₹50,000:  tier = 8
+elif amount >= ₹20,000:  tier = 6
+elif amount >= ₹5,000:   tier = 3
+else:                     tier = 1
 ```
 
-**Trust edges in the graph:**
-
-| Edge Type | Weight |
-|---|---|
-| Client → Freelancer (successful project) | `ProjectScore / 100` |
-| Client → Freelancer (dispute lost by freelancer) | `−0.5` |
-| Freelancer → Client (payment received on time) | `0.3` |
-| Verified credential issuer → Freelancer | `0.2` |
-| Community endorsement (peer → peer) | `0.1` |
-
-**Deduction mechanics:**
-- Disputes cascade through the graph — losing a dispute against a high-trust client tanks your score harder
-- Abandonment removes ALL positive edges from that contract
-- NDA violation sets a permanent "trust poison" flag that halves all incoming trust edges
-
-**Cold start**: New users inherit a base trust from the "pre-trusted set" (the `p` vector). Score ≈ 350–380 depending on verification level.
-
-### Strengths & Weaknesses
-
-| ✅ Strengths | ❌ Weaknesses |
-|---|---|
-| **Most fraud-resistant** — fake review farms from new accounts have near-zero trust propagation | Computationally expensive — needs periodic batch recomputation |
-| **Network effects** — working with high-trust clients lifts your score faster | Very hard to explain to users ("why did my score change?") |
-| **Colluder-resistant** — EigenTrust isolates colluding clusters | Cold-start is harsh — new freelancers are at a real disadvantage |
-| **Captures "quality of reviewer"** — not all 5-star reviews are equal | Requires sufficient network density to work well |
-
----
-
-## Algorithm 4: "Composite Adaptive" — The Recommended Hybrid ⭐
-
-> **Philosophy**: Combines the best of all three. FICO-style transparency for per-project scoring, Bayesian confidence for overall profile, and EigenTrust-style client quality weighting to prevent fraud. Adds time-decay, streak bonuses, and milestone-level granularity unique to Defellix's smart contract architecture.
-
-### Per-Project Score (0–100)
-
-```
-ProjectScore = Σ(pillar_weight × pillar_score) − penalties + streak_bonus
-```
-
-| Pillar | Weight | Sub-signals (all 0–1 normalized) |
-|---|---|---|
-| **Delivery Execution** | 30% | `milestone_hit_rate` (% on-time), `scope_match` (client confirms deliverables match SoW), `completion_rate` |
-| **Output Quality** | 25% | `client_public_rating / 5`, `revision_efficiency` (revisions_used / revisions_allowed, inverted), `budget_adherence` |
-| **Client Perception** | 25% | `private_nps / 10`, `recommend_binary`, weighted by `ClientQualityMultiplier` |
-| **Engagement Quality** | 20% | `avg_response_time` (mapped: <2h = 1.0, <12h = 0.7, <24h = 0.4, >24h = 0.1), `proactive_updates` (milestone updates without being asked), `contract_duration_health` (no stalls >7 days) |
-
-**Penalty table:**
-
-| Violation | Points Deducted | Can Recover? |
-|---|---|---|
-| Milestone 1–3 days late | −2 per milestone | Yes |
-| Milestone 4–7 days late | −5 per milestone | Yes |
-| Milestone >7 days late | −10 per milestone | Yes |
-| Scope mismatch (client disputes SoW adherence) | −8 | Yes |
-| Dispute raised by client | −12 | Yes |
-| Dispute lost | −25 | Partially (with future positive contracts) |
-| Contract abandoned (no response >14 days) | Score = 0 for this project | No — this project is permanently 0 |
-| NDA/ethical violation | Score = 0 + overall profile flag | No |
-
-**Streak bonus:**
-- 3 consecutive projects with ProjectScore ≥ 80: +5 bonus on next project
-- 5 consecutive: +8
-- 10 consecutive: +12
-
-### Overall Score (300–900)
-
-Three-layer computation:
-
-```
-Layer 1: Confidence-Weighted Performance (CWP)
-Layer 2: Identity & Verification Boost (IVB)  
-Layer 3: Behavioral Adjustments (BA)
-
-OverallScore = clamp(300, 900, CWP + IVB + BA)
-```
-
-#### Layer 1: Confidence-Weighted Performance (max contribution: 750 pts)
-
-Uses a **modified Bayesian approach** with recency-weighted contract values:
+#### A.3 — Overall Score Calculation
 
 ```python
-for each contract i:
-    weight_i = contract_value_i × recency_factor_i × client_quality_i
-    
-    recency_factor_i = e^(−0.04 × months_since_completion)  # Half-life ≈ 17 months
-    client_quality_i = 0.6 + (0.4 × client_trust_score)     # Range: 0.6 – 1.0
+# For each category, compute the sub-score from ALL projects with time decay
 
-weighted_avg_score = Σ(ProjectScore_i × weight_i) / Σ(weight_i)
-confidence = 1 − (1 / (1 + 0.3 × sqrt(n_contracts)))       # Approaches 1 as n grows
+def delivery_score(projects):
+    weighted_sum = 0
+    weight_total = 0
+    for p in sorted(projects, by=completed_date, desc=True):
+        age_months = months_since(p.completed_date)
+        decay = 0.95 ** age_months           # 5% decay per month
+        w = decay * p.contract_value_tier    # higher-value projects count more
+        weighted_sum += p.on_time_factor * w
+        weight_total += w
+    return (weighted_sum / weight_total) * 350 / 25   # normalize to 0-350
 
-CWP = 300 + (weighted_avg_score / 100) × 450 × confidence
+# Similar weighted-average approach for Client Satisfaction (30%) using ratings
+# Similar for Financial Reliability using contract values and completion rates
+# Platform Engagement uses login recency, response times, etc.
 ```
+
+#### A.4 — Default Registration Score
+
+| Signal | Points |
+|--------|--------|
+| Email verified | +20 |
+| Phone verified | +15 |
+| Profile photo uploaded | +10 |
+| Bio written (>50 chars) | +10 |
+| GitHub linked | +15 |
+| LinkedIn linked | +15 |
+| Portfolio link added | +10 |
+| ≥3 skills selected | +10 |
+| Experience field filled | +10 |
+| **Maximum starting score** | **115 / 1000** |
+
+> This gives new freelancers a visible, non-zero score while clearly showing room for growth.
+
+#### A.5 — Deductions
+
+| Event | Deduction |
+|-------|-----------|
+| Contract cancelled by freelancer | −30 to −50 (scaled by contract value) |
+| Milestone overdue >7 days | −15 per milestone |
+| Client gives 1-star rating | −25 |
+| Submission marked "ghosted" | −40 |
+| Profile completeness drops (removed info) | −5 per removed field |
+| Inactive for 90+ days | −2 per month (passive decay) |
+| Dispute lost | −50 |
+| Fraudulent activity detected | Score reset to 50 |
+
+---
+
+### Algorithm B — "Bayesian Confidence Model" 🧠
+
+**Philosophy**: Treat the score as a **probability distribution**, not a fixed number. New freelancers have high uncertainty (wide confidence interval) that narrows with more data. This solves cold-start and prevents gaming with few data points.
+
+#### B.1 — Core Concept
+
+Instead of a single number, every freelancer has:
+- **μ (mu)**: Expected credibility (the displayed score)
+- **σ (sigma)**: Uncertainty (displayed as confidence level)
+
+Displayed score = **μ − 2σ** (conservative estimate, like TrueSkill)
 
 This means:
-- With **0 contracts**: CWP = 300 (base)
-- With **1 contract** (score 85): CWP ≈ 395
-- With **10 contracts** (avg 85): CWP ≈ 610
-- With **50 contracts** (avg 90): CWP ≈ 700
+- New user: μ = 500, σ = 166 → **Displayed: 168** (low confidence)
+- After 3 good projects: μ = 620, σ = 80 → **Displayed: 460**
+- After 15 good projects: μ = 750, σ = 30 → **Displayed: 690** (high confidence)
 
-#### Layer 2: Identity & Verification Boost (max: +80 pts)
+#### B.2 — Per-Project Score Update (Bayesian Update)
 
-| Verification Item | Bonus | One-Time? |
-|---|---|---|
-| KYC (Aadhaar/PAN) | +20 | Yes |
-| LinkedIn connected | +10 | Yes |
-| Portfolio (≥5 items) | +10 | Yes |
-| Each verified skill test passed | +5 (max +20) | Yes |
-| Each VC-based credential | +5 (max +15) | Yes |
-| Profile 100% complete | +5 | Yes |
+```python
+# After each project completion:
+# observed_quality = multi-factor quality signal (0.0 to 1.0)
 
-#### Layer 3: Behavioral Adjustments (can be positive or negative)
+observed_quality = (
+    (client_rating / 5) * 0.40
+  + on_time_binary * 0.25
+  + (1 - revision_count / max_revisions) * 0.15
+  + milestone_completion_rate * 0.10
+  + contract_value_weight * 0.10
+)
 
-**Positive adjustments:**
+# Bayesian update:
+precision_prior = 1 / (sigma_old ** 2)
+precision_observation = project_weight / observation_variance  # weight by contract value
 
-| Behavior | Adjustment |
-|---|---|
-| Streak of 5+ successful contracts | +10 |
-| Client diversity (worked with 10+ unique clients) | +10 |
-| Platform tenure > 12 months with activity | +5 |
-| Community contribution (dispute resolution participation) | +5 |
-| Referred freelancers who also achieve Rising Talent | +5 |
+precision_posterior = precision_prior + precision_observation
+mu_new = (precision_prior * mu_old + precision_observation * observed_quality * 1000) / precision_posterior
+sigma_new = sqrt(1 / precision_posterior)
 
-**Negative adjustments (deductions):**
-
-| Behavior | Deduction | Recovery Mechanism |
-|---|---|---|
-| Dispute lost | −25 per occurrence | −5 removed per subsequent contract with score ≥ 80 |
-| Contract abandoned | −40 per occurrence | −8 removed per subsequent contract with score ≥ 85 |
-| 2+ consecutive contracts with score < 50 | −20 | Cleared after 3 consecutive contracts ≥ 70 |
-| Account warning from admin | −15 | Cleared after 6 months without incident |
-| Inactivity > 90 days | −2/month (max −30) | Immediately restored upon contract completion |
-| Profile flagged for suspicious activity | −50 (pending investigation) | Restored if cleared, permanent if confirmed |
-
-### Default Onboarding Score
-
-```
-Sign up (no verification):              300 (minimum, cannot use platform fully)
-+ KYC verified:                         +20 → 320
-+ LinkedIn connected:                   +10 → 330
-+ Profile 100% complete:                +5 → 335
-+ 1 skill test passed:                  +5 → 340
-+ Portfolio with 3+ items:              +5 → 345
-+ VC-based degree/certification:        +5 → 350
-
-Typical new user after onboarding:      340–355
+# Time decay: monthly, increase sigma slightly (uncertainty grows without new data)
+sigma_new = min(sigma_new + 0.5 * months_inactive, 166)
 ```
 
-This positions new freelancers in the **Newcomer tier** (300–449), giving them enough credibility to get their first contract while incentivizing them to verify more and complete projects to climb.
+#### B.3 — Overall Score Display
 
-### Tier Classification (same as Algorithm 1)
+```
+displayed_score = max(0, floor(mu - 2 * sigma))
+confidence_level = "High" if sigma < 40, "Medium" if sigma < 80, "Low" otherwise
 
-| Score | Tier | Visual Badge | Platform Benefits |
-|---|---|---|---|
-| 300–449 | **Newcomer** | 🌱 Sprout | Max 2 active contracts, limited visibility |
-| 450–549 | **Building** | 🔨 Builder | Max 4 active contracts, standard search ranking |
-| 550–699 | **Rising Talent** | ⭐ Star | Unlimited contracts, priority in search, green badge |
-| 700–799 | **Trusted Pro** | 💎 Diamond | Featured in "Top Freelancers", dispute resolution priority |
-| 800–900 | **Elite** | 👑 Crown | Homepage feature, early access to premium contracts, NFT badge |
+# Show on profile:
+# "Credibility Score: 690 (High Confidence)"
+# "Credibility Score: 460 (Growing — 3 verified projects)"
+```
 
-### Strengths & Weaknesses
+#### B.4 — Default Registration Score
 
-| ✅ Strengths | ❌ Weaknesses |
-|---|---|
-| **Best of all worlds** — FICO transparency + Bayesian rigor + EigenTrust fraud resistance | Most complex to implement |
-| **Granular deduction system** with clear recovery paths | Requires smart contract events feeding real-time data |
-| **Client quality weighting** prevents fake review farming | Client trust score itself needs separate computation |
-| **Streak bonuses** incentivize sustained excellence | Many tunable parameters — requires A/B testing to optimize |
-| **Clear onboarding journey** — users see exactly how to improve | |
-| **Decay + recovery** — score is always dynamic, always earned | |
+```
+mu_initial = 500  (center of 0-1000 range — neutral)
+sigma_initial = 166 (very high uncertainty)
+
+# Profile completeness adjustments:
+for each verified signal (email, phone, GitHub, LinkedIn, etc.):
+    mu_initial += 5
+    sigma_initial -= 3
+
+# Example: fully completed profile
+# mu = 550, sigma = 140
+# Displayed: 550 - 280 = 270 (still low, but better than bare minimum)
+```
+
+#### B.5 — Deductions (Bayesian)
+
+Instead of flat deductions, negative events are treated as **strong negative observations**:
+
+| Event | observed_quality | project_weight |
+|-------|-----------------|----------------|
+| 1-star rating | 0.05 | 2.0 (high weight) |
+| Contract cancelled | 0.10 | 1.5 |
+| Milestone ghosted | 0.00 | 2.5 (strongest negative signal) |
+| >7 days overdue | 0.20 | 1.0 |
+| Dispute lost | 0.05 | 3.0 (maximum weight negative) |
+
+This naturally causes μ to drop significantly while also increasing σ (more uncertainty about the freelancer).
 
 ---
 
-## Comparison Matrix
+### Algorithm C — "Multi-Dimensional Radar Score" (Airbnb Superhost Model) 🎯
 
-| Feature | Algo 1 (FICO) | Algo 2 (Bayesian) | Algo 3 (EigenTrust) | Algo 4 (Composite) ⭐ |
-|---|---|---|---|---|
-| **Transparency** | ⬛⬛⬛⬛⬛ | ⬛⬛⬜⬜⬜ | ⬛⬜⬜⬜⬜ | ⬛⬛⬛⬛⬜ |
-| **Fraud Resistance** | ⬛⬛⬜⬜⬜ | ⬛⬛⬛⬜⬜ | ⬛⬛⬛⬛⬛ | ⬛⬛⬛⬛⬜ |
-| **Cold-Start Fairness** | ⬛⬛⬛⬛⬜ | ⬛⬛⬛⬜⬜ | ⬛⬛⬜⬜⬜ | ⬛⬛⬛⬛⬜ |
-| **Mathematical Rigor** | ⬛⬛⬜⬜⬜ | ⬛⬛⬛⬛⬛ | ⬛⬛⬛⬛⬛ | ⬛⬛⬛⬛⬜ |
-| **Implementation Effort** | ⬛⬜⬜⬜⬜ | ⬛⬛⬜⬜⬜ | ⬛⬛⬛⬛⬛ | ⬛⬛⬛⬜⬜ |
-| **User Explainability** | ⬛⬛⬛⬛⬛ | ⬛⬛⬜⬜⬜ | ⬛⬜⬜⬜⬜ | ⬛⬛⬛⬛⬜ |
-| **Deduction System** | ⬛⬛⬛⬜⬜ | ⬛⬛⬛⬜⬜ | ⬛⬛⬛⬛⬜ | ⬛⬛⬛⬛⬛ |
-| **Recency Sensitivity** | ⬛⬛⬛⬜⬜ | ⬛⬛⬜⬜⬜ | ⬛⬛⬛⬜⬜ | ⬛⬛⬛⬛⬛ |
+**Philosophy**: Don't reduce trust to ONE number. Compute **6 independent dimension scores**, each 0–100, and derive the overall score as a weighted composite. Each dimension is independently visible, giving clients granular insight.
+
+#### C.1 — The Six Dimensions
+
+```mermaid
+graph TD
+    A[Credibility Score<br/>0-1000] --> B[Delivery<br/>0-100]
+    A --> C[Quality<br/>0-100]
+    A --> D[Professionalism<br/>0-100]
+    A --> E[Reliability<br/>0-100]
+    A --> F[Expertise<br/>0-100]
+    A --> G[Verification<br/>0-100]
+```
+
+| Dimension | Weight | Measures | Data Sources |
+|-----------|--------|----------|-------------|
+| **Delivery** | 25% | On-time completion, milestone cadence | `milestone.due_date`, `submission.submitted_at` |
+| **Quality** | 25% | Client ratings, first-attempt acceptance | `reputation.base_rating`, `revision_count` |
+| **Professionalism** | 15% | Communication, response time, revision turnaround | `contract.updated_at` deltas, response patterns |
+| **Reliability** | 15% | Completion rate, no cancellations, no ghosting | `contract.status`, `submission.status` |
+| **Expertise** | 10% | Project complexity, value tier, skill breadth | `contract.total_amount`, `user.skills`, project count |
+| **Verification** | 10% | Profile completeness, identity verification, blockchain-verified contracts | `user.is_verified`, `contract.blockchain_status` |
+
+#### C.2 — Per-Project Score (contributes to multiple dimensions)
+
+Each completed project generates scores across all 6 dimensions:
+
+```python
+# Example: a project completed on time, 4-star rating, 1 revision, ₹75,000 value
+
+project_delivery   = 90  # on time
+project_quality    = 75  # 4/5 stars, 1 revision
+project_professionalism = 80  # fast response, clean revision turnaround
+project_reliability = 100  # completed, not cancelled
+project_expertise  = 70  # mid-value contract
+project_verification = 100 if blockchain_verified else 60
+```
+
+#### C.3 — Overall Dimension Score (time-weighted average)
+
+```python
+def dimension_score(dimension, projects):
+    if len(projects) == 0:
+        return default_from_profile(dimension)
+    
+    scores = []
+    weights = []
+    for p in projects:
+        age = months_since(p.completed_at)
+        decay = max(0.1, 0.97 ** age)  # 3% monthly decay, floor at 10%
+        value_weight = log2(1 + p.amount / 10000)  # logarithmic value scaling
+        
+        w = decay * value_weight
+        scores.append(p.dimension_score * w)
+        weights.append(w)
+    
+    return sum(scores) / sum(weights)
+```
+
+#### C.4 — Composite Score
+
+```
+overall = (delivery × 0.25 + quality × 0.25 + professionalism × 0.15 
+         + reliability × 0.15 + expertise × 0.10 + verification × 0.10) × 10
+
+# Scale: 0-1000
+```
+
+#### C.5 — Default Registration Score
+
+Each dimension starts independently:
+
+| Dimension | Default | Can Boost With |
+|-----------|---------|----------------|
+| Delivery | 0 | (No projects yet) |
+| Quality | 0 | (No projects yet) |
+| Professionalism | 50 | Complete bio, photo |
+| Reliability | 50 | (Neutral — no history) |
+| Expertise | Profile-based | Skills count, experience field, GitHub stars |
+| Verification | 0–100 | Email ✓ (+20), Phone ✓ (+20), GitHub ✓ (+20), LinkedIn ✓ (+20), Photo ✓ (+20) |
+
+**Initial composite** ≈ 100–200/1000 (mostly from verification + professionalism defaults)
+
+#### C.6 — Deductions (Per-Dimension)
+
+| Event | Delivery | Quality | Professionalism | Reliability | Expertise | Verification |
+|-------|----------|---------|-----------------|-------------|-----------|--------------|
+| Milestone overdue | −20 | — | −5 | −10 | — | — |
+| 1-star rating | — | −30 | −10 | — | — | — |
+| Contract cancelled | — | — | −15 | −40 | — | — |
+| Ghosting | −10 | — | −30 | −50 | — | — |
+| Dispute lost | −10 | −20 | −20 | −30 | — | — |
+| Removed profile fields | — | — | — | — | — | −10 each |
+| 90-day inactivity | −3/mo | −2/mo | −1/mo | −2/mo | — | — |
 
 ---
 
-## Recommendation
+### Algorithm D — "ELO + PageRank Hybrid" (Graph-Based Trust Propagation) 🌐
 
-> **Algorithm 4 (Composite Adaptive)** is the recommended approach for Defellix.
+**Philosophy**: Model the entire platform as a **trust graph**. Freelancers earn score not just from ratings, but from the **trustworthiness of the clients who rate them** (PageRank) and from **relative performance against peers** (ELO). This is the most sophisticated and manipulation-resistant approach.
 
-**Why it's the right choice for disrupting freelancing trust:**
+#### D.1 — Trust Graph Structure
 
-1. **Transparent enough for users** — they can see their pillar scores and understand what to improve (unlike pure Bayesian/EigenTrust)
-2. **Rigorous enough to be unchallengeable** — the confidence-weighted performance layer ensures statistical fairness
-3. **Client quality weighting** — the lightweight EigenTrust element prevents the #1 attack vector: fake reviews from throwaway accounts
-4. **Clear deduction + recovery** — freelancers know the consequences of bad behavior AND the path back
-5. **On-chain compatible** — per-project scores anchor to smart contract events; overall recomputation can happen off-chain with on-chain commitments
-6. **Aligns with Defellix's phased rollout** — can launch with Layers 1+2, add Layer 3 (client quality) in Phase 2
+```mermaid
+graph LR
+    subgraph Clients
+        C1[Client A<br/>Trust: 0.9]
+        C2[Client B<br/>Trust: 0.5]
+        C3[Client C<br/>Trust: 0.3]
+    end
+    subgraph Freelancers
+        F1[Freelancer X]
+        F2[Freelancer Y]
+    end
+    C1 -->|5★ rating| F1
+    C1 -->|4★ rating| F2
+    C2 -->|5★ rating| F1
+    C3 -->|5★ rating| F2
+```
 
-### Phased Implementation Strategy
+**Key insight:** Freelancer X's 5★ from Client A (trust 0.9) is worth 1.8× more than Freelancer Y's 5★ from Client C (trust 0.3).
 
-| Phase | What Ships | Score Sophistication |
-|---|---|---|
-| **Phase 1** (MVP) | Per-project scoring + simple weighted average for overall | Algorithm 1 essentially |
-| **Phase 2** (Trust V2) | Add Bayesian confidence + recency weighting + decay | Algorithm 4 Layers 1+2 |
-| **Phase 3** (Full) | Add client quality multiplier + streak bonuses + full deduction system | Full Algorithm 4 |
+#### D.2 — Client Trust Score (PageRank-inspired)
+
+Clients also earn trust based on their behavior:
+
+```python
+client_trust = (
+    0.3 * contracts_completed_and_paid_ratio  # do they pay?
+  + 0.2 * avg_review_given_variance           # low variance = potentially fake
+  + 0.2 * identity_verification_level         # verified email/phone/company
+  + 0.15 * total_spend_on_platform            # higher spend = more invested
+  + 0.15 * account_age_factor                 # older = more trustworthy
+)
+# Range: 0.0 to 1.0
+```
+
+#### D.3 — Per-Project ELO Update
+
+```python
+# After project completion:
+
+# 1. Calculate raw project quality (0.0 to 1.0)
+raw_quality = (
+    (client_rating / 5) * 0.35
+  + on_time_factor * 0.25
+  + (1 - revision_ratio) * 0.15
+  + milestone_completion * 0.15
+  + contract_value_factor * 0.10
+)
+
+# 2. Apply client trust amplification (PageRank component)
+weighted_quality = raw_quality * (0.5 + 0.5 * client_trust)
+# A quality of 0.8 from a trust-1.0 client → 0.8
+# A quality of 0.8 from a trust-0.3 client → 0.52
+
+# 3. ELO-style rating update
+K = 40 * (1 + contract_value_factor)  # K-factor scales with project importance
+expected = 1 / (1 + 10 ** ((500 - current_score) / 400))  # expected performance
+actual = weighted_quality
+
+score_delta = K * (actual - expected)
+new_score = current_score + score_delta
+
+# 4. Apply time decay to ALL historical contributions
+# Every month: score = score * 0.98 + 0.02 * baseline (regression to mean)
+```
+
+#### D.4 — Overall Score
+
+```
+displayed_score = clamp(elo_score, 0, 1000)
+
+# Tier labels:
+# 900-1000: "Legendary" (top 1%)
+# 750-899:  "Elite" (top 10%)
+# 600-749:  "Trusted" (top 30%)
+# 400-599:  "Growing" (average)
+# 200-399:  "New" (building history)
+# 0-199:    "At Risk" (negative history)
+```
+
+#### D.5 — Default Registration Score
+
+```
+base_elo = 300  # Starting ELO for all new users
+
+# Profile verification bonuses (smaller than FICO model — earned through work)
+bonuses:
+  email_verified:     +10
+  phone_verified:     +10
+  github_linked:      +15
+  linkedin_linked:    +15
+  portfolio_linked:   +10
+  full_profile:       +10
+  photo_uploaded:     +5
+
+# Maximum initial: 375/1000
+# Minimum initial: 300/1000 (just email verified)
+```
+
+#### D.6 — Deductions (ELO-Aware)
+
+Deductions in ELO are naturally handled by the `actual < expected` delta:
+
+| Event | `actual` value | Effect at score 700 | Effect at score 300 |
+|-------|---------------|---------------------|---------------------|
+| 1-star rating | 0.05 | **−35** (big drop for high-scorers) | −10 (less impact) |
+| Contract cancelled | 0.10 | −30 | −8 |
+| Ghosting | 0.00 | **−42** (maximum punishment) | −12 |
+| Dispute lost | 0.00 | −42 | −12 |
+
+**Additional hard penalties:**
+- Fraudulent activity → Score halved, flagged for review
+- 3+ consecutive cancellations → Score frozen, manual review required
+
+#### D.7 — Anti-Manipulation Measures
+
+1. **Sybil resistance**: The client trust score ensures that fake clients with low trust barely affect scores
+2. **Volume throttle**: Score change per project is capped at K×1.0 regardless of count
+3. **Mean regression**: Monthly regression pulls outliers toward center, preventing runaway scores
+4. **Velocity checks**: >3 completed contracts in 7 days triggers manual review
+5. **Cross-referencing**: Same IP / device / payment method across "different" clients → flag
+
+---
+
+## Part 4 — Comparison Matrix
+
+| Feature | A (FICO) | B (Bayesian) | C (Radar) | D (ELO+PageRank) |
+|---------|----------|-------------|-----------|-------------------|
+| **Complexity to implement** | 🟢 Medium | 🟡 Medium-High | 🟢 Medium | 🔴 High |
+| **Cold-start fairness** | 🟢 Good | 🟢 Excellent | 🟢 Good | 🟢 Good |
+| **Manipulation resistance** | 🟡 Medium | 🟢 Good | 🟡 Medium | 🟢 Excellent |
+| **Interpretability for users** | 🟢 Excellent | 🟡 Medium | 🟢 Excellent | 🟡 Medium |
+| **Client-quality weighting** | 🟡 Limited | 🟡 Limited | 🟡 Limited | 🟢 Excellent |
+| **Deduction mechanics** | 🟢 Clear | 🟢 Natural | 🟢 Clear | 🟢 Natural |
+| **Differentiation / USP value** | 🟡 Medium | 🟢 Good | 🟢 Excellent (visual) | 🟢 Excellent (unique) |
+| **Blockchain synergy** | 🟢 | 🟢 | 🟢 | 🟢🟢 (Trust graph on-chain) |
+| **Marketing clarity** | "Your FICO for freelancing" | "AI-powered adaptive score" | "See every dimension of trust" | "Your trust is only as strong as who trusts you" |
+
+---
+
+## Part 5 — My Recommendation
+
+> [!IMPORTANT]
+> **I recommend a hybrid of Algorithm C + Algorithm D**: **"Multi-Dimensional Radar with Graph-Based Trust Propagation"**
+
+### Why This Hybrid Wins
+
+1. **Algorithm C's radar dimensions** give clients a rich, visual, easy-to-understand breakdown → excellent for marketing and UX
+2. **Algorithm D's client-trust weighting** makes the system naturally manipulation-resistant → the USP differentiator
+3. **Six visible dimensions** (C) + **one overall graph-weighted composite** (D) = best of both worlds
+4. **Blockchain integration**: Store the trust graph edges on-chain → portable, verifiable, industry-first
+
+### Hybrid Formula
+
+```
+For each of the 6 dimensions:
+    dimension_i = time_weighted_average(
+        project_dimension_scores, 
+        weighted_by = decay × log(contract_value) × client_trust_score
+    )
+
+overall_score = weighted_sum(dimensions) × 10  # 0-1000
+
+# Client trust influences which reviews matter more
+# Radar chart shows the breakdown
+# Overall 0-1000 number for quick comparison
+```
+
+### Implementation Phases
+
+| Phase | Scope | Timeline |
+|-------|-------|----------|
+| **Phase 1** | Implement Algorithm C (6 dimensions) with simple averaging | 2 weeks |
+| **Phase 2** | Add time decay and contract-value weighting | 1 week |
+| **Phase 3** | Build client trust scoring (Algorithm D.2) | 2 weeks |
+| **Phase 4** | Apply client trust weighting to dimensional scores | 1 week |
+| **Phase 5** | Add deduction events and anti-manipulation checks | 2 weeks |
+| **Phase 6** | Blockchain anchoring of trust graph edges | 3 weeks |
+
+---
+
+## Part 6 — Default Score Deep Dive
+
+### Registration Flow Score Generation
+
+The moment a freelancer completes registration, the system evaluates:
+
+```python
+def calculate_initial_score(user):
+    verification_score = 0
+    verification_score += 20 if user.is_verified else 0        # email
+    verification_score += 15 if user.phone else 0
+    verification_score += 20 if user.github_link else 0
+    verification_score += 20 if user.linkedin_link else 0
+    verification_score += 10 if user.portfolio_link else 0
+    verification_score += 10 if user.photo else 0
+    verification_score += 5 if len(user.bio) > 50 else 0
+    # Max verification: 100/100
+
+    expertise_score = 0
+    skills = json.loads(user.skills) if user.skills else []
+    expertise_score += min(len(skills) * 10, 50)               # up to 50 for 5+ skills
+    expertise_score += 20 if user.experience else 0
+    expertise_score += 30 if user.github_link else 0            # implies open-source work
+    # Max expertise: 100/100
+
+    professionalism_score = 50   # neutral starting point
+    reliability_score = 50       # neutral — no history
+
+    # Delivery and Quality start at 0 (no projects yet)
+    delivery_score = 0
+    quality_score = 0
+
+    dimensions = {
+        'delivery': delivery_score,
+        'quality': quality_score,
+        'professionalism': professionalism_score,
+        'reliability': reliability_score,
+        'expertise': expertise_score,
+        'verification': verification_score,
+    }
+
+    overall = (
+        dimensions['delivery'] * 0.25
+      + dimensions['quality'] * 0.25
+      + dimensions['professionalism'] * 0.15
+      + dimensions['reliability'] * 0.15
+      + dimensions['expertise'] * 0.10
+      + dimensions['verification'] * 0.10
+    ) * 10
+
+    return overall, dimensions
+    # Fully completed profile: ~200/1000
+    # Bare minimum profile: ~70/1000
+```
+
+### Score Labels for New Users
+
+| Score Range | Label | Badge Color |
+|-------------|-------|-------------|
+| 0–99 | Starter | Gray |
+| 100–199 | Verified Newcomer | Blue |
+| 200–399 | Growing Professional | Teal |
+| 400–599 | Established | Green |
+| 600–799 | Trusted Expert | Gold |
+| 800–899 | Top Talent | Purple |
+| 900–1000 | Legendary | Diamond ✦ |
+
+---
+
+## Part 7 — Every Scoreable Action on the Platform
+
+### Actions That INCREASE Score
+
+| Action | Dimensions Affected | Impact |
+|--------|-------------------|--------|
+| Complete a project on time | Delivery, Reliability | High |
+| Receive 5-star rating | Quality, Professionalism | High |
+| Complete first project | All (cold-start boost) | Very High |
+| Get verified testimonial | Quality, Verification | Medium |
+| Complete blockchain-verified contract | Verification, Reliability | Medium |
+| Upload project to portfolio | Expertise | Low |
+| Add/verify social links | Verification | Low |
+| Quick response to client messages | Professionalism | Low |
+| Fast revision turnaround | Professionalism, Delivery | Medium |
+| Higher-value contracts | Expertise | Medium |
+| Repeat client engagement | Quality, Reliability | High |
+| Complete 5/10/25/50 projects | All (milestone bonus) | Medium |
+
+### Actions That DECREASE Score
+
+| Action | Dimensions Affected | Impact |
+|--------|-------------------|--------|
+| Submit milestone late (>3 days) | Delivery | Medium (−10 to −20) |
+| Submit milestone very late (>7 days) | Delivery, Reliability | High (−15 to −30) |
+| Receive 1-2 star rating | Quality, Professionalism | High (−20 to −35) |
+| Contract cancelled by freelancer | Reliability | Very High (−30 to −50) |
+| Submission marked "ghosted" | All except Expertise, Verification | Critical (−40 to −60) |
+| Dispute filed and lost | All except Verification | Critical (−50) |
+| Multiple revision requests (>3) | Quality, Delivery | Medium (−10 to −15) |
+| Remove profile information | Verification | Low (−5 to −10) |
+| Inactive >90 days | Delivery, Quality, Professionalism, Reliability | Low (−2/month) |
+| Fraudulent activity confirmed | ALL | **Score reset to 50** |
+| Client complains publicly | Professionalism, Quality | High (−25) |
+
+### Passive Score Events
+
+| Event | Effect |
+|-------|--------|
+| Monthly time decay | Recent scores weighted 3% more; old scores fade |
+| Inactivity decay (>90 days) | −2 points/month across active dimensions |
+| Profile audit (quarterly) | Re-evaluate verification dimension |
+| Client trust update (PageRank) | Retroactively adjusts past project contributions |

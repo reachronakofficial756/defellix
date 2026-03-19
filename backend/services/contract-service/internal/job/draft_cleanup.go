@@ -8,7 +8,7 @@ import (
 
 // DraftCleanupRunner runs DeleteExpiredDrafts periodically. Start in a goroutine from main.
 type DraftCleanupRunner struct {
-	run     func(ctx context.Context) (int64, error)
+	run      func(ctx context.Context) (int64, error)
 	interval time.Duration
 }
 

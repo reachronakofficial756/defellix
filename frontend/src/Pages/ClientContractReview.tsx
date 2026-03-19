@@ -49,6 +49,7 @@ interface Contract {
   advance_payment_required: boolean;
   advance_payment_amount?: number;
   status: string;
+  client_view_token?: string;
   is_revised: boolean;
   milestones: Milestone[];
 }
@@ -96,9 +97,16 @@ export default function ClientContractReview() {
         const res = await fetch(`${CONTRACT_API_BASE}/${contractId}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.message || 'Not found');
-        const c: Contract = json.data;
-        setContract(c);
-        if (c.status === 'active' || c.status === 'signed') {
+        const data: Contract = json.data ?? json;
+
+        // If we have a token but URL uses ID, redirect
+        if (data.client_view_token && contractId === String(data.id)) {
+          navigate(`/review-contract/${data.client_view_token}`, { replace: true });
+          return;
+        }
+
+        setContract(data);
+        if (data.status === 'active' || data.status === 'signed') {
           setViewState('already_signed');
         }
       } catch (e: any) {
@@ -502,7 +510,7 @@ export default function ClientContractReview() {
                   {isSigning ? 'Signing…' : 'Sign Agreement'}
                 </button>
                 <button
-                  onClick={() => { setOtpCode(['','','','','','']); setViewState('review'); }}
+                  onClick={() => { setOtpCode(['', '', '', '', '', '']); setViewState('review'); }}
                   className="w-full py-3 text-gray-500 hover:text-white text-xs uppercase tracking-widest font-bold transition-colors cursor-pointer"
                 >
                   Cancel

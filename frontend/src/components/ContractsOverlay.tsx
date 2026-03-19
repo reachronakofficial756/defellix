@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { useContractsStore } from '../store/useContractsStore';
 import { apiClient } from "@/api/client";
-import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid, Copy, ExternalLink, FilePen, Send, MessageSquareMore, PenLine, Banknote, XCircle, Flag } from 'lucide-react';
+import { calculateContractProgress } from "@/utils/contractProgress";
+import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid, Copy, ExternalLink, FilePen, Send, MessageSquareMore, PenLine, Banknote, XCircle, Flag, BookOpen, X, Loader2 } from 'lucide-react';
 import contractsBg3d from '@/assets/contracts_bg_3d.png';
 
 /** Milestone row as in CreateContractForm (Scope & Deliverables / Payment) */
@@ -16,6 +17,8 @@ type MilestoneDetail = {
   is_initial_payment: boolean;
   submission_criteria: string;
   completion_criteria_tc: string;
+  status?: string;
+  last_draft_at?: string;
 };
 
 export interface ContractItem {
@@ -30,7 +33,7 @@ export interface ContractItem {
   milestone: string;
   tags: string[];
   details: string;
-  milestones: { label: string; done: boolean }[];
+  milestones: { id: number; label: string; done: boolean; status?: string }[];
   projectType?: string;
   projectDesc?: string;
   startDate?: string;
@@ -56,6 +59,7 @@ export interface ContractItem {
   shareableLink?: string;
   // Timeline data
   rawStatus?: string;
+  draftCount?: number;
   sentAt?: string;
   createdAt?: string;
   clientReviewComment?: string;
@@ -236,6 +240,30 @@ export default function ContractsOverlay() {
   const [contracts, setContracts] = useState<ContractItem[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(true);
 
+  // ─── Drafts modal state ───────────────────────────────────────────────
+  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [draftsLoading, setDraftsLoading] = useState(false);
+  const [drafts, setDrafts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!draftsOpen) return;
+    const active = contracts[activeIndex];
+    if (!active) return;
+    setDraftsLoading(true);
+    setDrafts([]);
+    (async () => {
+      try {
+        const res = await apiClient.get(`/contracts/${active.id}/submissions`);
+        const all: any[] = res.data?.data ?? res.data ?? [];
+        setDrafts(all.filter((s: any) => s.status === 'draft'));
+      } catch {
+        setDrafts([]);
+      } finally {
+        setDraftsLoading(false);
+      }
+    })();
+  }, [draftsOpen, activeIndex, contracts]);
+
   useEffect(() => {
     const fetchContracts = async () => {
       try {
@@ -243,18 +271,23 @@ export default function ContractsOverlay() {
         const data = (res as any).data?.data?.contracts || [];
         const mapped: ContractItem[] = data.map((c: any) => {
           const dummyChecklist = c.milestones?.map((m: any) => ({
+            id: m.id,
             label: m.title,
-            done: m.status === 'approved' || m.status === 'paid'
+            done: m.status === 'approved' || m.status === 'paid',
+            status: m.status
           })) || [];
 
           const mappedMilestonesDetail = c.milestones?.map((m: any) => ({
+            id: m.id,
             title: m.title,
             description: m.description,
             amount: m.amount,
+            status: m.status,
             due_date: m.due_date ? new Date(m.due_date).toLocaleDateString() : 'TBD',
             is_initial_payment: m.order_index === 0,
             submission_criteria: m.submission_criteria,
-            completion_criteria_tc: m.completion_criteria_tc
+            completion_criteria_tc: m.completion_criteria_tc,
+            last_draft_at: m.last_draft_at
           })) || [];
 
           let status: "Active" | "In Review" | "Delayed" | "Sent" = "Active";
@@ -265,9 +298,8 @@ export default function ContractsOverlay() {
           const totalMilestones = c.milestones?.length || 0;
           const completedMilestones = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').length || 0;
 
-          const totalAmount = c.total_amount || 1;
-          const completedAmount = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').reduce((sum: number, m: any) => sum + m.amount, 0) || 0;
-          const completion = Math.round((completedAmount / totalAmount) * 100);
+          const completion = calculateContractProgress(c.milestones, c.total_amount);
+
 
           return {
             id: c.id,
@@ -309,10 +341,11 @@ export default function ContractsOverlay() {
             advanceAmount: c.advance_payment_amount || 0,
             milestonesDetail: mappedMilestonesDetail,
             clientViewToken: c.client_view_token || '',
-            shareableLink: c.shareable_link || '',
-            rawStatus: c.status || '',
-            sentAt: c.sent_at || '',
-            createdAt: c.created_at || '',
+            shareableLink: c.shareable_link,
+            rawStatus: c.status,
+            draftCount: c.draft_count,
+            createdAt: c.created_at,
+            sentAt: c.sent_at,
             clientReviewComment: c.client_review_comment || '',
           };
         });
@@ -476,21 +509,117 @@ export default function ContractsOverlay() {
         </div>
       </div>
 
-      <div className="absolute top-52 right-20 flex flex-row items-end gap-4 mb-4">
+      <div className="absolute top-52 right-20 flex flex-row items-end gap-2 mb-4">
+        {(active.rawStatus === 'signed' || active.rawStatus === 'active') && (
+          <button
+            className="cursor-pointer px-5 py-3 bg-green-600 text-white rounded-full font-medium shadow hover:bg-green-700 transition"
+            onClick={() => navigate(`/submit-milestone/${active.id}`)}
+          >
+            Submit Work
+          </button>
+        )}
+        {((active.rawStatus === 'pending' || active.rawStatus === 'draft') && active.clientReviewComment) && (
+          <button
+            className="cursor-pointer px-5 py-3 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-xl font-medium shadow hover:bg-orange-500/20 transition flex items-center gap-2"
+            onClick={() => navigate(`/contract/${active.id}`)}
+          >
+            <PenLine size={18} /> Edit Contract & Resend
+          </button>
+        )}
+        {/* Drafts button */}
+        {(active?.draftCount ?? 0) > 0 && (
+          <button
+            className="p-3 rounded-2xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer flex items-center gap-2 text-xs font-bold"
+            title="View Saved Drafts"
+            onClick={() => setDraftsOpen(true)}
+          >
+            <BookOpen size={16} /> Drafts
+          </button>
+        )}
         <button
-          className="cursor-pointer px-5 py-3 bg-green-600 text-white rounded-full font-medium shadow hover:bg-green-700 transition"
-          onClick={() => navigate(`/submit-milestone/${active.id}`)}
-        >
-          Submit Work
-        </button>
-        <button
-          className="flex -ml-2 items-center cursor-pointer justify-center w-12 h-12 rounded-full bg-[#d4edda] shadow hover:bg-[#d4edda]/50 transition border border-white/10"
+          className="flex -ml-1 items-center cursor-pointer justify-center w-12 h-12 rounded-full bg-[#d4edda] shadow hover:bg-[#d4edda]/50 transition border border-white/10"
           title="View Milestone Calendar"
           onClick={() => { /* TODO: hook up calendar logic */ }}
         >
           <Calendar size={24} className="text-black" />
         </button>
       </div>
+
+      {/* ── Drafts Modal ─────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {draftsOpen && (
+          <motion.div
+            key="drafts-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setDraftsOpen(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="bg-[#0a0a0a] border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col overflow-hidden"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-5 border-b border-white/8">
+                <div>
+                  <h3 className="text-white font-black text-lg">Saved Drafts</h3>
+                  <p className="text-gray-500 text-xs mt-0.5">{active.title}</p>
+                </div>
+                <button onClick={() => setDraftsOpen(false)} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-all cursor-pointer text-gray-400 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                {draftsLoading ? (
+                  <div className="flex flex-col items-center py-12 gap-3">
+                    <Loader2 size={28} className="animate-spin text-[#3cb44f]" />
+                    <p className="text-gray-500 text-xs">Loading drafts…</p>
+                  </div>
+                ) : drafts.length === 0 ? (
+                  <div className="flex flex-col items-center py-12 gap-3 text-center">
+                    <BookOpen size={36} className="text-gray-700" />
+                    <p className="text-gray-500 font-semibold">No drafts yet</p>
+                    <p className="text-gray-700 text-xs">Save a milestone submission as draft to see it here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {drafts.map((d) => {
+                      const ms = active.milestonesDetail?.find((m: any) => m.id === d.milestone_id);
+                      return (
+                        <button
+                          key={d.id}
+                          onClick={() => {
+                            setDraftsOpen(false);
+                            navigate(`/submit-milestone/${active.id}?draftId=${d.id}`);
+                          }}
+                          className="w-full text-left p-4 rounded-2xl bg-white/3 border border-white/8 hover:border-[#3cb44f]/40 hover:bg-[#3cb44f]/5 transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-bold text-sm truncate">{ms?.title || `Milestone #${d.milestone_id}`}</p>
+                              {d.description && (
+                                <p className="text-gray-500 text-xs mt-1 line-clamp-2">{d.description}</p>
+                              )}
+                              <p className="text-gray-700 text-[10px] mt-2">{new Date(d.created_at || '').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <span className="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Draft</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── Tabs row: project cards, or (when view all) only centered "Go back to project details" ─────────────────── */}
       <div ref={tabsRef} className="relative z-0 shrink-0 px-10 pt-2 min-h-[11rem]">
@@ -779,7 +908,10 @@ export default function ContractsOverlay() {
                                         {m.done ? <CheckCircle size={12} className="text-[#00e676]" /> : <span className="text-gray-600 text-[10px] font-bold">{i + 1}</span>}
                                       </div>
                                       <span className={`text-sm font-semibold flex-1 ${m.done ? 'text-white' : 'text-gray-300'}`}>{m.label}</span>
-                                      {m.done && <span className="text-[10px] text-[#00e676] font-semibold bg-[#00e676]/10 px-2 py-0.5 rounded-full">Done</span>}
+                                      {m.status === 'submitted' && <span className="text-[10px] text-blue-400 font-semibold bg-blue-400/10 px-2 py-0.5 rounded-full">In Review</span>}
+                                      {m.status === 'revision' && <span className="text-[10px] text-orange-400 font-semibold bg-orange-400/10 px-2 py-0.5 rounded-full">Feedback</span>}
+                                      {m.status === 'approved' && <span className="text-[10px] text-[#00e676] font-semibold bg-[#00e676]/10 px-2 py-0.5 rounded-full">Approved</span>}
+                                      {m.status === 'paid' && <span className="text-[10px] text-[#00e676] font-semibold bg-[#00e676]/20 px-2 py-0.5 rounded-full">Paid</span>}
                                     </div>
                                     {msDetail && (
                                       <div className="ml-9 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-gray-500">
@@ -789,6 +921,14 @@ export default function ContractsOverlay() {
                                         {msDetail.due_date && <span>Due: {msDetail.due_date}</span>}
                                         {msDetail.submission_criteria && <span className="text-gray-600 truncate max-w-[180px]">Submit: {msDetail.submission_criteria}</span>}
                                       </div>
+                                    )}
+                                    {m.status === 'revision' && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/submit-milestone/${active.id}?milestoneId=${m.id}`); }}
+                                        className="mt-1 w-full py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-orange-500/20 transition-all cursor-pointer flex justify-center items-center gap-2"
+                                      >
+                                        <MessageSquareMore size={12} /> Feedback Received - Resubmit
+                                      </button>
                                     )}
                                   </div>
                                 );
@@ -804,40 +944,119 @@ export default function ContractsOverlay() {
                           </h4>
                           {(() => {
                             const a = active as {
-                              rawStatus?: string; sentAt?: string; createdAt?: string;
                               clientReviewComment?: string; milestonesDetail?: MilestoneDetail[];
-                              deadline?: string;
+                              deadline?: string; createdAt?: string; sentAt?: string; rawStatus?: string;
                             };
                             const fmtDate = (d?: string) => d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-                            type ActivityEvent = { label: string; sub?: string; date: string; color: string; icon: React.ReactNode };
+                            type ActivityEvent = { label: string; sub?: string; date: string; sortKey: number; color: string; icon: React.ReactNode };
                             const events: ActivityEvent[] = [];
 
                             // Contract created
-                            if (a.createdAt) events.push({ label: 'Contract drafted', sub: 'Contract was created as a draft', date: fmtDate(a.createdAt), color: 'rgba(255,255,255,0.25)', icon: <FilePen size={11} /> });
+                            if (a.createdAt) events.push({
+                              label: 'Contract drafted', sub: 'Contract was created as a draft',
+                              date: fmtDate(a.createdAt), sortKey: new Date(a.createdAt).getTime(),
+                              color: 'rgba(255,255,255,0.25)', icon: <FilePen size={11} />
+                            });
 
                             // Contract sent
-                            if (a.sentAt) events.push({ label: 'Contract sent to client', sub: `Shared with ${(active as { clientEmail?: string }).clientEmail || 'client'} for review`, date: fmtDate(a.sentAt), color: '#60a5fa', icon: <Send size={11} /> });
+                            if (a.sentAt) events.push({
+                              label: 'Contract sent to client',
+                              sub: `Shared with ${(active as { clientEmail?: string }).clientEmail || 'client'} for review`,
+                              date: fmtDate(a.sentAt), sortKey: new Date(a.sentAt).getTime(),
+                              color: '#60a5fa', icon: <Send size={11} />
+                            });
 
                             // Review / revision requested
-                            if (a.rawStatus === 'pending') events.push({ label: 'Revision request received', sub: a.clientReviewComment ? `"${a.clientReviewComment.slice(0, 80)}${a.clientReviewComment.length > 80 ? '…' : ''}"` : 'Client requested changes before signing', date: 'Recently', color: '#fbbf24', icon: <MessageSquareMore size={11} /> });
-
-                            // Client signed
-                            if (a.rawStatus === 'signed' || a.rawStatus === 'active' || a.rawStatus === 'completed') {
-                              events.push({ label: 'Client signed the contract', sub: 'Digitally signed and verified via OTP', date: fmtDate(a.sentAt), color: '#3cb44f', icon: <PenLine size={11} /> });
+                            if (a.rawStatus === 'pending') {
+                              const ts = (active as any).updatedAt || a.sentAt || a.createdAt;
+                              events.push({
+                                label: 'Revision request received',
+                                sub: a.clientReviewComment ? `"${a.clientReviewComment.slice(0, 80)}${a.clientReviewComment.length > 80 ? '…' : ''}"` : 'Client requested changes before signing',
+                                date: fmtDate(ts), sortKey: ts ? new Date(ts).getTime() + 1 : Date.now(),
+                                color: '#fbbf24', icon: <MessageSquareMore size={11} />
+                              });
                             }
 
-                            // Milestones paid/approved
+                            // Client signed — pref clientSignedAt so it doesn't jump to the top on milestone updates
+                            if (a.rawStatus === 'signed' || a.rawStatus === 'active' || a.rawStatus === 'completed') {
+                              const signedTs = (active as any).clientSignedAt || (active as any).updatedAt || a.sentAt;
+                              const sortAfterSent = signedTs ? new Date(signedTs).getTime() + 2000 : Date.now();
+                              events.push({
+                                label: 'Client signed the contract', sub: 'Digitally signed and verified via OTP',
+                                date: signedTs ? fmtDate(signedTs) : 'Recently',
+                                sortKey: sortAfterSent,
+                                color: '#3cb44f', icon: <PenLine size={11} />
+                              });
+                            }
+
+                            // Milestones — drafts, submissions, approvals, payments
                             a.milestonesDetail?.forEach((ms, i) => {
-                              if (ms.amount > 0 && ms.due_date && (a.rawStatus === 'active' || a.rawStatus === 'completed')) {
-                                events.push({ label: `Milestone ${i + 1} paid — ${ms.title}`, sub: `${(active as { contractCurrency?: string }).contractCurrency ?? 'INR'} ${ms.amount.toLocaleString()}`, date: fmtDate(ms.due_date), color: '#a78bfa', icon: <Banknote size={11} /> });
+                              if (ms.last_draft_at) {
+                                events.push({
+                                  label: `Draft saved — Milestone ${i + 1}`, sub: `Progress saved for "${ms.title}"`,
+                                  date: fmtDate(ms.last_draft_at), sortKey: new Date(ms.last_draft_at).getTime(),
+                                  color: '#6b7280', icon: <FilePen size={11} />
+                                });
+                              }
+                              if (ms.status === 'submitted') {
+                                const subTs = (ms as any).latest_submission?.submitted_at || (ms as any).updated_at || ms.last_draft_at;
+                                events.push({
+                                  label: `Work submitted — Milestone ${i + 1}`, sub: `Awaiting client review for "${ms.title}"`,
+                                  date: subTs ? fmtDate(subTs) : 'Recently',
+                                  sortKey: subTs ? new Date(subTs).getTime() : Date.now(),
+                                  color: '#60a5fa', icon: <Send size={11} />
+                                });
+                              }
+                              if (ms.status === 'revision') {
+                                const revTs = (ms as any).latest_submission?.reviewed_at || (ms as any).updated_at;
+                                events.push({
+                                  label: `Feedback received — Milestone ${i + 1}`, sub: `Client requested changes for "${ms.title}"`,
+                                  date: revTs ? fmtDate(revTs) : 'Recently',
+                                  sortKey: revTs ? new Date(revTs).getTime() : Date.now(),
+                                  color: '#fbbf24', icon: <MessageSquareMore size={11} />
+                                });
+                              }
+                              if (ms.amount > 0 && ms.status === 'approved') {
+                                const approvedTs = (ms as any).updated_at;
+                                events.push({
+                                  label: `Milestone ${i + 1} approved — ${ms.title}`, sub: 'Work accepted by client',
+                                  date: approvedTs ? fmtDate(approvedTs) : 'Recently',
+                                  sortKey: approvedTs ? new Date(approvedTs).getTime() : Date.now(),
+                                  color: '#3cb44f', icon: <CheckCircle size={11} />
+                                });
+                              }
+                              if (ms.amount > 0 && ms.status === 'paid') {
+                                const paidTs = (ms as any).updated_at || ms.due_date;
+                                events.push({
+                                  label: `Milestone ${i + 1} paid — ${ms.title}`,
+                                  sub: `${(active as { contractCurrency?: string }).contractCurrency ?? 'INR'} ${ms.amount.toLocaleString()}`,
+                                  date: paidTs ? fmtDate(paidTs) : 'Recently',
+                                  sortKey: paidTs ? new Date(paidTs).getTime() : Date.now(),
+                                  color: '#a78bfa', icon: <Banknote size={11} />
+                                });
                               }
                             });
 
                             // Contract completed/cancelled
-                            if (a.rawStatus === 'completed') events.push({ label: 'Contract completed', sub: 'All milestones delivered and accepted', date: fmtDate(a.deadline), color: '#3cb44f', icon: <Flag size={11} /> });
-                            if (a.rawStatus === 'cancelled') events.push({ label: 'Contract cancelled', sub: 'Contract was cancelled', date: 'Recently', color: '#ef5350', icon: <XCircle size={11} /> });
+                            if (a.rawStatus === 'completed') {
+                              events.push({
+                                label: 'Contract completed', sub: 'All milestones delivered and accepted',
+                                date: fmtDate(a.deadline), sortKey: a.deadline ? new Date(a.deadline).getTime() : Date.now(),
+                                color: '#3cb44f', icon: <Flag size={11} />
+                              });
+                            }
+                            if (a.rawStatus === 'cancelled') {
+                              events.push({
+                                label: 'Contract cancelled', sub: 'Contract was cancelled',
+                                date: 'Recently', sortKey: Date.now(),
+                                color: '#ef5350', icon: <XCircle size={11} />
+                              });
+                            }
 
                             if (events.length === 0) return <p className="text-gray-600 text-xs">No activity yet.</p>;
+
+                            // Sort chronologically (oldest first) for a proper timeline
+                            events.sort((a, b) => a.sortKey - b.sortKey);
 
                             return (
                               <div className="space-y-0 relative">
@@ -903,19 +1122,36 @@ export default function ContractsOverlay() {
                             </div>
                           ) : (
                             <>
-                              <button
-                                className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
-                                style={{
-                                  background: `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`,
-                                  border: `1px solid ${cfg.color}40`,
-                                  color: cfg.color,
-                                }}
-                                onMouseEnter={e => (e.currentTarget.style.background = `${cfg.color}22`)}
-                                onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`)}
-                                onClick={() => navigate(`/submit-milestone/${active.id}`)}
-                              >
-                                Submit Work
-                              </button>
+                              { (active?.rawStatus === 'signed' || active?.rawStatus === 'active') && (
+                                <button
+                                  className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
+                                  style={{
+                                    background: `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`,
+                                    border: `1px solid ${cfg.color}40`,
+                                    color: cfg.color,
+                                  }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = `${cfg.color}22`)}
+                                  onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, ${cfg.color}22, ${cfg.color}12)`)}
+                                  onClick={() => navigate(`/submit-milestone/${active.id}`)}
+                                >
+                                  Submit Work
+                                </button>
+                              )}
+                              { ((active?.rawStatus === 'pending' || active?.rawStatus === 'draft') && active?.clientReviewComment) && (
+                                <button
+                                  className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer flex justify-center items-center gap-2"
+                                  style={{
+                                    background: `linear-gradient(135deg, #f9731622, #ea580c12)`,
+                                    border: `1px solid #f9731640`,
+                                    color: '#f97316',
+                                  }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = `#f9731622`)}
+                                  onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, #f9731622, #ea580c12)`)}
+                                  onClick={() => navigate(`/contract/${active.id}`)}
+                                >
+                                  <PenLine size={18} /> Edit Contract & Resend
+                                </button>
+                              )}
                               <button
                                 className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
                                 style={{

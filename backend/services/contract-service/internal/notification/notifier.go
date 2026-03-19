@@ -24,8 +24,8 @@ type ContractNotifier interface {
 // NoopNotifier does nothing. Use in development or when notification service is not yet integrated.
 type NoopNotifier struct{}
 
-func (NoopNotifier) NotifyContractSent(context.Context, uint, string, string)          {}
-func (NoopNotifier) NotifyWorkSubmitted(context.Context, uint, string, string, string)  {}
+func (NoopNotifier) NotifyContractSent(context.Context, uint, string, string)              {}
+func (NoopNotifier) NotifyWorkSubmitted(context.Context, uint, string, string, string)     {}
 func (NoopNotifier) NotifyRevisionRequested(context.Context, uint, string, string, string) {}
-func (NoopNotifier) NotifyWorkAccepted(context.Context, uint, string, string, int)      {}
-func (NoopNotifier) SendSigningOTP(context.Context, string, string, string)             {}
+func (NoopNotifier) NotifyWorkAccepted(context.Context, uint, string, string, int)         {}
+func (NoopNotifier) SendSigningOTP(context.Context, string, string, string)                {}

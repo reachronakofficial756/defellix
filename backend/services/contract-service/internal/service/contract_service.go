@@ -73,19 +73,19 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 		return nil, fmt.Errorf("sum of milestone amounts (%f) does not match total amount (%f)", sum, req.TotalAmount)
 	}
 	c := &domain.Contract{
-		FreelancerUserID:   freelancerUserID,
-		FreelancerName:     req.FreelancerName,
-		ProjectCategory:    req.ProjectCategory,
-		ProjectName:        req.ProjectName,
-		Description:        req.Description,
-		DueDate:            req.DueDate,
-		TotalAmount:        req.TotalAmount,
-		Currency:           currency,
-		PRDFileURL:         req.PRDFileURL,
-		SubmissionCriteria: req.SubmissionCriteria,
-		ClientName:         req.ClientName,
-		ClientCompanyName:  req.ClientCompanyName,
-		ClientEmail:        req.ClientEmail,
+		FreelancerUserID:       freelancerUserID,
+		FreelancerName:         req.FreelancerName,
+		ProjectCategory:        req.ProjectCategory,
+		ProjectName:            req.ProjectName,
+		Description:            req.Description,
+		DueDate:                req.DueDate,
+		TotalAmount:            req.TotalAmount,
+		Currency:               currency,
+		PRDFileURL:             req.PRDFileURL,
+		SubmissionCriteria:     req.SubmissionCriteria,
+		ClientName:             req.ClientName,
+		ClientCompanyName:      req.ClientCompanyName,
+		ClientEmail:            req.ClientEmail,
 		ClientPhone:            req.ClientPhone,
 		ClientCountry:          req.ClientCountry,
 		TermsAndConditions:     req.TermsAndConditions,
@@ -97,8 +97,8 @@ func (s *ContractService) Create(ctx context.Context, freelancerUserID uint, req
 		PaymentMethod:          req.PaymentMethod,
 		AdvancePaymentRequired: req.AdvancePaymentRequired,
 		AdvancePaymentAmount:   req.AdvancePaymentAmount,
-		Status:             domain.ContractStatusDraft,
-		ClientViewToken:    uuid.New().String(),
+		Status:                 domain.ContractStatusDraft,
+		ClientViewToken:        uuid.New().String(),
 	}
 	ms := milestonesFromInput(req.Milestones)
 	if err := s.repo.Create(ctx, c, ms); err != nil {
@@ -146,7 +146,7 @@ func (s *ContractService) Update(ctx context.Context, id uint, freelancerUserID 
 	if c.Status != domain.ContractStatusDraft && c.Status != domain.ContractStatusPending {
 		return nil, ErrNotDraft
 	}
-	
+
 	// If the contract was pending client review, and freelancer updates it, flag it as revised
 	if c.Status == domain.ContractStatusPending {
 		c.IsRevised = true
@@ -272,11 +272,11 @@ func (s *ContractService) Send(ctx context.Context, id uint, freelancerUserID ui
 		}
 		c.Status = domain.ContractStatusSent
 		c.SentAt = &now
-		
+
 		// Ensure the client receives the updated contract notification
 		shareableLink := s.buildShareableLinkForContract(c)
 		go s.notifier.NotifyContractSent(context.Background(), id, c.ClientEmail, shareableLink)
-		
+
 		return s.contractToResponse(c), nil
 	default:
 		return nil, ErrNotDraft
@@ -309,18 +309,24 @@ func (s *ContractService) SendForReview(ctx context.Context, token string, req *
 
 // SendSignOTP generates and emails a 6-digit OTP to the client for signature verification.
 func (s *ContractService) SendSignOTP(ctx context.Context, token string, req *dto.SendOTPRequest) error {
+	fmt.Printf("[SendSignOTP Debug] Started for token %s, email %s\n", token, req.Email)
 	c, err := s.repo.FindByClientViewToken(ctx, token)
 	if err != nil {
+		fmt.Printf("[SendSignOTP Debug] FindByClientViewToken failed: %v\n", err)
 		return err
 	}
-	if c.Status != domain.ContractStatusSent {
+	fmt.Printf("[SendSignOTP Debug] Found contract: ID %d, Status %s\n", c.ID, c.Status)
+	if c.Status != domain.ContractStatusSent && c.Status != domain.ContractStatusSigned && c.Status != domain.ContractStatusActive {
+		fmt.Printf("[SendSignOTP Debug] Invalid status: %s\n", c.Status)
 		return repository.ErrContractNotFound
 	}
 	if !strings.EqualFold(strings.TrimSpace(c.ClientEmail), strings.TrimSpace(req.Email)) {
+		fmt.Printf("[SendSignOTP Debug] Email mismatch: expected %s, got %s\n", c.ClientEmail, req.Email)
 		return errors.New("email does not match the registered client email for this contract")
 	}
 
 	if c.LastOTPSentAt != nil && time.Since(*c.LastOTPSentAt) < 60*time.Second {
+		fmt.Printf("[SendSignOTP Debug] Cooldown active\n")
 		return errors.New("OTP cooldown in effect, please wait 60 seconds before requesting a new one")
 	}
 
@@ -354,7 +360,7 @@ func (s *ContractService) Sign(ctx context.Context, token string, req *dto.SignR
 	if c.Status != domain.ContractStatusSent {
 		return nil, repository.ErrContractNotFound
 	}
-	
+
 	if c.SignOTP == "" {
 		return nil, errors.New("please request an OTP before signing")
 	}
@@ -415,7 +421,7 @@ func (s *ContractService) ProcessOutbox(ctx context.Context) {
 		req := blockchain.WriteContractRequest{
 			ContractID:      c.ID,
 			FreelancerID:    c.FreelancerUserID,
-			ClientID:        0, // Client may not be a platform user
+			ClientID:        0,  // Client may not be a platform user
 			FreelancerEmail: "", // Would need to fetch from user-service
 			ClientEmail:     c.ClientEmail,
 			TotalAmount:     c.TotalAmount,
@@ -496,19 +502,19 @@ func signMetadataFromRequest(req *dto.SignRequest) map[string]interface{} {
 
 func toPublicViewResponse(c *domain.Contract) *dto.PublicContractViewResponse {
 	return &dto.PublicContractViewResponse{
-		ID:                  c.ID,
-		FreelancerName:      c.FreelancerName,
-		ProjectCategory:     c.ProjectCategory,
-		ProjectName:         c.ProjectName,
-		Description:         c.Description,
-		DueDate:             c.DueDate,
-		TotalAmount:         c.TotalAmount,
-		Currency:            c.Currency,
-		PRDFileURL:          c.PRDFileURL,
-		SubmissionCriteria:  c.SubmissionCriteria,
-		ClientName:          c.ClientName,
-		ClientCompanyName:   c.ClientCompanyName,
-		ClientEmail:         c.ClientEmail,
+		ID:                     c.ID,
+		FreelancerName:         c.FreelancerName,
+		ProjectCategory:        c.ProjectCategory,
+		ProjectName:            c.ProjectName,
+		Description:            c.Description,
+		DueDate:                c.DueDate,
+		TotalAmount:            c.TotalAmount,
+		Currency:               c.Currency,
+		PRDFileURL:             c.PRDFileURL,
+		SubmissionCriteria:     c.SubmissionCriteria,
+		ClientName:             c.ClientName,
+		ClientCompanyName:      c.ClientCompanyName,
+		ClientEmail:            c.ClientEmail,
 		ClientPhone:            c.ClientPhone,
 		ClientCountry:          c.ClientCountry,
 		TermsAndConditions:     c.TermsAndConditions,
@@ -520,13 +526,15 @@ func toPublicViewResponse(c *domain.Contract) *dto.PublicContractViewResponse {
 		PaymentMethod:          c.PaymentMethod,
 		AdvancePaymentRequired: c.AdvancePaymentRequired,
 		AdvancePaymentAmount:   c.AdvancePaymentAmount,
-		Status:              c.Status,
-		IsRevised:           c.IsRevised,
-		SentAt:              c.SentAt,
-		ClientReviewComment: c.ClientReviewComment,
-		Milestones:          milestonesToResponse(c.Milestones),
-		CreatedAt:           c.CreatedAt,
-		UpdatedAt:           c.UpdatedAt,
+		Status:                 c.Status,
+		IsRevised:              c.IsRevised,
+		SentAt:                 c.SentAt,
+		ClientSignedAt:         c.ClientSignedAt,
+		ClientReviewComment:    c.ClientReviewComment,
+		ClientViewToken:        c.ClientViewToken,
+		Milestones:             milestonesToResponse(c.Milestones),
+		CreatedAt:              c.CreatedAt,
+		UpdatedAt:              c.UpdatedAt,
 	}
 }
 
@@ -557,13 +565,10 @@ func (s *ContractService) buildShareableLink(contractID uint) string {
 
 // buildShareableLinkForContract returns the client-facing link: base/token when token is set, else base/id.
 func (s *ContractService) buildShareableLinkForContract(c *domain.Contract) string {
-	if s.shareableLinkBaseURL == "" {
+	if c.Status == domain.ContractStatusDraft || c.ClientViewToken == "" {
 		return ""
 	}
-	if c.Status == domain.ContractStatusSent && c.ClientViewToken != "" {
-		return s.shareableLinkBaseURL + "/" + c.ClientViewToken
-	}
-	return s.shareableLinkBaseURL + "/" + strconv.FormatUint(uint64(c.ID), 10)
+	return fmt.Sprintf("%s/%s", s.shareableLinkBaseURL, c.ClientViewToken)
 }
 
 func milestonesFromInput(in []dto.MilestoneInput) []domain.ContractMilestone {
@@ -671,19 +676,19 @@ func stringifyAmount(v float64) string {
 
 func (s *ContractService) toResponseWithShareable(c *domain.Contract, ms []domain.ContractMilestone, shareableLink string) *dto.ContractResponse {
 	return &dto.ContractResponse{
-		ID:                 c.ID,
-		FreelancerUserID:   c.FreelancerUserID,
-		ProjectCategory:    c.ProjectCategory,
-		ProjectName:        c.ProjectName,
-		Description:        c.Description,
-		DueDate:            c.DueDate,
-		TotalAmount:        c.TotalAmount,
-		Currency:           c.Currency,
-		PRDFileURL:         c.PRDFileURL,
-		SubmissionCriteria: c.SubmissionCriteria,
-		ClientName:         c.ClientName,
-		ClientCompanyName:  c.ClientCompanyName,
-		ClientEmail:        c.ClientEmail,
+		ID:                     c.ID,
+		FreelancerUserID:       c.FreelancerUserID,
+		ProjectCategory:        c.ProjectCategory,
+		ProjectName:            c.ProjectName,
+		Description:            c.Description,
+		DueDate:                c.DueDate,
+		TotalAmount:            c.TotalAmount,
+		Currency:               c.Currency,
+		PRDFileURL:             c.PRDFileURL,
+		SubmissionCriteria:     c.SubmissionCriteria,
+		ClientName:             c.ClientName,
+		ClientCompanyName:      c.ClientCompanyName,
+		ClientEmail:            c.ClientEmail,
 		ClientPhone:            c.ClientPhone,
 		ClientCountry:          c.ClientCountry,
 		TermsAndConditions:     c.TermsAndConditions,
@@ -695,14 +700,17 @@ func (s *ContractService) toResponseWithShareable(c *domain.Contract, ms []domai
 		PaymentMethod:          c.PaymentMethod,
 		AdvancePaymentRequired: c.AdvancePaymentRequired,
 		AdvancePaymentAmount:   c.AdvancePaymentAmount,
-		Status:             c.Status,
-		IsRevised:          c.IsRevised,
-		SentAt:             c.SentAt,
-		ShareableLink:      shareableLink,
-		ClientReviewComment: c.ClientReviewComment,
-		Milestones:         milestonesToResponse(ms),
-		CreatedAt:          c.CreatedAt,
-		UpdatedAt:          c.UpdatedAt,
+		Status:                 c.Status,
+		IsRevised:              c.IsRevised,
+		DraftCount:             c.DraftCount,
+		SentAt:                 c.SentAt,
+		ClientSignedAt:         c.ClientSignedAt,
+		ClientViewToken:        c.ClientViewToken,
+		ShareableLink:          shareableLink,
+		ClientReviewComment:    c.ClientReviewComment,
+		Milestones:             milestonesToResponse(ms),
+		CreatedAt:              c.CreatedAt,
+		UpdatedAt:              c.UpdatedAt,
 	}
 }
 
@@ -714,15 +722,32 @@ func milestonesToResponse(ms []domain.ContractMilestone) []dto.MilestoneResponse
 	out := make([]dto.MilestoneResponse, len(ms))
 	for i := range ms {
 		out[i] = dto.MilestoneResponse{
-			ID:               ms[i].ID,
-			OrderIndex:       ms[i].OrderIndex,
-			Title:            ms[i].Title,
-			Description:      ms[i].Description,
-			Amount:           ms[i].Amount,
-			DueDate:          ms[i].DueDate,
-			Status:           ms[i].Status,
-			CreatedAt:        ms[i].CreatedAt,
-			UpdatedAt:        ms[i].UpdatedAt,
+			ID:                   ms[i].ID,
+			OrderIndex:           ms[i].OrderIndex,
+			Title:                ms[i].Title,
+			Description:          ms[i].Description,
+			Amount:               ms[i].Amount,
+			DueDate:              ms[i].DueDate,
+			SubmissionCriteria:   ms[i].SubmissionCriteria,
+			CompletionCriteriaTC: ms[i].CompletionCriteriaTC,
+			Status:               ms[i].Status,
+			LastDraftAt:          ms[i].LastDraftAt,
+			CreatedAt:            ms[i].CreatedAt,
+			UpdatedAt:            ms[i].UpdatedAt,
+		}
+
+		if ms[i].LatestSubmission != nil {
+			var subData map[string]interface{}
+			_ = json.Unmarshal([]byte(ms[i].LatestSubmission.SubmittedData), &subData)
+
+			out[i].LatestSubmission = &dto.SubmissionResponse{
+				ID:              ms[i].LatestSubmission.ID,
+				Status:          ms[i].LatestSubmission.Status,
+				SubmittedData:   subData,
+				Description:     ms[i].LatestSubmission.Description,
+				RevisionHistory: ms[i].LatestSubmission.RevisionHistory,
+				SubmittedAt:     ms[i].LatestSubmission.SubmittedAt,
+			}
 		}
 	}
 	return out
@@ -751,7 +776,7 @@ func (s *ContractService) ExtractFromPRD(ctx context.Context, prdURL string) (*d
 	return s.ExtractFromPRDBytes(ctx, rawBytes)
 }
 
-// ExtractFromPRDBytes intercepts a PRD document from memory and generates the contract structure 
+// ExtractFromPRDBytes intercepts a PRD document from memory and generates the contract structure
 // using the Groq LLM API. It avoids network 401/404 CDN delivery blocks by processing the file internally.
 func (s *ContractService) ExtractFromPRDBytes(ctx context.Context, rawBytes []byte) (*dto.ExtractedContract, error) {
 	groqAPIKey := os.Getenv("GROQ_API_KEY")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/saiyam0211/defellix/services/contract-service/internal/domain"
@@ -22,13 +23,15 @@ type SubmissionService struct {
 	subRepo      repository.SubmissionRepository
 	contractRepo repository.ContractRepository
 	notifier     notification.ContractNotifier
+	baseURL      string
 }
 
-func NewSubmissionService(subRepo repository.SubmissionRepository, contractRepo repository.ContractRepository, notifier notification.ContractNotifier) *SubmissionService {
+func NewSubmissionService(subRepo repository.SubmissionRepository, contractRepo repository.ContractRepository, notifier notification.ContractNotifier, baseURL string) *SubmissionService {
 	return &SubmissionService{
 		subRepo:      subRepo,
 		contractRepo: contractRepo,
 		notifier:     notifier,
+		baseURL:      baseURL,
 	}
 }
 
@@ -83,12 +86,12 @@ func (s *SubmissionService) CreateSubmission(ctx context.Context, contractID uin
 	}
 
 	sub := &domain.Submission{
-		ContractID:    contractID,
-		MilestoneID:   req.MilestoneID,
-		FreelancerID:  freelancerID,
-		SubmittedData: submittedDataJSON,
-		Description:   req.Description,
-		Status:        status,
+		ContractID:      contractID,
+		MilestoneID:     req.MilestoneID,
+		FreelancerID:    freelancerID,
+		SubmittedData:   submittedDataJSON,
+		Description:     req.Description,
+		Status:          status,
 		RevisionHistory: "[]",
 	}
 
@@ -97,9 +100,13 @@ func (s *SubmissionService) CreateSubmission(ctx context.Context, contractID uin
 		return nil, err
 	}
 
-	// If successfully submitted for review, notify client
+	// If successfully submitted for review, notify client and update milestone status
 	if status == domain.SubmissionStatusPending {
-		reviewLink := fmt.Sprintf("/api/v1/public/contracts/%s", contract.ClientViewToken)
+		if req.MilestoneID != nil {
+			_ = s.contractRepo.UpdateMilestoneStatus(ctx, *req.MilestoneID, "submitted")
+		}
+		baseFrontend := strings.TrimSuffix(s.baseURL, "/review-contract")
+		reviewLink := fmt.Sprintf("%s/review-milestone/%s", baseFrontend, contract.ClientViewToken)
 		s.notifier.NotifyWorkSubmitted(ctx, contractID, contract.ClientEmail, contract.ProjectName, reviewLink)
 	}
 
@@ -149,9 +156,13 @@ func (s *SubmissionService) UpdateSubmission(ctx context.Context, contractID uin
 		return nil, err
 	}
 
-	// Notify client if transiting to pending_review
+	// Notify client and update milestone status if transiting to pending_review
 	if oldStatus != domain.SubmissionStatusPending && sub.Status == domain.SubmissionStatusPending {
-		reviewLink := fmt.Sprintf("/api/v1/public/contracts/%s", contract.ClientViewToken)
+		if sub.MilestoneID != nil {
+			_ = s.contractRepo.UpdateMilestoneStatus(ctx, *sub.MilestoneID, "submitted")
+		}
+		baseFrontend := strings.TrimSuffix(s.baseURL, "/review-contract")
+		reviewLink := fmt.Sprintf("%s/review-milestone/%s", baseFrontend, contract.ClientViewToken)
 		s.notifier.NotifyWorkSubmitted(ctx, contractID, contract.ClientEmail, contract.ProjectName, reviewLink)
 	}
 
@@ -188,18 +199,29 @@ func (s *SubmissionService) ClientReviewSubmission(ctx context.Context, clientTo
 		return errors.New("submission does not belong to this contract")
 	}
 
-	// 3. Update Submission Status
+	// 3. OTP Verification
+	if contract.SignOTP == "" {
+		return errors.New("please request an OTP before submitting a review")
+	}
+	if contract.SignOTP != req.OTP {
+		return errors.New("invalid OTP")
+	}
+	if contract.OTPExpiresAt == nil || time.Now().After(*contract.OTPExpiresAt) {
+		return errors.New("OTP has expired, please request a new one")
+	}
+
+	// 4. Update Submission Status
 	now := time.Now()
 	sub.ReviewedAt = &now
 
 	if req.Action == "accept" {
 		sub.Status = "accepted"
-		
+
 		// If submission is linked to a milestone, mark milestone as approved
 		allApproved := false
 		if sub.MilestoneID != nil {
 			s.contractRepo.UpdateMilestoneStatus(ctx, *sub.MilestoneID, "approved")
-			
+
 			// Check database for any unapproved milestones
 			count, err := s.contractRepo.CountUnapprovedMilestones(ctx, contract.ID)
 			if err == nil && count == 0 {
@@ -223,7 +245,7 @@ func (s *SubmissionService) ClientReviewSubmission(ctx context.Context, clientTo
 		// TODO: Trigger async call to User Service Reputation Engine
 	} else if req.Action == "revision" {
 		sub.Status = domain.SubmissionStatusRevision
-		
+
 		commentText := ""
 		if req.Comment != nil {
 			commentText = *req.Comment
@@ -241,12 +263,21 @@ func (s *SubmissionService) ClientReviewSubmission(ctx context.Context, clientTo
 		}
 		// prepend to keep most recent at top
 		history = append([]domain.RevisionComment{newRev}, history...)
-		
+
 		hBytes, _ := json.Marshal(history)
 		sub.RevisionHistory = string(hBytes)
 
+		// Mark the milestone itself as revision so the freelancer dashboard/notifications detect it
+		if sub.MilestoneID != nil {
+			_ = s.contractRepo.UpdateMilestoneStatus(ctx, *sub.MilestoneID, "revision")
+		}
+
 		// Send email to freelancer: "Client requested revision"
 		s.notifier.NotifyRevisionRequested(ctx, contract.ID, contract.ClientEmail, contract.ProjectName, commentText)
+
+		if req.NewDueDate != nil && sub.MilestoneID != nil {
+			_ = s.contractRepo.UpdateMilestoneDueDate(ctx, *sub.MilestoneID, req.NewDueDate)
+		}
 	}
 
 	return s.subRepo.Update(ctx, sub)

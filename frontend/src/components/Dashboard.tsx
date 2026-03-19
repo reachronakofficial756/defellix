@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { useContractsStore } from "@/store/useContractsStore";
 import { apiClient } from "@/api/client";
+import { calculateContractProgress } from "@/utils/contractProgress";
 import contract_completition from "@/assets/contract_completition.png";
 import client_reviews from "@/assets/client_reviews.png";
 import response_rate from "@/assets/response_rate.png";
@@ -253,10 +254,7 @@ const Dashboard = () => {
 
                     const totalMilestones = c.milestones?.length || 0;
                     const completedMilestones = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').length || 0;
-
-                    const totalAmount = c.total_amount || 1;
-                    const completedAmount = c.milestones?.filter((m: any) => m.status === 'approved' || m.status === 'paid').reduce((sum: number, m: any) => sum + m.amount, 0) || 0;
-                    const completion = Math.round((completedAmount / totalAmount) * 100);
+                    const completion = calculateContractProgress(c.milestones, c.total_amount);
 
                     const date = new Date(c.updated_at || c.created_at || Date.now());
                     const now = new Date();
@@ -450,9 +448,9 @@ const Dashboard = () => {
             </div>
 
             {/* --- BOTTOM SECTION (curved, overlaps, parallax) --- */}
-            <div className={`relative min-h-screen ${isEmpty ? 'pt-[560px]' : 'pt-[750px]'}`}>
+            <div className={`relative min-h-screen ${isEmpty ? 'pt-[560px]' : 'pt-[700px]'}`}>
                 <div
-                    className="relative z-20 pb-80 rounded-t-[100px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
+                    className="relative z-20 rounded-t-[100px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
                 >
                     {/* Centered handle / notch */}
                     <div

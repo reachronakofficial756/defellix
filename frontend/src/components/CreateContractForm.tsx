@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { apiClient } from "@/api/client";
+import { Plus, X, Upload, Check, AlertCircle } from 'lucide-react';
+import { apiClient } from '@/api/client';
+import { useParams } from 'react-router-dom';
 
 const STEPS = [
     "Project Details",
@@ -161,6 +162,7 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
 };
 
 const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
+    const { contractId: urlContractId } = useParams<{ contractId: string }>();
     const [step, setStep] = useState(1);
 
     const [projectTitle, setProjectTitle] = useState("");
@@ -229,6 +231,7 @@ const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
 
 
     const createEmptyMilestone = () => ({
+        id: undefined as number | undefined,
         title: "",
         description: "",
         amount: 0,
@@ -248,11 +251,102 @@ const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
 
     // Backend integration state
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [contractId, setContractId] = useState<number | null>(null);
+    const [contractId, setContractId] = useState<number | null>(urlContractId ? Number(urlContractId) : null);
+    const [clientReviewComment, setClientReviewComment] = useState("");
+    const [isFetchingContract, setIsFetchingContract] = useState(!!urlContractId);
     
     // PRD upload and extraction state
     const [prdFile, setPrdFile] = useState<File | null>(null);
     const [isUploadingPrd, setIsUploadingPrd] = useState(false);
+
+    // Fetch draft/pending contract if edit mode
+    useEffect(() => {
+        if (!urlContractId) return;
+        (async () => {
+            try {
+                const res = await apiClient.get(`/contracts/${urlContractId}`);
+                const data = (res as any).data?.data ?? (res as any).data;
+                if (!data) return;
+
+                if (data.project_name) setProjectTitle(data.project_name);
+                if (data.description) setProjectDesc(data.description);
+                if (data.terms_and_conditions) setCustomTerms(data.terms_and_conditions);
+                if (data.start_date) setStartDate(data.start_date.split('T')[0]);
+                if (data.due_date) setDeadline(data.due_date.split('T')[0]);
+                
+                if (data.project_category) {
+                    const matchedType = PROJECT_TYPES.find(t => t.toLowerCase() === data.project_category.toLowerCase());
+                    if (matchedType) setProjectType(matchedType);
+                    else {
+                        setProjectType("Other");
+                        setOtherProjectType(data.project_category);
+                    }
+                }
+                
+                if (data.client_name) setClientName(data.client_name);
+                if (data.client_email) setClientEmail(data.client_email);
+                if (data.client_phone) setClientPhone(data.client_phone);
+                if (data.client_company_name) setClientCompany(data.client_company_name);
+                if (data.client_country) setClientCountry(data.client_country);
+
+                if (data.out_of_scope_work) setOutOfScope(data.out_of_scope_work);
+                if (data.submission_criteria) setCoreDeliverable(data.submission_criteria);
+                if (data.revision_policy) setRevisionPolicy(data.revision_policy);
+                if (data.intellectual_property) setIntellectualProperty(data.intellectual_property);
+                
+                if (data.currency) setContractCurrency(data.currency);
+                
+                if (data.payment_method) {
+                    if (["Bank Transfer", "Crypto", "Credit Card"].includes(data.payment_method)) {
+                        setPaymentMethod(data.payment_method);
+                    } else {
+                        setPaymentMethod("Other");
+                        setOtherPaymentMethod(data.payment_method);
+                    }
+                }
+
+                if (data.advance_payment_required) setIsAdvancePayment(data.advance_payment_required);
+                if (data.advance_payment_amount) setAdvanceAmount(data.advance_payment_amount.toString());
+
+                // Set client review comment if pending/rejected
+                if (data.client_review_comment) setClientReviewComment(data.client_review_comment);
+
+                if (data.milestones && data.milestones.length > 0) {
+                    let coreTotal = data.total_amount;
+                    let msList = data.milestones.map((m: any) => {
+                        coreTotal -= m.amount;
+                        return {
+                            id: m.id,
+                            title: m.title,
+                            description: m.description,
+                            amount: m.amount,
+                            due_date: m.due_date ? m.due_date.split('T')[0] : "",
+                            is_initial_payment: m.order_index === 0,
+                            submission_criteria: m.submission_criteria,
+                            completion_criteria_tc: m.completion_criteria_tc,
+                        };
+                    });
+                    
+                    // The core project total amount might have been pushed into the last milestone
+                    const lastMs = msList[msList.length - 1];
+                    if (lastMs && lastMs.title === "Core Project Deliverables (Final Payment)" && coreTotal <= 0) {
+                        setContractAmount(lastMs.amount.toString());
+                        msList.pop(); // remove auto-generated final milestone, it will be re-built on save
+                    } else {
+                        setContractAmount(Math.max(0, coreTotal).toString());
+                    }
+                    setMilestones(msList);
+                } else if (data.total_amount) {
+                    setContractAmount(data.total_amount.toString());
+                }
+
+            } catch (err: any) {
+                console.error("Failed to load contract", err);
+            } finally {
+                setIsFetchingContract(false);
+            }
+        })();
+    }, [urlContractId]);
 
     useEffect(() => {
         if (step !== 5) {
@@ -343,6 +437,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
         const toISO = (value: string) => (value ? new Date(value + "T00:00:00").toISOString() : undefined);
 
         const finalMilestones = milestones.map((ms) => ({
+            id: ms.id,
             title: ms.title,
             description: ms.description,
             amount: ms.amount || 0,
@@ -393,14 +488,15 @@ By signing below, both parties agree to the terms outlined in this agreement.
     };
 
     const createOrReuseDraft = async (): Promise<number> => {
-        if (contractId) return contractId;
         const payload = buildContractPayload();
+        if (contractId) {
+            await apiClient.put(`/contracts/${contractId}`, payload);
+            return contractId;
+        }
         const res = await apiClient.post("/contracts", payload);
         const data = (res as any).data?.data ?? (res as any).data;
         const id = data?.id;
-        if (!id) {
-            throw new Error("Contract created but response had no id");
-        }
+        if (!id) throw new Error("Contract created but response had no id");
         setContractId(id);
         return id;
     };
@@ -553,10 +649,30 @@ By signing below, both parties agree to the terms outlined in this agreement.
     const labelClass = "text-sm text-white font-medium mb-2 block";
 
     const renderStep = () => {
+        if (isFetchingContract) {
+            return (
+                <div className="flex flex-col items-center justify-center py-20 animate-in fade-in">
+                    <div className="w-10 h-10 rounded-full border-2 border-[#3cb44f]/30 border-t-[#3cb44f] animate-spin mb-4" />
+                    <p className="text-[#3cb44f] text-sm uppercase tracking-widest font-bold">Loading Contract...</p>
+                </div>
+            );
+        }
+
+        const feedbackBanner = clientReviewComment ? (
+            <div className="mb-8 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                <h4 className="flex items-center gap-2 text-orange-400 font-bold mb-2">
+                    <AlertCircle size={16} /> Client Feedback
+                </h4>
+                <p className="text-orange-200 text-sm leading-relaxed">{clientReviewComment}</p>
+                <p className="text-orange-400/60 mt-2 text-[10px] uppercase font-bold tracking-wider">Please adapt your contract terms and resend for signature.</p>
+            </div>
+        ) : null;
+
         switch (step) {
             case 1:
                 return (
                     <div className="space-y-8 animate-in overflow-y-hidden fade-in slide-in-from-bottom-4 duration-500">
+                        {feedbackBanner}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div>
                                 <label className={labelClass}>Project Title</label>
@@ -705,6 +821,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
             case 2:
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {feedbackBanner}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
                             <div>
                                 <label className={labelClass}>Client Full Name</label>
@@ -763,6 +880,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
             case 3:
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {feedbackBanner}
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
                                 <h3 className="text-xl font-bold text-white">Milestones</h3>
@@ -988,17 +1106,16 @@ By signing below, both parties agree to the terms outlined in this agreement.
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
                                                 <label className={labelClass}>Submission Criteria</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="e.g. Video URL, GitHub Repo..."
-                                                    className={inputClass}
-                                                    value={draftMilestone.submission_criteria}
-                                                    onChange={(e) =>
+                                                <CustomDropdown
+                                                    options={["Photos", "Link", "Video", "Docs"]}
+                                                    value={draftMilestone.submission_criteria || "Link"}
+                                                    onChange={(val) =>
                                                         setDraftMilestone({
                                                             ...draftMilestone,
-                                                            submission_criteria: e.target.value,
+                                                            submission_criteria: val,
                                                         })
                                                     }
+                                                    className={`${inputClass} flex items-center justify-between`}
                                                 />
                                             </div>
                                             <div>
@@ -1044,6 +1161,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
             case 4:
                 return (
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {feedbackBanner}
                         {/* <div className="max-w-md">
                             <label className={labelClass}>Amount (Base Project Fee)</label>
                             <div className="flex items-center gap-2 w-full">

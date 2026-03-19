@@ -109,10 +109,10 @@ func (h *ContractHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondSuccess(w, http.StatusOK, map[string]interface{}{
-		"contracts":   list,
-		"total":       total,
-		"page":        page,
-		"limit":       limit,
+		"contracts": list,
+		"total":     total,
+		"page":      page,
+		"limit":     limit,
 	}, "OK")
 }
 
@@ -338,11 +338,10 @@ func (h *ContractHandler) UploadPRD(w http.ResponseWriter, r *http.Request) {
 	} else {
 		_ = mw.WriteField("api_key", apiKey)
 	}
-	
+
 	_ = mw.WriteField("folder", "defellix/prds")
 	_ = mw.WriteField("resource_type", "auto")
 
-	
 	mw.Close()
 
 	uploadURL := "https://api.cloudinary.com/v1_1/" + url.PathEscape(cloudName) + "/auto/upload"
@@ -378,8 +377,8 @@ func (h *ContractHandler) UploadPRD(w http.ResponseWriter, r *http.Request) {
 	// ---------------------------------------------------------
 	extractedContractJSON, err := h.svc.ExtractFromPRDBytes(r.Context(), fileBytes)
 	if err != nil {
-		// Even if extraction fails, the upload succeeded. 
-		// We can return the URL and let the frontend know extraction failed, 
+		// Even if extraction fails, the upload succeeded.
+		// We can return the URL and let the frontend know extraction failed,
 		// but since the frontend expects both in one, we return error if extraction is vital.
 		// However, returning partial success is usually preferred. Let's return error on extraction fail.
 		respondError(w, http.StatusInternalServerError, "Failed to extract contract: "+err.Error(), "EXTRACTION_FAILED")
@@ -387,7 +386,7 @@ func (h *ContractHandler) UploadPRD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondSuccess(w, http.StatusOK, map[string]interface{}{
-		"prd_file_url": out.SecureURL,
+		"prd_file_url":       out.SecureURL,
 		"extracted_contract": extractedContractJSON,
 	}, "PRD uploaded and extracted successfully")
 }

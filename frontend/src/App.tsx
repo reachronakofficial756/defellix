@@ -39,7 +39,7 @@ function App() {
       <Route path="/signup" element={<SignUp />} />
 
       <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
-      <Route path="/submit-milestone/:contractId" element={<MilestoneSubmission />} />
+      <Route path="/submit-milestone/:contractId" element={<ProtectedRoute><MilestoneSubmission /></ProtectedRoute>} />
       <Route path="/review-milestone/:contractId" element={<MilestoneReview />} />
       {/* All dashboard routes are protected */}
       <Route path="/dashboard/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
