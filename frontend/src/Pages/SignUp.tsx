@@ -13,7 +13,7 @@ const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your f
 
 export default function SignUp() {
     const navigate = useNavigate();
-    const { setAuthenticated, setProfileComplete, refetch } = useAuth();
+    const { setAuthenticated, refetch } = useAuth();
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [isOtpStage, setIsOtpStage] = useState(false);

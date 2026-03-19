@@ -17,38 +17,49 @@ const cards = [
   {
     title: "Ask anything. Seriously.",
     description: "Your data, finally chatable. No noise. No clutter. Just clear, contextual answers, in your language, focused on what counts.",
-    bgColor: "bg-[#A1B3B0]",
+    bgColor: "bg-[#8FA0A4]", // Bluish-grey representing the 3rd photo design
+    dots: [true, true, true, false]
+  },
+  {
+    title: "Complete autonomous action.",
+    description: "Drive powerful workflows, automate repetitive tasks, and let clarity become measurable acceleration.",
+    bgColor: "bg-[#A1B3B0]", // Greenish representing the 4th card
     dots: [true, true, true, true]
   }
 ];
 
 // ── Each card is its own component so hooks are called at the component top-level
-// (not inside a .map() loop — that violates Rules of Hooks and causes glitches)
 
-// Card 0 — visible from start, exits when card 1 arrives (~scroll 0.28–0.33)
+// Card 0 — visible from start, exits when card 1 arrives (~scroll 0.20–0.25)
 function Card0({ prog, card }: { prog: MotionValue<number>; card: typeof cards[0] }) {
-  // Exit: shrinks slightly and moves up to recede into background
-  const y  = useTransform(prog, [0.27, 0.34], [0, -32]);
-  const sc = useTransform(prog, [0.27, 0.34], [1, 0.92]);
-  const op = useTransform(prog, [0.27, 0.34], [1, 0.4]);
+  const y  = useTransform(prog, [0.18, 0.25], [0, -32]);
+  const sc = useTransform(prog, [0.18, 0.25], [1, 0.92]);
+  const op = useTransform(prog, [0.18, 0.25], [1, 0.4]);
   return <CardShell y={y} sc={sc} op={op} zIndex={10} card={card} />;
 }
 
-// Card 1 — enters from below (~0.22–0.33), exits when card 2 arrives (~0.60–0.66)
+// Card 1 — enters from below (~0.15–0.25), exits when card 2 arrives (~0.45–0.50)
 function Card1({ prog, card }: { prog: MotionValue<number>; card: typeof cards[0] }) {
-  // Entry: full scale from deep off-screen. Exit: shrink & move up
-  const y  = useTransform(prog, [0.22, 0.33, 0.60, 0.67], [800, 0, 0, -32]);
-  const sc = useTransform(prog, [0.22, 0.33, 0.60, 0.67], [1,   1, 1, 0.92]);
-  const op = useTransform(prog, [0.22, 0.33, 0.60, 0.67], [1,   1, 1, 0.4]);
+  const y  = useTransform(prog, [0.15, 0.25, 0.45, 0.50], [800, 0, 0, -32]);
+  const sc = useTransform(prog, [0.15, 0.25, 0.45, 0.50], [1,   1, 1, 0.92]);
+  const op = useTransform(prog, [0.15, 0.25, 0.45, 0.50], [1,   1, 1, 0.4]);
   return <CardShell y={y} sc={sc} op={op} zIndex={11} card={card} />;
 }
 
-// Card 2 — enters from below (~0.55–0.66), stays forever
+// Card 2 — enters from below (~0.40–0.50), exits when card 3 arrives (~0.70–0.75)
 function Card2({ prog, card }: { prog: MotionValue<number>; card: typeof cards[0] }) {
-  const y  = useTransform(prog, [0.55, 0.67], [800, 0]);
-  const sc = useTransform(prog, [0.55, 0.67], [1,   1]);
-  const op = useTransform(prog, [0.55, 0.67], [1,   1]);
+  const y  = useTransform(prog, [0.40, 0.50, 0.70, 0.75], [800, 0, 0, -32]);
+  const sc = useTransform(prog, [0.40, 0.50, 0.70, 0.75], [1,   1, 1, 0.92]);
+  const op = useTransform(prog, [0.40, 0.50, 0.70, 0.75], [1,   1, 1, 0.4]);
   return <CardShell y={y} sc={sc} op={op} zIndex={12} card={card} />;
+}
+
+// Card 3 — enters from below (~0.65–0.75), stays forever
+function Card3({ prog, card }: { prog: MotionValue<number>; card: typeof cards[0] }) {
+  const y  = useTransform(prog, [0.65, 0.75], [800, 0]);
+  const sc = useTransform(prog, [0.65, 0.75], [1,   1]);
+  const op = useTransform(prog, [0.65, 0.75], [1,   1]);
+  return <CardShell y={y} sc={sc} op={op} zIndex={13} card={card} />;
 }
 
 // ── Shared card shell (no hooks here — just rendering)
@@ -105,8 +116,8 @@ const ScrollingCards = () => {
   const prog = useSpring(scrollYProgress, { stiffness: 200, damping: 52, mass: 0.25 });
 
   return (
-    <section ref={containerRef} className="relative h-[400vh] bg-primary/30 py-24 px-6 lg:px-12">
-      <div className="sticky top-0 h-screen flex flex-col lg:flex-row items-center justify-between max-w-7xl mx-auto py-12 overflow-hidden">
+    <section ref={containerRef} className="relative h-[500vh] bg-primary/30 py-24 px-6 lg:px-12">
+      <div className="sticky top-0 min-h-screen lg:h-screen flex flex-col lg:flex-row items-center justify-between max-w-7xl mx-auto py-12 overflow-visible lg:overflow-hidden">
 
         {/* Left */}
         <div className="w-full lg:w-1/2 mb-12 lg:mb-0 pr-0 lg:pr-24">
@@ -122,11 +133,12 @@ const ScrollingCards = () => {
         </div>
 
         {/* Right — card stack */}
-        <div className="w-full lg:w-2/5 h-[540px] relative">
+        <div className="w-full lg:w-2/5 h-[440px] lg:h-[540px] min-h-[400px] relative mt-12 lg:mt-0">
           {/* Each card is a proper component — hooks are at each component's top level */}
           <Card0 prog={prog} card={cards[0]} />
           <Card1 prog={prog} card={cards[1]} />
           <Card2 prog={prog} card={cards[2]} />
+          <Card3 prog={prog} card={cards[3]} />
         </div>
 
       </div>

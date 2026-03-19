@@ -1,5 +1,10 @@
 import { motion, useScroll, useTransform, useSpring, MotionValue } from 'motion/react';
 import { useRef, useState, useEffect } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 // ─── slide data ───────────────────────────────────────────────────────────────
 const slides = [
@@ -24,20 +29,26 @@ const slides = [
 ];
 
 // ─── geometry ─────────────────────────────────────────────────────────────────
-// Clockwise order: 1 at 0° (top), 2 at 55° (right), 3 at 110° (hidden below on start)
-// When ring rotates -55°: 2 rises to top, 3 appears right
-// When ring rotates -110°: 3 rises to top, 2 moves left
-const ANGLES = [0, 55, 110];
-const SNAP_ROTATIONS = ANGLES.map((a) => -a); // [0, -55, -110]
+// To create the illusion of infinite "sides" we place 5 items on the circle.
+// When 1 is top: Left is 3 (-65°), Right is 2 (+65°)
+// When 2 is top: Left is 1 (-65° relative to 2), Right is 3 (+65° relative to 2)
+// Array of objects describing what goes where on the static wheel:
+const RING_ITEMS = [
+  { angle: -65, id: 3, slideIndex: 2 },
+  { angle: 0,   id: 1, slideIndex: 0 },
+  { angle: 65,  id: 2, slideIndex: 1 },
+  { angle: 130, id: 3, slideIndex: 2 },
+  { angle: 195, id: 1, slideIndex: 0 },
+];
 
-// Convert angle (0°=12-o'clock, clockwise) → Cartesian offset from circle centre
+const SNAP_ROTATIONS = [0, -65, -130]; 
+
 function polar(deg: number, R: number) {
   const rad = ((deg - 90) * Math.PI) / 180;
   return { x: R * Math.cos(rad), y: R * Math.sin(rad) };
 }
 
 // ─── NumberBadge ──────────────────────────────────────────────────────────────
-// Extracted so that useTransform is called at component top-level
 interface BadgeProps {
   id: number;
   angleDeg: number;
@@ -49,11 +60,10 @@ interface BadgeProps {
 }
 
 function NumberBadge({ id, angleDeg, R, svgW, svgH, arcRotation, isActive }: BadgeProps) {
-  // Counter-rotate so the number stays upright as the ring spins
   const selfRotation = useTransform(arcRotation, (r: number) => -r);
   const { x, y } = polar(angleDeg, R);
   const cx = svgW / 2 + x;
-  const cy = svgH + y; // svgH is the y of circle centre inside the div
+  const cy = svgH + y; 
 
   const size = Math.max(44, Math.min(60, R * 0.075));
 
@@ -96,15 +106,26 @@ function NumberBadge({ id, angleDeg, R, svgW, svgH, arcRotation, isActive }: Bad
 const CircularSlider = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Responsive radius: proportional to viewport height so the arc top is
-  // always visible and the arc width fills the screen.
+  useGSAP(() => {
+    // We enforce native window snap behaviour over this large container
+    // This perfectly partitions the scroll track into 3 distinct stops!
+    ScrollTrigger.create({
+      trigger: containerRef.current,
+      start: 'top top',
+      end: 'bottom bottom',
+      snap: {
+        snapTo: 1 / 2, // Stops strictly at 0.0, 0.5, and 1.0 bounds
+        duration: { min: 0.2, max: 0.6 },
+        ease: 'power2.out'
+      }
+    });
+  }, { scope: containerRef });
+
   const [R, setR] = useState(680);
   useEffect(() => {
     const update = () => {
       const vh = window.innerHeight;
       const vw = window.innerWidth;
-      // R ≈ 72% of viewport height → arc top sits ~28% from top of screen
-      // also cap by 78% of half-width so arc doesn't look too flat on wide screens
       const byH = vh * 0.72;
       const byW = vw * 0.78;
       setR(Math.round(Math.min(byH, byW, 900)));
@@ -114,27 +135,28 @@ const CircularSlider = () => {
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  // Scroll setup
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ['start start', 'end end']
   });
 
-  // Hold-at-each-number with smooth transitions between them.
-  // Each third (~33%) is a HOLD zone. The 7% gap between thirds is the GLIDE zone.
-  //   0%     → 30%  : hold at slide 1 (rotation = 0°)
-  //   30%    → 37%  : smooth glide to -55°
-  //   37%    → 63%  : hold at slide 2 (rotation = -55°)
-  //   63%    → 70%  : smooth glide to -110°
-  //   70%    → 100% : hold at slide 3 (rotation = -110°)
+  // Hold zones with brief rapid gliding between them so user sees numbers clearly snap.
   const rawRotation = useTransform(
     scrollYProgress,
-    [0,   0.30,             0.37,             0.63,             0.70,              1],
+    [0,   0.28,             0.38,             0.61,             0.71,              1],
     [0,   SNAP_ROTATIONS[0], SNAP_ROTATIONS[1], SNAP_ROTATIONS[1], SNAP_ROTATIONS[2], SNAP_ROTATIONS[2]]
   );
 
-  // Moderate spring: smooth glide + natural settle at each stop
   const arcRotation = useSpring(rawRotation, { damping: 42, stiffness: 180, mass: 0.4 });
+
+  // Map the line opacity strictly to the physical rotation of the arc!
+  // This guarantees the line stays invisible during the entire spin, 
+  // and ONLY fades in when the number gently settles into the direct top position.
+  const lineOpacity = useTransform(
+    arcRotation,
+    [-140, -132, -128, -120, -73, -67, -63, -57, -8, -2, 2, 8],
+    [0,    0,    1,    0,    0,   1,   1,   0,   0,  1, 1, 0]
+  );
 
   const [activeIndex, setActiveIndex] = useState(0);
   useEffect(
@@ -146,13 +168,12 @@ const CircularSlider = () => {
     [scrollYProgress]
   );
 
-  // Ring div dimensions
-  const PAD   = 160;           // horizontal padding so side badges don't clip
-  const svgW  = R * 2 + PAD;  // total width of the rotating div
-  const svgH  = R;             // height = R so circle centre sits at bottom of div
+  const PAD   = 160;          
+  const svgW  = R * 2 + PAD;  
+  const svgH  = R;            
 
-  // Vertical line height: from arc top (12-o'clock) down to the label text
-  const lineH = Math.round(R * 0.18);
+  // Line height heavily reduced to snug up against text
+  const lineH = Math.round(R * 0.4);
 
   return (
     <section ref={containerRef} className="relative h-[300vh] bg-[#191919]">
@@ -169,23 +190,19 @@ const CircularSlider = () => {
         </div>
 
         {/* ── Connector line + slide label ────────────────────────────────── */}
-        {/*
-          The 12-o'clock point of the ring = (50vw, 100vh - R).
-          Circle centre is at 100vh (bottom edge of sticky viewport).
-        */}
         <div
           className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center z-10"
-          style={{ top: `calc(100vh - ${R}px)` }}
+          style={{ top: `calc(100vh - ${R}px + 26px)` }}
         >
-          {/* Gradient line */}
-          <div
+          {/* Gradient line mapping to lineOpacity */}
+          <motion.div
             className="w-px relative"
             style={{
               height: lineH,
+              opacity: lineOpacity,
               background: 'linear-gradient(to bottom, rgba(232,115,90,1) 0%, rgba(232,115,90,0.15) 100%)'
             }}
           >
-            {/* Glowing diamond at bottom of line */}
             <div
               style={{
                 position: 'absolute',
@@ -198,7 +215,7 @@ const CircularSlider = () => {
                 boxShadow: '0 0 18px 4px rgba(232,115,90,0.75)'
               }}
             />
-          </div>
+          </motion.div>
 
           {/* Animated slide content */}
           <div className="mt-8 sm:mt-10 text-center px-4">
@@ -220,11 +237,6 @@ const CircularSlider = () => {
         </div>
 
         {/* ── Rotating arc ring ───────────────────────────────────────────── */}
-        {/*
-          Div sits at bottom:0, horizontally centred.
-          Width = svgW, Height = R  (shows top half of the circle).
-          transform-origin = (svgW/2, R) = circle centre = (50vw, 100vh).
-        */}
         <motion.div
           style={{
             rotate: arcRotation,
@@ -237,14 +249,12 @@ const CircularSlider = () => {
             transformOrigin: `${svgW / 2}px ${svgH}px`
           }}
         >
-          {/* SVG arc line */}
           <svg
             width={svgW}
             height={svgH}
             overflow="visible"
             style={{ position: 'absolute', inset: 0 }}
           >
-            {/* Full circle – only the top portion is visible in viewport */}
             <circle
               cx={svgW / 2}
               cy={svgH}
@@ -253,7 +263,6 @@ const CircularSlider = () => {
               stroke="rgba(255,255,255,0.10)"
               strokeWidth={1.5}
             />
-            {/* Subtle inner glow ring */}
             <circle
               cx={svgW / 2}
               cy={svgH}
@@ -264,17 +273,17 @@ const CircularSlider = () => {
             />
           </svg>
 
-          {/* Number badges */}
-          {slides.map((slide, index) => (
+          {/* Render our visually mapped infinite wheel numbers */}
+          {RING_ITEMS.map((item, index) => (
             <NumberBadge
-              key={slide.id}
-              id={slide.id}
-              angleDeg={ANGLES[index]}
+              key={index}
+              id={item.id}
+              angleDeg={item.angle}
               R={R}
               svgW={svgW}
               svgH={svgH}
               arcRotation={arcRotation}
-              isActive={activeIndex === index}
+              isActive={activeIndex === item.slideIndex}
             />
           ))}
         </motion.div>

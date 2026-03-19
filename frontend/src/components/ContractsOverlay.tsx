@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { useContractsStore } from '../store/useContractsStore';
 import { apiClient } from "@/api/client";
-import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid, Copy, ExternalLink, FilePen, Send, MessageSquareMore, PenLine, Banknote, CheckCircle2, XCircle, Flag } from 'lucide-react';
+import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid, Copy, ExternalLink, FilePen, Send, MessageSquareMore, PenLine, Banknote, XCircle, Flag } from 'lucide-react';
 import contractsBg3d from '@/assets/contracts_bg_3d.png';
 
 /** Milestone row as in CreateContractForm (Scope & Deliverables / Payment) */

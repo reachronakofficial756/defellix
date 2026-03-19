@@ -3,13 +3,14 @@ import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Hero from '../components/landing/Hero';
 import TrustBanner from '../components/landing/TrustBanner';
-import PainSolution from '../components/landing/PainSolution';
-import FeatureBento from '../components/landing/FeatureBento';
+import DotMatrix from '../components/landing/DotMatrix';
 import HowItWorks from '../components/landing/HowItWorks';
 import ScrollingCards from '../components/landing/ScrollingCards';
 import CircularSlider from '../components/landing/CircularSlider';
 import FeatureSlider from '../components/landing/FeatureSlider';
 import ScrollTestimonials from '../components/landing/ScrollTestimonials';
+import CustomerStoryCard from '../components/landing/CustomerStoryCard';
+import CallToAction from '../components/landing/CallToAction';
 import Footer from '../components/landing/Footer';
 
 const LandingPage = () => {
@@ -29,10 +30,7 @@ const LandingPage = () => {
       <nav className="fixed top-0 inset-x-0 h-24 z-[100] px-6 lg:px-12 pointer-events-none">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.3)]">
-               <div className="w-4 h-4 rounded-sm bg-primary transform rotate-45" />
-            </div>
-            <span className="text-2xl font-black tracking-tighter text-white">DEFELLIX</span>
+            <img src="/logo.svg" alt="Defellix Logo" className="h-48 w-48" />
           </div>
 
           <div className="hidden md:flex items-center gap-10">
@@ -61,20 +59,24 @@ const LandingPage = () => {
       <main>
         <Hero />
         <TrustBanner />
+        <DotMatrix />
         
         <div id="how">
            <HowItWorks />
         </div>
 
-        <ScrollingCards />
-
-        <CircularSlider />
-
-        <FeatureSlider />
+        <div id="features">
+          <ScrollingCards />
+          <CircularSlider />
+          <FeatureSlider />
+        </div>
         
         <div id="reviews">
            <ScrollTestimonials />
         </div>
+        
+        <CustomerStoryCard />
+        <CallToAction />
       </main>
 
       <Footer />

@@ -110,15 +110,14 @@ export default function ScrollTestimonials() {
         <div key={i} ref={anchors[i]} style={{ position: 'absolute', top: `${pct * 100}%`, left: 0 }} />
       ))}
 
-      {/* ── Sticky viewport ── */}
-      <div className="sticky top-0 h-screen flex">
+      {/* ── Viewport (Stacks on Mobile, Sticky on Desktop) ── */}
+      <div className="relative md:sticky top-0 min-h-screen md:h-screen flex flex-col md:flex-row">
 
         {/* LEFT: heading + nav buttons */}
         <div
-          className="flex flex-col justify-between shrink-0 z-20"
-          style={{ width: '36%', padding: '3.5rem 2rem 3.5rem clamp(1.5rem, 5vw, 5rem)' }}
+          className="flex flex-col justify-between items-center md:items-start shrink-0 z-20 w-full md:w-[36%] px-6 py-16 md:py-[3.5rem] md:pl-[clamp(1.5rem,5vw,5rem)] md:pr-8"
         >
-          <h2 className="text-[clamp(32px,3.8vw,54px)] font-bold text-white leading-[1.0] tracking-tight">
+          <h2 className="text-[clamp(32px,3.8vw,54px)] font-medium text-[#E8E6DF] leading-[1.0] tracking-tight">
             Trusted by the<br />
             teams who lead<br />
             change
@@ -131,45 +130,27 @@ export default function ScrollTestimonials() {
               onClick={() => scrollToIndex(Math.max(active - 1, 0))}
               disabled={active === 0}
               aria-label="Previous"
-              style={{
-                position: 'absolute',
-                left: 0, top: 0,
-                width: 84, height: 84,
-                borderRadius: '50%',
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: '#0D0D0D',
-                color: active === 0 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.6)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: active === 0 ? 'not-allowed' : 'pointer',
-                transition: 'color 0.3s, border-color 0.3s',
-                zIndex: 10
-              }}
+              className={`absolute left-0 top-0 w-[84px] h-[84px] rounded-full border border-white/20 flex items-center justify-center transition-all duration-300 z-10
+                ${active === 0 
+                  ? 'text-white/20 cursor-not-allowed bg-transparent' 
+                  : 'text-[#E8E6DF] cursor-pointer bg-transparent hover:bg-[#8FA0A4] hover:border-[#8FA0A4] hover:text-[#111] hover:z-30 focus:z-30'}`}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M5 12L12 19M5 12L12 5"/>
               </svg>
             </button>
 
             {/* → next */}
             <button
-              onClick={() => scrollToIndex(Math.min(active + 1, testimonials.length - 1))}
+              onClick={() => scrollToIndex(Math.max(active + 1, testimonials.length - 1))}
               disabled={active === testimonials.length - 1}
               aria-label="Next"
-              style={{
-                position: 'absolute',
-                left: 64, top: 0,
-                width: 84, height: 84,
-                borderRadius: '50%',
-                border: '1px solid rgba(255,255,255,0.14)',
-                background: '#0D0D0D',
-                color: active === testimonials.length - 1 ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.6)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: active === testimonials.length - 1 ? 'not-allowed' : 'pointer',
-                transition: 'color 0.3s, border-color 0.3s',
-                zIndex: 9
-              }}
+              className={`absolute left-[64px] top-0 w-[84px] h-[84px] rounded-full border border-white/20 flex items-center justify-center transition-all duration-300 z-20
+                ${active === testimonials.length - 1 
+                  ? 'text-white/20 cursor-not-allowed bg-transparent' 
+                  : 'text-[#E8E6DF] cursor-pointer bg-transparent hover:bg-[#8FA0A4] hover:border-[#8FA0A4] hover:text-[#111] hover:z-30 focus:z-30'}`}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12H19M19 12L12 5M19 12L12 19"/>
               </svg>
             </button>
@@ -177,7 +158,7 @@ export default function ScrollTestimonials() {
         </div>
 
         {/* RIGHT: carousel */}
-        <div className="relative flex-1 overflow-hidden" style={{ padding: '0 clamp(1.5rem,5vw,5rem) 0 2rem' }}>
+        <div className="relative flex-1 overflow-hidden w-full" style={{ padding: '0 clamp(1.5rem,5vw,5rem) 0 2rem' }}>
 
           {/* Moving stack */}
           <motion.div

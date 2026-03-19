@@ -180,8 +180,8 @@ const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
     const [coreDeliverable, setCoreDeliverable] = useState("");
     const [revisionPolicy, setRevisionPolicy] = useState("2 Rounds");
     const [intellectualProperty, setIntellectualProperty] = useState("Client owns all upon payment");
-    const [contractCurrency, setContractCurrency] = useState("INR");
-    const [contractAmount, setContractAmount] = useState("");
+    const [contractCurrency] = useState("INR");
+    const [contractAmount] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [contractText, setContractText] = useState("");
 
