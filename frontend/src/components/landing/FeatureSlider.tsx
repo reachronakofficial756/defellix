@@ -84,15 +84,15 @@ function SvgLayer({ op, prog, children }: { op: typeof OP0; prog: MotionValue<nu
 }
 
 // Text layer
-function TextLayer({ op, prog, title, description }: { op: typeof OP0; prog: MotionValue<number>; title: string; description: string }) {
+function TextLayer({ op, prog, title, description, isBase = false }: { op: typeof OP0; prog: MotionValue<number>; title: string; description: string; isBase?: boolean }) {
   const opacity = useTransform(prog, op.i, op.o);
   const y       = useTransform(prog, op.i, op.o.map(v => (v === 0 ? 20 : 0)));
   return (
-    <motion.div style={{ opacity, y, position: 'absolute', top: 0, left: 0, right: 0 }}>
-      <h2 className="text-4xl lg:text-5xl font-bold text-slate-800 mb-7 leading-tight tracking-tight" style={{ whiteSpace: 'pre-line' }}>
+    <motion.div style={{ opacity, y }} className={`${isBase ? 'relative' : 'absolute md:absolute top-0 left-0 right-0'}`}>
+      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-800 mb-4 md:mb-7 leading-tight tracking-tight" style={{ whiteSpace: 'pre-line' }}>
         {title}
       </h2>
-      <p className="text-slate-700 text-base leading-relaxed">{description}</p>
+      <p className="text-slate-700 text-sm md:text-base leading-relaxed">{description}</p>
     </motion.div>
   );
 }
@@ -110,21 +110,21 @@ const FeatureSlider = () => {
 
   return (
     <section ref={ref} className="relative h-[450vh]">
-      <div className="sticky top-0 h-screen w-full flex overflow-hidden">
+      <div className="sticky top-0 h-screen w-full flex flex-col md:flex-row overflow-hidden">
 
         {/* LEFT — coloured bg + SVG layers, overflow:hidden clips layers cleanly */}
-        <motion.div style={{ backgroundColor: bg }} className="w-1/2 h-full relative overflow-hidden">
+        <motion.div style={{ backgroundColor: bg }} className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-hidden">
           <SvgLayer op={OP0} prog={prog}><SVG0 /></SvgLayer>
           <SvgLayer op={OP1} prog={prog}><SVG1 /></SvgLayer>
           <SvgLayer op={OP2} prog={prog}><SVG2 /></SvgLayer>
         </motion.div>
 
         {/* RIGHT — grey bg + text layers */}
-        <div className="w-1/2 h-full relative" style={{ backgroundColor: '#8B9E99' }}>
-          <div className="absolute inset-0 flex items-center px-12 lg:px-20">
-            {/* Fixed height + overflow:hidden ensures all 3 absolute text layers are clipped to the same box */}
-            <div className="relative w-full max-w-md" style={{ height: 320, overflow: 'hidden' }}>
-              <TextLayer op={OP0} prog={prog} title={slides[0].title} description={slides[0].description} />
+        <div className="w-full md:w-1/2 h-1/2 md:h-full relative" style={{ backgroundColor: '#8B9E99' }}>
+          <div className="absolute inset-0 flex items-center px-6 md:px-12 lg:px-20">
+            {/* Fixed height + overflow:hidden ensures all absolute text layers are clipped to the same box */}
+            <div className="relative w-full max-w-md h-auto md:h-[320px] md:overflow-hidden">
+              <TextLayer op={OP0} prog={prog} title={slides[0].title} description={slides[0].description} isBase={true} />
               <TextLayer op={OP1} prog={prog} title={slides[1].title} description={slides[1].description} />
               <TextLayer op={OP2} prog={prog} title={slides[2].title} description={slides[2].description} />
             </div>

@@ -3,12 +3,11 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2, FileText, MessageSquare, ShieldCheck,
-  Send, DollarSign, Calendar, User, Building2, Phone,
-  Mail, Globe, CreditCard, Clock, AlertCircle, Copy, Check,
+  Send, DollarSign, Calendar, User, Building2,
+  CreditCard, Clock, AlertCircle,
   FileCheck, ArrowRight, Loader2, X
 } from 'lucide-react';
 import logo from '@/assets/logo.svg';
-import Navbar from '@/components/Navbar';
 import { useNavigate } from 'react-router-dom';
 
 import { API_BASE } from '@/api/client';
@@ -87,7 +86,6 @@ export default function ClientContractReview() {
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
   const [otpError, setOtpError] = useState('');
-  const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -191,12 +189,6 @@ export default function ClientContractReview() {
     } finally {
       setNegotiating(false);
     }
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   if (loading) return (
