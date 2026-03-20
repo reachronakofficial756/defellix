@@ -99,33 +99,43 @@ const DotMatrix = () => {
     const textSpans = gsap.utils.toArray('.center-text-group span');
     const featureContainer = document.querySelector('.feature-container');
     
-    // 1. Red circle begins slow expansion
+    // 1. Red circle begins slow expansion + background blur
     tl.to(centerRedDot, {
         scale: 15, // Grows large enough to engulf text slowly
         duration: 2.5, // Slow
         ease: 'power2.inOut'
+    }, 'expand_slow')
+    .to(gridRef.current, {
+        filter: 'blur(30px)', // Drastically blur the background grid
+        duration: 2.5,
+        ease: 'power2.inOut' // Slow blur
     }, 'expand_slow')
     .to(textSpans, {
         opacity: 0,
         duration: 1.0
     }, 'expand_slow');
     
-    // 2. Red circle fully expands FAST
+    // 2. Red circle fully expands SLOWER (as per request)
     tl.to(centerRedDot, {
-        scale: 150, // Massive scale to cover the screen
-        duration: 0.5, // Fast
-        ease: 'power4.in'
-    }, 'expand_fast')
-    .to(dots, {
+        scale: 250, // Massive scale to cover the screen entirely
+        duration: 2.5, // Slower
+        ease: 'power3.inOut'
+    }, 'expand_full')
+    .to(gridRef.current, {
+        filter: 'blur(100px)', // Total background obscurity
+        duration: 2.5,
+        ease: 'power3.inOut'
+    }, 'expand_full')
+    .to([dots, gridRef.current], {
         opacity: 0, // Clean up dots below instantly
         duration: 0.1
-    }, 'expand_fast');
+    }, 'expand_full+=2.0'); // Wipe late in the expansion
     
     // 3. Immediately show the feature container (has a black bg)
     tl.set(featureContainer, { 
         opacity: 1, 
         pointerEvents: 'auto' 
-    }, 'expand_fast+=0.5');
+    }, 'expand_full+=2.5'); // Directly after expansion finishes
     
     // 4. Red circle (now a full red screen) fades out to reveal FeatureCircles
     tl.to(centerRedDot, {

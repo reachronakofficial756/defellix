@@ -19,7 +19,7 @@ const CallToAction = () => {
   // Slowly disappear as requested starting at exactly 87.6824% dropping reliably to 0 at 91.4731%
   const ballOpacity = useTransform(
     smoothDistance,
-    [0, 0.876824, 0.934731, 1],
+    [0, 0.876824, 0.914731, 1],
     [1, 1, 0, 0]
   );
 

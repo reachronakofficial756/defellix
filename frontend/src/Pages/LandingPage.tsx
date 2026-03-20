@@ -10,6 +10,7 @@ import CircularSlider from '../components/landing/CircularSlider';
 import FeatureSlider from '../components/landing/FeatureSlider';
 import ScrollTestimonials from '../components/landing/ScrollTestimonials';
 import CustomerStoryCard from '../components/landing/CustomerStoryCard';
+import TransitionArcs from '../components/landing/TransitionArcs';
 import CallToAction from '../components/landing/CallToAction';
 import Footer from '../components/landing/Footer';
 
@@ -76,6 +77,7 @@ const LandingPage = () => {
         </div>
         
         <CustomerStoryCard />
+        <TransitionArcs />
         <CallToAction />
       </main>
 
