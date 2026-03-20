@@ -99,16 +99,43 @@ const DotMatrix = () => {
     const textSpans = gsap.utils.toArray('.center-text-group span');
     const featureContainer = document.querySelector('.feature-container');
     
-    // 1. Red circle begins slow expansion + background blur
+    // Performance optimization: Generate overlay container for blur
+    const gridEl = gridRef.current;
+    const overlayContainer = document.createElement('div');
+    overlayContainer.className = 'grid-overlay-container';
+    Object.assign(overlayContainer.style, {
+      position: 'absolute',
+      inset: '0',
+      pointerEvents: 'none',
+      zIndex: '5',
+      opacity: '0',
+      filter: 'blur(0px)'
+    });
+    gridEl?.parentElement?.appendChild(overlayContainer);
+
+    // 1. Red circle begins slow expansion + background blur on overlay
     tl.to(centerRedDot, {
         scale: 15, // Grows large enough to engulf text slowly
         duration: 2.5, // Slow
         ease: 'power2.inOut'
     }, 'expand_slow')
-    .to(gridRef.current, {
-        filter: 'blur(30px)', // Drastically blur the background grid
+    .add(() => {
+        // Snapshot the current grid state (colors, etc.) into the overlay
+        if (gridEl && overlayContainer.children.length === 0) {
+            const clone = gridEl.cloneNode(true) as HTMLElement;
+            clone.style.filter = 'none'; // Ensure the clone itself isn't pre-blurred
+            overlayContainer.appendChild(clone);
+        }
+    }, 'expand_slow')
+    .to(overlayContainer, {
+        opacity: 1,
+        filter: 'blur(30px)', // Blur the container holding the clone
         duration: 2.5,
-        ease: 'power2.inOut' // Slow blur
+        ease: 'power2.inOut'
+    }, 'expand_slow')
+    .to(gridEl, {
+        opacity: 0, // Fading out the real grid as overlay takes over
+        duration: 1.0
     }, 'expand_slow')
     .to(textSpans, {
         opacity: 0,
@@ -121,15 +148,15 @@ const DotMatrix = () => {
         duration: 2.5, // Slower
         ease: 'power3.inOut'
     }, 'expand_full')
-    .to(gridRef.current, {
-        filter: 'blur(100px)', // Total background obscurity
+    .to(overlayContainer, {
+        filter: 'blur(100px)', // Total background obscurity on overlay
         duration: 2.5,
         ease: 'power3.inOut'
     }, 'expand_full')
-    .to([dots, gridRef.current], {
-        opacity: 0, // Clean up dots below instantly
+    .to([dots, gridEl, overlayContainer], {
+        opacity: 0, // Clean up everything instantly at the end
         duration: 0.1
-    }, 'expand_full+=2.0'); // Wipe late in the expansion
+    }, 'expand_full+=2.0');
     
     // 3. Immediately show the feature container (has a black bg)
     tl.set(featureContainer, { 

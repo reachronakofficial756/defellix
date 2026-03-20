@@ -21,6 +21,16 @@ const TransitionArcs = () => {
   }));
 
   useGSAP(() => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // If user prefers reduced motion, set final state and skip transition
+    if (prefersReducedMotion) {
+      gsap.set(shellsRef.current, { opacity: 1, scale: 1 });
+      gsap.set(shellContainerRef.current, { scale: 1.5, y: -50 });
+      gsap.set(centralDotRef.current, { opacity: 0 }); // Hidden as it's a transition portal
+      return;
+    }
+
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: containerRef.current,
@@ -28,8 +38,6 @@ const TransitionArcs = () => {
         end: '+=150%',
         scrub: 1,
         pin: true,
-        // Markers for debugging
-        // markers: true, 
       }
     });
 
@@ -53,14 +61,13 @@ const TransitionArcs = () => {
       ease: 'power1.inOut'
     }, 0.5);
 
-    // 3. The central coral dot expands to engulf the screen
-    // This creates the transition "portal" to the next section
+    // 3. The central coral dot expands to engulf the screen using scale (performance optimized)
+    // Starting from a fixed base size to avoid layout thrashing
     tl.to(centralDotRef.current, {
-      width: '350vw',
-      height: '350vw',
+      scale: 1000, 
       duration: 2,
       ease: 'power4.in',
-      // The box shadow provides the "blur sides" effect
+      // Keep boxShadow spread fixed to prevent paint thrashing
       boxShadow: '0 0 150px 100px #FF7056',
     }, 1.5);
 
@@ -96,8 +103,9 @@ const TransitionArcs = () => {
           ref={centralDotRef}
           className="absolute aspect-square bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-[#FF7056] z-50 pointer-events-none"
           style={{ 
-            width: '0px', 
-            height: '0px',
+            width: '4px', 
+            height: '4px',
+            scale: 0,
             boxShadow: '0 4px 16px 24px rgba(255, 112, 86, 0.8)'
           }}
         />

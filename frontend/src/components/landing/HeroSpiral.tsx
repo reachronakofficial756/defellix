@@ -36,7 +36,8 @@ const HeroSpiral = () => {
   return (
     <div 
       ref={containerRef} 
-      className="w-full relative flex items-center justify-center py-10 overflow-hidden pointer-events-none"
+      aria-hidden="true"
+      className="w-full relative flex items-center justify-center py-5 mt-20 overflow-hidden pointer-events-none"
     >
       <div className="relative w-full max-w-6xl aspect-[2/1] flex items-center justify-center">
         <motion.svg
