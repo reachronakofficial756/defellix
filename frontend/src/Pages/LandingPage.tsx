@@ -80,24 +80,24 @@ const LandingPage = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-10">
-             <a href="#features" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Features</a>
-             <a href="#how" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">How it works</a>
-             <a href="#reviews" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Verification</a>
-             {isAuthenticated && isProfileComplete ? (
-               <NavLink to="/dashboard" className="px-8 py-3 bg-accent/20 border border-accent/40 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-accent hover:bg-accent/30 transition-colors">
-                 Dashboard
-               </NavLink>
-             ) : (
-               <NavLink to="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-white hover:bg-white/10 transition-colors">
-                 Sign In
-               </NavLink>
-             )}
+            <a href="#features" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Features</a>
+            <a href="#how" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">How it works</a>
+            <a href="#reviews" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Verification</a>
+            {isAuthenticated && isProfileComplete ? (
+              <NavLink to="/dashboard" className="px-8 py-3 bg-accent/20 border border-accent/40 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-accent hover:bg-accent/30 transition-colors">
+                Dashboard
+              </NavLink>
+            ) : (
+              <NavLink to="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-white hover:bg-white/10 transition-colors">
+                Sign In
+              </NavLink>
+            )}
           </div>
 
           <div className="md:hidden">
-             <div className="w-8 h-8 rounded-lg bg-secondary border border-white/10 flex items-center justify-center">
-                <div className="w-4 h-0.5 bg-white" />
-             </div>
+            <div className="w-8 h-8 rounded-lg bg-secondary border border-white/10 flex items-center justify-center">
+              <div className="w-4 h-0.5 bg-white" />
+            </div>
           </div>
         </div>
       </nav>
@@ -106,9 +106,9 @@ const LandingPage = () => {
         <Hero />
         <TrustBanner />
         <DotMatrix />
-        
+
         <div id="how">
-           <HowItWorks />
+          <HowItWorks />
         </div>
 
         <div id="features">
@@ -116,11 +116,11 @@ const LandingPage = () => {
           <CircularSlider />
           <FeatureSlider />
         </div>
-        
+
         <div id="reviews">
-           <ScrollTestimonials />
+          <ScrollTestimonials />
         </div>
-        
+
         <CustomerStoryCard />
         <CallToAction />
       </main>
