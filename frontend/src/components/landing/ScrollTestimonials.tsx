@@ -142,7 +142,7 @@ export default function ScrollTestimonials() {
 
             {/* → next */}
             <button
-              onClick={() => scrollToIndex(Math.max(active + 1, testimonials.length - 1))}
+              onClick={() => scrollToIndex(Math.min(active + 1, testimonials.length - 1))}
               disabled={active === testimonials.length - 1}
               aria-label="Next"
               className={`absolute left-[64px] top-0 w-[84px] h-[84px] rounded-full border border-white/20 flex items-center justify-center transition-all duration-300 z-20
