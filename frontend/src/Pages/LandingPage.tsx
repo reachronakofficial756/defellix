@@ -76,7 +76,7 @@ const LandingPage = () => {
       <nav className="fixed top-0 inset-x-0 h-24 z-[100] px-6 lg:px-12 pointer-events-none">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Defellix Logo" className="h-48 w-48" />
+            <img src="/logo.svg" alt="Defellix Logo" className="h-28 w-28 md:h-48 md:w-48 -ml-4 md:-ml-8" />
           </div>
 
           <div className="hidden md:flex items-center gap-10">

@@ -48,10 +48,11 @@ const CustomerStoryCard = () => {
             <p className="text-[#4E5C58] font-medium text-xl md:text-2xl tracking-normal">
               Customer stories
             </p>
-            <button className="flex items-center gap-3 md:gap-4 text-[#1C2422] font-medium text-lg hover:opacity-80 transition-opacity group">
-              Full success story
-              <div className="w-10 h-10 rounded-full bg-[#FA6955] flex items-center justify-center text-white transition-transform group-hover:translate-x-1">
-                <ArrowRight className="w-5 h-5" />
+            <button className="flex items-center gap-1 sm:gap-3 md:gap-4 text-[#1C2422] font-medium text-base sm:text-lg hover:opacity-80 transition-opacity group">
+              <span className="hidden sm:inline">Full success story</span>
+              <span className="sm:hidden">Full story</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#FA6955] flex items-center justify-center text-white transition-transform group-hover:translate-x-1 shrink-0">
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </button>
           </div>
@@ -60,10 +61,10 @@ const CustomerStoryCard = () => {
           <div className="flex flex-col lg:flex-row justify-between mb-16 gap-12 lg:gap-20 items-stretch max-w-[1400px] mx-auto w-full">
             {/* Left: Text content */}
             <div className="lg:w-1/2 flex flex-col pt-2 md:pt-4 pr-0 lg:pr-12">
-              <h2 className="text-4xl md:text-[52px] xl:text-[56px] leading-[1.1] font-medium text-[#131A18] mb-6 tracking-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-[52px] xl:text-[56px] leading-[1.1] font-medium text-[#131A18] mb-4 sm:mb-6 tracking-tight">
                 From buried transcripts to frontline impact
               </h2>
-              <p className="text-[#4E5C58] text-xl md:text-[22px] font-medium leading-relaxed mb-12 max-w-[500px]">
+              <p className="text-[#4E5C58] text-lg sm:text-xl md:text-[22px] font-medium leading-relaxed mb-8 sm:mb-12 max-w-[500px]">
                 Crocus & Primrose unlocked 100% coverage, faster QA, and instant insights, turning conversations into performance at scale.
               </p>
               

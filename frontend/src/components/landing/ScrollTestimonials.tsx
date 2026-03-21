@@ -111,20 +111,20 @@ export default function ScrollTestimonials() {
       ))}
 
       {/* ── Viewport (Stacks on Mobile, Sticky on Desktop) ── */}
-      <div className="relative md:sticky top-0 min-h-screen md:h-screen flex flex-col md:flex-row">
+      <div className="sticky top-0 h-screen flex flex-col md:flex-row overflow-hidden">
 
         {/* LEFT: heading + nav buttons */}
         <div
-          className="flex flex-col justify-between items-center md:items-start shrink-0 z-20 w-full md:w-[36%] px-6 py-16 md:py-[3.5rem] md:pl-[clamp(1.5rem,5vw,5rem)] md:pr-8"
+          className="flex flex-col justify-between items-center md:items-start shrink-0 z-20 w-full md:w-[36%] px-6 py-8 md:py-[3.5rem] md:pl-[clamp(1.5rem,5vw,5rem)] md:pr-8"
         >
-          <h2 className="text-[clamp(32px,3.8vw,54px)] font-medium text-[#E8E6DF] leading-[1.0] tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-[clamp(32px,3.8vw,54px)] font-medium text-[#E8E6DF] leading-[1.1] md:leading-[1.0] tracking-tight text-center md:text-left mb-6 md:mb-0">
             Trusted by the<br />
             teams who lead<br />
             change
           </h2>
 
           {/* Overlapping circles */}
-          <div className="relative flex items-center" style={{ width: 148, height: 84 }}>
+          <div className="relative flex items-center scale-75 md:scale-100" style={{ width: 148, height: 84 }}>
             {/* ← prev */}
             <button
               onClick={() => scrollToIndex(Math.max(active - 1, 0))}
@@ -158,11 +158,12 @@ export default function ScrollTestimonials() {
         </div>
 
         {/* RIGHT: carousel */}
-        <div className="relative flex-1 overflow-hidden w-full" style={{ padding: '0 clamp(1.5rem,5vw,5rem) 0 2rem' }}>
+        <div className="relative flex-1 overflow-hidden w-full px-6 md:px-0" style={{ padding: '0 clamp(1.5rem,5vw,5rem) 0 2rem' }}>
 
           {/* Moving stack */}
           <motion.div
             style={{ y: stackY, position: 'absolute', inset: 0, top: `${INIT_TOP}vh` }}
+            className="px-6 md:px-0"
           >
             {testimonials.map((t, i) => <Card key={t.id} t={t} idx={i} prog={smooth} />)}
           </motion.div>
@@ -175,6 +176,7 @@ export default function ScrollTestimonials() {
         </div>
 
       </div>
+
     </section>
   );
 }
