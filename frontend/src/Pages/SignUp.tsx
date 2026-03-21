@@ -11,6 +11,323 @@ import logo from "../assets/logo.svg";
 
 const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your first contract"];
 
+const JOB_TITLES = [
+    // Core Software & Engineering
+    "Frontend Developer", "Backend Developer", "Fullstack Engineer", "Software Engineer",
+    "Web Developer", "Mobile App Developer", "iOS Developer", "Android Developer",
+    "Game Developer", "AR/VR Developer", "Embedded Systems Engineer",
+    "API Developer", "SDK Developer", "Plugin Developer",
+
+    // Specialized Dev Roles
+    "Shopify Developer", "WordPress Developer", "Webflow Developer",
+    "Bubble Developer", "No-Code Developer", "Low-Code Developer",
+    "Automation Engineer", "Zapier Expert", "Make (Integromat) Specialist",
+
+    // Design & Creative
+    "UI/UX Designer", "Product Designer", "Graphic Designer", "Motion Designer",
+    "Brand Designer", "Logo Designer", "Illustrator", "Animator",
+    "Video Editor", "Short-form Video Editor", "YouTube Editor",
+    "3D Artist", "VFX Artist", "Game Artist", "Storyboarding Artist",
+    "Presentation Designer", "Pitch Deck Designer",
+
+    // Writing & Content
+    "Content Writer", "Copywriter", "Technical Writer", "Ghostwriter",
+    "Scriptwriter", "Blog Writer", "SEO Writer", "LinkedIn Ghostwriter",
+    "Twitter Ghostwriter", "Email Copywriter", "Sales Copywriter",
+    "Editor", "Proofreader", "Resume Writer",
+
+    // Marketing & Growth
+    "Digital Marketer", "SEO Specialist", "Local SEO Specialist",
+    "Technical SEO Expert", "SEM Specialist", "Google Ads Specialist",
+    "Meta Ads Specialist", "TikTok Ads Specialist",
+    "Social Media Manager", "Content Strategist",
+    "Email Marketing Specialist", "Marketing Automation Specialist",
+    "Performance Marketer", "Growth Hacker",
+    "Conversion Rate Optimization Specialist",
+    "Affiliate Marketer", "Influencer Marketer",
+    "Brand Strategist", "Marketing Analyst",
+
+    // Data & AI
+    "Data Scientist", "Data Analyst", "Machine Learning Engineer",
+    "AI Engineer", "AI Researcher", "Prompt Engineer",
+    "LLM Engineer", "AI Automation Specialist",
+    "Business Intelligence Analyst", "Data Engineer",
+    "Data Visualization Specialist", "Analytics Engineer",
+
+    // Web3 & Blockchain
+    "Blockchain Engineer", "Smart Contract Developer",
+    "Solidity Developer", "Rust Blockchain Developer",
+    "Web3 Engineer", "Smart Contract Auditor",
+    "Crypto Analyst", "Tokenomics Specialist",
+    "NFT Artist", "NFT Community Manager", "DAO Manager",
+
+    // Cloud & DevOps
+    "DevOps Engineer", "Cloud Architect", "Cloud Engineer",
+    "AWS Specialist", "Azure Engineer", "GCP Engineer",
+    "Site Reliability Engineer", "Platform Engineer",
+    "Infrastructure Engineer", "System Administrator",
+    "Kubernetes Specialist",
+
+    // Cybersecurity
+    "Cybersecurity Analyst", "Ethical Hacker",
+    "Penetration Tester", "Bug Bounty Hunter",
+    "Security Engineer", "Security Consultant",
+    "SOC Analyst", "Digital Forensics Analyst",
+
+    // Product & Management
+    "Product Manager", "Associate Product Manager",
+    "Technical Product Manager", "Project Manager",
+    "Program Manager", "Scrum Master",
+    "Agile Coach", "Operations Manager",
+
+    // Business & Finance
+    "Business Analyst", "Financial Analyst",
+    "Startup Consultant", "Management Consultant",
+    "Accountant", "Bookkeeper", "Tax Consultant",
+    "Virtual CFO", "Investment Analyst",
+    "Equity Research Analyst",
+
+    // Sales & Support
+    "Sales Executive", "Sales Closer",
+    "Business Development Manager",
+    "Cold Email Specialist", "Lead Generation Specialist",
+    "Appointment Setter",
+    "Customer Support Specialist",
+    "Customer Success Manager",
+    "Account Manager",
+
+    // HR & Recruiting
+    "HR Manager", "Recruiter",
+    "Technical Recruiter",
+    "Talent Acquisition Specialist",
+    "HR Consultant", "People Operations Specialist",
+
+    // Education & Training
+    "Online Tutor", "Course Creator",
+    "Instructional Designer",
+    "Corporate Trainer", "Language Tutor",
+    "Coding Instructor",
+
+    // Admin & Virtual Work
+    "Virtual Assistant", "Executive Assistant",
+    "Data Entry Specialist", "Transcriptionist",
+    "Research Assistant", "Email Manager",
+
+    // Legal & Compliance
+    "Legal Consultant", "Contract Drafting Specialist",
+    "Compliance Officer", "Privacy Consultant",
+
+    // Media & Creator Economy
+    "Content Creator", "YouTuber",
+    "Podcaster", "Voice Over Artist",
+    "Streamer", "UGC Creator",
+    "Influencer", "Community Manager",
+    "Discord Moderator",
+
+    // Engineering (Non-Software)
+    "Mechanical Engineer", "Civil Engineer",
+    "Electrical Engineer", "CAD Designer",
+    "Architectural Designer",
+
+    // E-commerce & Ops
+    "E-commerce Manager", "Shopify Store Manager",
+    "Amazon FBA Specialist", "Etsy Seller Consultant",
+    "Dropshipping Expert",
+    "Product Listing Specialist",
+    "Supply Chain Analyst",
+
+    // Healthcare & Wellness (Remote-friendly)
+    "Telemedicine Doctor", "Nutritionist",
+    "Dietitian", "Fitness Coach",
+    "Yoga Instructor", "Mental Health Counselor",
+    "Life Coach",
+
+    // Localization & Language
+    "Translator", "Interpreter",
+    "Subtitling Specialist", "Localization Expert",
+
+    // Emerging / Niche Internet Roles
+    "No-Code SaaS Builder", "Indie Hacker",
+    "Micro-SaaS Developer",
+    "Newsletter Operator",
+    "Notion Consultant", "Airtable Specialist",
+    "Community Growth Manager",
+    "Online Reputation Manager",
+    "Personal Branding Consultant",
+    "Digital Product Seller"
+];
+
+const SKILLS_SUGGESTIONS = [
+    // Frontend Core
+    "React", "Next.js", "Vue.js", "Nuxt.js", "Angular", "Svelte",
+    "JavaScript", "TypeScript", "HTML", "CSS", "Sass", "Less",
+    "Tailwind CSS", "Bootstrap", "Material UI", "Chakra UI", "ShadCN UI",
+
+    // Advanced Frontend
+    "Three.js", "WebGL", "GSAP", "Framer Motion",
+    "Micro Frontends", "Progressive Web Apps (PWA)",
+    "Accessibility (a11y)", "Cross-browser Compatibility",
+
+    // State & Data Fetching
+    "Redux", "Zustand", "Recoil", "MobX",
+    "React Query", "TanStack Query", "SWR",
+    "Apollo Client", "GraphQL",
+
+    // Backend Frameworks
+    "Node.js", "Express.js", "NestJS",
+    "Django", "Flask", "FastAPI",
+    "Ruby on Rails", "Spring Boot", "ASP.NET Core",
+
+    // APIs & Architecture
+    "REST APIs", "GraphQL APIs", "gRPC",
+    "Microservices Architecture", "Serverless Architecture",
+    "Event-driven Architecture", "API Design",
+
+    // Programming Languages
+    "Python", "Go", "Rust", "Java", "C#", "C++",
+    "PHP", "Kotlin", "Swift", "Dart", "Elixir",
+
+    // Databases
+    "PostgreSQL", "MySQL", "MongoDB", "Redis",
+    "SQLite", "MariaDB", "Firebase", "Supabase",
+    "DynamoDB", "Cassandra", "Neo4j",
+
+    // DevOps & Infra
+    "Docker", "Kubernetes", "Helm",
+    "CI/CD", "GitHub Actions", "GitLab CI",
+    "Jenkins", "CircleCI",
+    "AWS", "Azure", "Google Cloud Platform",
+    "Vercel", "Netlify", "Cloudflare",
+    "Terraform", "Pulumi", "Ansible",
+
+    // Observability & Performance
+    "Prometheus", "Grafana", "ELK Stack",
+    "Datadog", "New Relic",
+    "Performance Optimization", "Load Testing",
+
+    // Web3 / Blockchain
+    "Solidity", "Ether.js", "Web3.js",
+    "Hardhat", "Foundry", "OpenZeppelin",
+    "IPFS", "The Graph", "Chainlink",
+    "Smart Contract Security",
+
+    // Mobile Development
+    "React Native", "Flutter", "SwiftUI",
+    "Kotlin Multiplatform", "Ionic",
+
+    // AI / ML / Data
+    "Machine Learning", "Deep Learning",
+    "Natural Language Processing (NLP)",
+    "Computer Vision",
+    "TensorFlow", "PyTorch", "Keras",
+    "Scikit-learn", "Pandas", "NumPy",
+    "Data Visualization", "Feature Engineering",
+    "Model Deployment", "MLOps",
+    "Power BI", "Tableau",
+    "BigQuery", "Snowflake", "Redshift",
+    "Apache Spark", "Hadoop",
+    "LLMs", "Prompt Engineering",
+    "LangChain", "LlamaIndex",
+    "Vector Databases", "RAG (Retrieval-Augmented Generation)",
+
+    // Design Tools
+    "Figma", "Adobe XD", "Sketch",
+    "Adobe Photoshop", "Adobe Illustrator",
+    "Canva", "Framer", "Webflow",
+    "UI Prototyping", "Wireframing",
+    "Design Systems", "User Research",
+
+    // 3D / Motion / Video
+    "Adobe Premiere Pro", "After Effects",
+    "DaVinci Resolve", "Final Cut Pro",
+    "CapCut", "Blender", "Cinema 4D",
+    "3D Modeling", "Motion Graphics",
+    "Color Grading", "Video Storytelling",
+
+    // Writing & Content
+    "Copywriting", "SEO Writing",
+    "Technical Writing", "Blog Writing",
+    "Editing", "Proofreading",
+    "Storytelling", "Scriptwriting",
+    "Content Repurposing",
+
+    // Marketing
+    "SEO", "Technical SEO",
+    "On-page SEO", "Off-page SEO",
+    "Keyword Research", "Link Building",
+    "Google Ads", "Meta Ads", "TikTok Ads",
+    "Email Marketing", "Cold Emailing",
+    "Marketing Automation",
+    "Content Strategy",
+    "Social Media Marketing",
+    "Influencer Marketing",
+    "Analytics", "Conversion Rate Optimization",
+    "Funnel Building", "Landing Page Optimization",
+
+    // Business & Product
+    "Product Management", "Agile", "Scrum",
+    "Kanban", "JIRA", "Notion",
+    "Market Research", "User Interviews",
+    "Business Analysis", "Financial Modeling",
+    "A/B Testing", "Roadmapping",
+
+    // Sales & CRM
+    "Lead Generation", "Sales Funnels",
+    "CRM Tools", "HubSpot", "Salesforce",
+    "Client Outreach", "Negotiation",
+
+    // No-code / Automation
+    "Zapier", "Make (Integromat)",
+    "Airtable", "Notion APIs",
+    "Bubble", "Glide", "Retool",
+    "n8n", "Automation Workflows",
+
+    // Cybersecurity
+    "Penetration Testing", "Ethical Hacking",
+    "Network Security", "OWASP",
+    "Vulnerability Assessment",
+    "Security Auditing",
+
+    // Testing & QA
+    "Unit Testing", "Integration Testing",
+    "End-to-End Testing", "Cypress",
+    "Playwright", "Selenium",
+    "Test Automation",
+
+    // Version Control & Systems
+    "Git", "GitHub", "GitLab", "Bitbucket",
+    "Linux", "Bash Scripting",
+    "Shell Scripting",
+
+    // Localization & Language
+    "Translation", "Localization",
+    "Subtitling", "Transcription",
+
+    // Creator Economy
+    "YouTube SEO", "Thumbnail Design",
+    "Short-form Content Strategy",
+    "Podcast Editing",
+    "Personal Branding",
+
+    // E-commerce
+    "Shopify", "WooCommerce",
+    "Product Listing Optimization",
+    "Amazon SEO", "Dropshipping",
+    "Conversion Optimization",
+
+    // Freelancing-specific
+    "Proposal Writing", "Upwork Bidding",
+    "Client Communication",
+    "Time Tracking", "Scope Management",
+
+    // Soft Skills
+    "Communication", "Time Management",
+    "Client Management", "Problem Solving",
+    "Critical Thinking", "Adaptability",
+    "Presentation Skills", "Negotiation",
+    "Leadership", "Collaboration"
+];
+
 export default function SignUp() {
     const navigate = useNavigate();
     const { setAuthenticated, setProfileComplete, refetch } = useAuth();
@@ -38,11 +355,78 @@ export default function SignUp() {
     const [instagramLink, setInstagramLink] = useState("");
     const [skills, setSkills] = useState<string[]>([]);
     const [skillInput, setSkillInput] = useState("");
+    const [skillSuggestion, setSkillSuggestion] = useState("");
+
+    const [whatDoYouDoSuggestions, setWhatDoYouDoSuggestions] = useState<string[]>([]);
+    const [showJobSuggestions, setShowJobSuggestions] = useState(false);
+
+    const [isUserNameAvailable, setIsUserNameAvailable] = useState<boolean | null>(null);
+    const [isCheckingUserName, setIsCheckingUserName] = useState(false);
 
     const [authToken, setAuthToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    // Filter job titles based on input
+    useEffect(() => {
+        if (!whatDoYouDo.trim()) {
+            setWhatDoYouDoSuggestions([]);
+            return;
+        }
+        const filtered = JOB_TITLES.filter(job =>
+            job.toLowerCase().includes(whatDoYouDo.toLowerCase())
+        );
+        setWhatDoYouDoSuggestions(filtered);
+    }, [whatDoYouDo]);
+
+    // Handle skill suggestion ghost text
+    useEffect(() => {
+        if (!skillInput.trim()) {
+            setSkillSuggestion("");
+            return;
+        }
+        const match = SKILLS_SUGGESTIONS.find(s =>
+            s.toLowerCase().startsWith(skillInput.toLowerCase())
+        );
+        if (match && match.toLowerCase() !== skillInput.toLowerCase()) {
+            setSkillSuggestion(match);
+        } else {
+            setSkillSuggestion("");
+        }
+    }, [skillInput]);
+
+    // Handle username availability check with debounce
+    useEffect(() => {
+        if (!userName || userName.trim().length < 3) {
+            setIsUserNameAvailable(null);
+            setIsCheckingUserName(false);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            try {
+                setIsCheckingUserName(true);
+                // We use the existing public profile endpoint as a workaround for production.
+                // 200 OK means the profile exists (taken), 404 means it's available.
+                await apiClient.get(`/public/profile/${userName}`);
+                setIsUserNameAvailable(false); // Found a profile, so it's taken
+            } catch (err: any) {
+                if (err.response?.status === 404) {
+                    setIsUserNameAvailable(true); // Profile not found, so it's available
+                } else {
+                    // Fallback for production server issues (502, CORS, etc.)
+                    // We don't want to block the user if the check service is down.
+                    console.warn("Username check failed (server error or CORS), allowing progress as fallback", err);
+                    setIsUserNameAvailable(true); 
+                }
+            } finally {
+                setIsCheckingUserName(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [userName]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -76,7 +460,7 @@ export default function SignUp() {
             try {
                 const res = await apiClient.get("/users/me");
                 const apiData = res.data?.data || res.data;
-                
+
                 // Backend response structure:
                 // - Profile exists: apiData IS the User object directly
                 // - Profile doesn't exist: apiData = {profile: null, user_id: X}
@@ -84,13 +468,13 @@ export default function SignUp() {
 
                 // Profile is complete ONLY if user_name exists (required field)
                 const isProfileComplete = profile && profile !== null && profile.user_name;
-                
+
                 if (isProfileComplete) {
                     setAuthenticated(true);
                     setProfileComplete(true);
                     // Fully onboarded already → re-fetch auth state then go to dashboard
                     await refetch();
-                    
+
                     setTimeout(() => {
                         navigate("/dashboard", { replace: true });
                     }, 50);
@@ -170,7 +554,7 @@ export default function SignUp() {
             }
 
             setAuthToken(token);
-             setSessionToken(token);
+            setSessionToken(token);
             if (typeof window !== "undefined") {
                 window.localStorage.setItem("access_token", token);
             }
@@ -287,12 +671,11 @@ export default function SignUp() {
 
                     <div className="relative z-10 flex h-full flex-col justify-center text-center  mt-28">
                         <div>
-                            <div className="inline-flex items-center">
-                                {/* Defellix SVG Logo */}
-                                <img src={logo} alt="Defellix" className="w-80 h-auto" />
+                            <div className="inline-flex items-center"> {/* Defellix SVG Logo */}
+                                <img src={logo} alt="Defellix" className="w-96 h-auto" />
                             </div>
 
-                            <h1 className="-mt-12 text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
+                            <h1 className="-mt-20 text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight">
                                 Get Started with Us
                             </h1>
                             <p className="mt-3 max-w-sm text-sm sm:text-base text-white/70 leading-relaxed text-center justify-center mx-auto">
@@ -485,7 +868,7 @@ export default function SignUp() {
                                         <p className="mt-1 ml-2 text-[10px] sm:text-xs text-white/40">
                                             Must be at least 8 characters.
                                         </p>
-                    </LabelInputContainer>
+                                    </LabelInputContainer>
                                 </motion.div>
                             )}
 
@@ -511,8 +894,8 @@ export default function SignUp() {
                                                 disabled
                                                 className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border border-white/10 sm:text-sm text-white/70 placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                             />
-                        </div>
-                    </LabelInputContainer>
+                                        </div>
+                                    </LabelInputContainer>
 
                                     <LabelInputContainer>
                                         <label
@@ -541,8 +924,8 @@ export default function SignUp() {
                                 </motion.div>
                             )}
 
-                    <button
-                        type="submit"
+                            <button
+                                type="submit"
                                 disabled={loading}
                                 className="group relative mt-10 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70"
                             >
@@ -551,8 +934,8 @@ export default function SignUp() {
                                     : !isOtpStage
                                         ? "Get Started →"
                                         : "Create account →"}
-                        <BottomGradient />
-                    </button>
+                                <BottomGradient />
+                            </button>
 
                             <p className="mt-4 text-center text-[11px] sm:text-xs text-white/60">
                                 Already have an account?{" "}
@@ -662,7 +1045,24 @@ export default function SignUp() {
                                             required
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
+                                        {isCheckingUserName && (
+                                            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20">
+                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#3cb44f] border-t-transparent" />
+                                            </div>
+                                        )}
                                     </div>
+                                    {userName.length >= 3 && isUserNameAvailable !== null && !isCheckingUserName && (
+                                        <motion.p
+                                            initial={{ opacity: 0, y: -10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className={cn(
+                                                "mt-1.5 text-[11px] font-medium px-1",
+                                                isUserNameAvailable ? "text-[#3cb44f]" : "text-red-400"
+                                            )}
+                                        >
+                                            {isUserNameAvailable ? "✓ Username available" : "✕ Username not available"}
+                                        </motion.p>
+                                    )}
                                 </LabelInputContainer>
                                 <LabelInputContainer>
                                     <label
@@ -686,25 +1086,6 @@ export default function SignUp() {
 
                             <LabelInputContainer>
                                 <label
-                                    htmlFor="whatDoYouDo"
-                                    className="text-xs sm:text-sm text-white/70"
-                                >
-                                    What do you do
-                                </label>
-                                <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                    <input
-                                        id="whatDoYouDo"
-                                        placeholder="eg. Backend Developer, Video Editor, etc."
-                                        type="text"
-                                        value={whatDoYouDo}
-                                        onChange={(e: any) => setWhatDoYouDo(e.target.value)}
-                                        className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
-                                    />
-                                </div>
-                            </LabelInputContainer>
-
-                            <LabelInputContainer>
-                                <label
                                     htmlFor="headline"
                                     className="text-xs sm:text-sm text-white/70"
                                 >
@@ -723,6 +1104,69 @@ export default function SignUp() {
                             </LabelInputContainer>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <LabelInputContainer>
+                                    <label
+                                        htmlFor="companyName"
+                                        className="text-xs sm:text-sm text-white/70"
+                                    >
+                                        Company Name (Optional)
+                                    </label>
+                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                        <input
+                                            id="companyName"
+                                            placeholder="eg. Acme Inc."
+                                            type="text"
+                                            value={companyName}
+                                            onChange={(e: any) => setCompanyName(e.target.value)}
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        />
+                                    </div>
+                                </LabelInputContainer>
+                                <LabelInputContainer className="relative">
+                                    <label
+                                        htmlFor="whatDoYouDo"
+                                        className="text-xs sm:text-sm text-white/70"
+                                    >
+                                        What do you do
+                                    </label>
+                                    <div className="relative group rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                        <input
+                                            id="whatDoYouDo"
+                                            placeholder="eg. Backend Developer, Video Editor, etc."
+                                            type="text"
+                                            value={whatDoYouDo}
+                                            onChange={(e: any) => setWhatDoYouDo(e.target.value)}
+                                            onFocus={() => setShowJobSuggestions(true)}
+                                            onBlur={() => setTimeout(() => setShowJobSuggestions(false), 200)}
+                                            autoComplete="off"
+                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        />
+
+                                        {/* Job Suggestions Dropdown */}
+                                        {showJobSuggestions && whatDoYouDoSuggestions.length > 0 && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="absolute left-0 right-0 top-[calc(100%+8px)] z-[100] max-h-60 overflow-y-auto rounded-2xl border border-white/10 bg-[#141414]/95 backdrop-blur-xl p-2 shadow-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                            >
+                                                {whatDoYouDoSuggestions.map((job) => (
+                                                    <button
+                                                        key={job}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setWhatDoYouDo(job);
+                                                            setShowJobSuggestions(false);
+                                                        }}
+                                                        className="w-full cursor-pointer rounded-xl px-4 py-3 text-left text-xs sm:text-sm text-white/70 hover:bg-white/5 hover:text-[#3cb44f] transition-all"
+                                                    >
+                                                        {job}
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                </LabelInputContainer>
                                 <LabelInputContainer>
                                     <label
                                         htmlFor="location"
@@ -756,25 +1200,6 @@ export default function SignUp() {
                                             type="text"
                                             value={experience}
                                             onChange={(e: any) => setExperience(e.target.value)}
-                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
-                                        />
-                                    </div>
-                                </LabelInputContainer>
-
-                                <LabelInputContainer>
-                                    <label
-                                        htmlFor="companyName"
-                                        className="text-xs sm:text-sm text-white/70"
-                                    >
-                                        Company Name (Optional)
-                                    </label>
-                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
-                                        <input
-                                            id="companyName"
-                                            placeholder="eg. Acme Inc."
-                                            type="text"
-                                            value={companyName}
-                                            onChange={(e: any) => setCompanyName(e.target.value)}
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
                                     </div>
@@ -888,17 +1313,43 @@ export default function SignUp() {
                                 >
                                     Skills
                                 </label>
-                                <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none flex items-center">
+                                <div className="relative group rounded-2xl border-none focus-within:ring-0 focus-within:outline-none flex items-center bg-[#141414]">
+                                    {/* Ghost Suggestion Text */}
+                                    {skillSuggestion && (
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 z-0 pointer-events-none text-white/20 text-xs sm:text-sm flex items-center truncate">
+                                            {skillSuggestion}
+                                            <span className="ml-2 text-[10px] text-[#3cb44f]/60 font-medium whitespace-nowrap opacity-0 group-focus-within:opacity-100 transition-opacity">
+                                                (Press Tab to autocomplete)
+                                            </span>
+                                        </div>
+                                    )}
+
                                     <input
                                         id="skills"
                                         placeholder="eg. Solidity, React, Rust"
                                         type="text"
                                         value={skillInput}
                                         onChange={(e: any) => setSkillInput(e.target.value)}
-                                        className="relative w-full z-10 py-7 pl-4 pr-20 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Tab' && skillSuggestion) {
+                                                e.preventDefault();
+                                                setSkillInput(skillSuggestion);
+                                                setSkillSuggestion("");
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const value = skillInput.trim();
+                                                if (value && !skills.includes(value)) {
+                                                    setSkills([...skills, value]);
+                                                    setSkillInput("");
+                                                }
+                                            }
+                                        }}
+                                        className="relative w-full z-10 py-7 pl-4 pr-32 h-9 sm:h-10 md:h-11 bg-transparent text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                        autoComplete="off"
                                     />
+
                                     {skillInput.trim().length > 0 && (
-                        <button
+                                        <button
                                             type="button"
                                             onClick={() => {
                                                 const value = skillInput.trim();
@@ -907,10 +1358,10 @@ export default function SignUp() {
                                                 setSkills([...skills, value]);
                                                 setSkillInput("");
                                             }}
-                                            className="absolute bottom-0 z-10 right-1.5 bottom-1.5 px-4 py-3.5 rounded-xl bg-white text-[11px] sm:text-xs font-semibold text-black hover:bg-[#3cb44f] hover:text-black transition-all duration-150 cursor-pointer"
+                                            className="absolute bottom-1.5 z-20 right-1.5 px-4 py-3.5 rounded-xl bg-white text-[11px] sm:text-xs font-semibold text-black hover:bg-[#3cb44f] hover:text-black transition-all duration-150 cursor-pointer"
                                         >
                                             + Add
-                        </button>
+                                        </button>
                                     )}
                                 </div>
                                 {skills.length > 0 && (
@@ -921,7 +1372,7 @@ export default function SignUp() {
                                                 className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 pl-3 pr-2 py-2 text-[11px] sm:text-xs text-white/80"
                                             >
                                                 <span>{s}</span>
-                        <button
+                                                <button
                                                     type="button"
                                                     onClick={() =>
                                                         setSkills((prev) => prev.filter((skill) => skill !== s))
@@ -930,21 +1381,21 @@ export default function SignUp() {
                                                 >
                                                     ✕
                                                 </button>
-                            </span>
+                                            </span>
                                         ))}
                                     </div>
                                 )}
                             </LabelInputContainer>
 
-                        <button
-                            type="submit"
-                                disabled={loading || !userName || userName.trim() === ""}
+                            <button
+                                type="submit"
+                                disabled={loading || !userName || userName.trim() === "" || isCheckingUserName || isUserNameAvailable === false}
                                 className="group relative mt-6 py-8 flex h-10 sm:h-11 md:h-12 w-full items-center justify-center rounded-2xl bg-white text-[18px] sm:text-sm cursor-pointer font-semibold text-black shadow-[0_18px_60px_rgba(0,0,0,0.8)] transition-transform duration-150 ease-out active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
+                            >
                                 {loading ? "Saving..." : "Continue →"}
-                            <BottomGradient />
-                        </button>
-                </form>
+                                <BottomGradient />
+                            </button>
+                        </form>
                     )}
 
                     {step === 3 && (
@@ -971,7 +1422,7 @@ export default function SignUp() {
                             >
                                 Skip and continue to dashboard
                             </button>
-            </div>
+                        </div>
                     )}
                 </motion.div>
             </motion.div>

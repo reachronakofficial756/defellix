@@ -150,6 +150,25 @@ func (s *UserService) GetPublicProfileByUserName(ctx context.Context, userName s
 	return s.toPublicProfileResponse(profile), nil
 }
 
+// IsUsernameAvailable checks if a user_name is available (not taken by another user).
+func (s *UserService) IsUsernameAvailable(ctx context.Context, userName string) (bool, error) {
+	// Normalize to lowercase for consistent checking
+	userName = strings.ToLower(strings.TrimSpace(userName))
+	if userName == "" {
+		return false, nil
+	}
+
+	_, err := s.userRepo.FindByUserName(ctx, userName)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return true, nil // Available
+		}
+		return false, err
+	}
+
+	return false, nil // Taken
+}
+
 // UpdateProfile updates a user profile
 func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.UpdateProfileRequest) (*dto.UserResponse, error) {
 	// Get existing profile

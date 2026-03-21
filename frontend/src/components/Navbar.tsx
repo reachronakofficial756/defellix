@@ -183,8 +183,8 @@ const Navbar = () => {
                         type="button"
                         onClick={() => setIsNotifOpen((prev) => !prev)}
                         className={`relative flex items-center cursor-pointer justify-center w-11 h-11 rounded-full transition-all duration-200 focus:outline-none mr-0.5 ${isNotifOpen
-                                ? 'bg-[#3cb44f]/15 text-[#3cb44f]'
-                                : 'bg-[#1a1d24] text-gray-400 hover:text-white hover:bg-[#3cb44f]/10'
+                            ? 'bg-[#3cb44f]/15 text-[#3cb44f]'
+                            : 'bg-[#1a1d24] text-gray-400 hover:text-white hover:bg-[#3cb44f]/10'
                             }`}
                         aria-label="Notifications"
                     >

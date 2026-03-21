@@ -1,9 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Lenis from 'lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { motion } from 'framer-motion';
+
 import Hero from '../components/landing/Hero';
 import TrustBanner from '../components/landing/TrustBanner';
 import DotMatrix from '../components/landing/DotMatrix';
@@ -15,12 +17,14 @@ import ScrollTestimonials from '../components/landing/ScrollTestimonials';
 import CustomerStoryCard from '../components/landing/CustomerStoryCard';
 import CallToAction from '../components/landing/CallToAction';
 import Footer from '../components/landing/Footer';
+import noiseImg from '../assets/noise.webp';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const LandingPage = () => {
   const { isAuthenticated, isProfileComplete, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [showNav, setShowNav] = useState(true);
 
   // If the user is already fully logged-in, skip the landing page
   useEffect(() => {
@@ -29,7 +33,7 @@ const LandingPage = () => {
     }
   }, [isLoading, isAuthenticated, isProfileComplete, navigate]);
 
-  // Integrated Lenis for smooth scroll
+  // Lenis smooth scroll + navbar hide/show logic
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
@@ -49,8 +53,45 @@ const LandingPage = () => {
 
     requestAnimationFrame(raf);
 
-    // Synchronize Lenis with GSAP ScrollTrigger
-    lenis.on('scroll', ScrollTrigger.update);
+    let idleTimeout: ReturnType<typeof setTimeout>;
+
+    lenis.on('scroll', (e: any) => {
+      ScrollTrigger.update();
+
+      const isScrollingDown = e.velocity > 0;
+      const isScrollingUp = e.velocity < 0;
+      const threshold = 80; // px after which nav is allowed to hide
+
+      if (e.scroll <= threshold) {
+        setShowNav(true);
+        clearTimeout(idleTimeout);
+        return;
+      }
+
+      if (isScrollingDown && e.scroll > threshold) {
+        // hide when actively scrolling down past threshold
+        setShowNav(false);
+        clearTimeout(idleTimeout);
+      } else if (isScrollingUp) {
+        // show only while actively scrolling up, then hide on inactivity
+        setShowNav(true);
+        clearTimeout(idleTimeout);
+        idleTimeout = setTimeout(() => {
+          setShowNav(false);
+        }, 2000);
+      }
+    });
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientY < 90) {
+        setShowNav(true);
+        clearTimeout(idleTimeout);
+        if (window.scrollY > 80) {
+          idleTimeout = setTimeout(() => setShowNav(false), 2500);
+        }
+      }
+    };
+    window.addEventListener('mousemove', handleMouseMove);
 
     gsap.ticker.add((time) => {
       lenis.raf(time * 1000);
@@ -58,7 +99,6 @@ const LandingPage = () => {
 
     gsap.ticker.lagSmoothing(0);
 
-    // Add lenis class to html for CSS scoping
     document.documentElement.classList.add('lenis');
 
     return () => {
@@ -67,28 +107,54 @@ const LandingPage = () => {
         lenis.raf(time * 1000);
       });
       document.documentElement.classList.remove('lenis');
+      window.removeEventListener('mousemove', handleMouseMove);
+      clearTimeout(idleTimeout);
     };
   }, []);
 
   return (
-    <div className="min-h-screen bg-primary selection:bg-accent selection:text-primary">
+    <div className="min-h-screen bg-black selection:bg-accent selection:text-primary">
+      {/* Global Noise Overlay */}
+      <div
+        className="fixed top-0 left-0 w-[150vw] h-[150vw] pointer-events-none z-[9999] opacity-[0.14] mix-blend-overlay"
+        style={{
+          backgroundImage: `url(${noiseImg})`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '144px',
+          filter: 'brightness(60%)',
+          transform: 'translate3d(0, 0, 0)',
+        }}
+      />
+
       {/* Navigation */}
-      <nav className="fixed top-0 inset-x-0 h-24 z-[100] px-6 lg:px-12 pointer-events-none">
-        <div className="max-w-7xl mx-auto h-full flex items-center justify-between pointer-events-auto">
+      <motion.nav
+        initial={{ y: 0, opacity: 1 }}
+        animate={{ y: showNav ? 0 : -80, opacity: showNav ? 1 : 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+        className="fixed top-0 inset-x-0 h-20 z-[100] px-6 bg-black/10 backdrop-blur-md pointer-events-none"
+      >
+        <div className="max-w-8xl mx-20 h-full flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Defellix Logo" className="h-28 w-28 md:h-48 md:w-48 -ml-4 md:-ml-8" />
+            <img
+              src="/logo.svg"
+              alt="Defellix Logo"
+              className="h-28 w-28 md:h-56 md:w-56 -ml-4 md:-ml-8"
+            />
           </div>
 
           <div className="hidden md:flex items-center gap-10">
-            <a href="#features" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Features</a>
-            <a href="#how" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">How it works</a>
-            <a href="#reviews" className="text-[11px] font-black uppercase tracking-[.25em] text-slate-400 hover:text-accent transition-colors">Verification</a>
             {isAuthenticated && isProfileComplete ? (
-              <NavLink to="/dashboard" className="px-8 py-3 bg-accent/20 border border-accent/40 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-accent hover:bg-accent/30 transition-colors">
+              <NavLink
+                to="/dashboard"
+                className="px-8 cursor-pointer py-3 bg-accent border border-accent/40 rounded-full text-[11px] font-black uppercase tracking-[.25em] text-black hover:bg-accent/30 transition-colors"
+              >
                 Dashboard
               </NavLink>
             ) : (
-              <NavLink to="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-xl text-[11px] font-black uppercase tracking-[.25em] text-white hover:bg-white/10 transition-colors">
+              <NavLink
+                to="/login"
+                className="px-8 cursor-pointer py-3 bg-accent border border-white/10 rounded-full text-[11px] font-black uppercase tracking-[.25em] text-black hover:bg-black hover:text-accent hover:border-accent transition-colors duration-300"
+              >
                 Sign In
               </NavLink>
             )}
@@ -100,11 +166,11 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-      </nav>
+      </motion.nav>
 
       <main>
         <Hero />
-        <TrustBanner />
+        {/* <TrustBanner /> */}
         <DotMatrix />
 
         <div id="how">
@@ -118,10 +184,10 @@ const LandingPage = () => {
         </div>
 
         <div id="reviews">
-          <ScrollTestimonials />
+          {/* <ScrollTestimonials /> */}
         </div>
 
-        <CustomerStoryCard />
+        {/* <CustomerStoryCard /> */}
         <CallToAction />
       </main>
 

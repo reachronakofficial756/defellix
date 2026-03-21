@@ -38,7 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profileComplete = !!(profile && profile !== null && profile.user_name);
       setAuthenticatedState(true);
       setIsProfileComplete(profileComplete);
-    } catch {
+    } catch (err: any) {
+      if (err.message === 'Network Error' || err.response?.status >= 500) {
+        console.warn("Auth check failed (Server 502 or CORS). App might be in offline mode.", err);
+        // Don't fully reset state yet if we have a token, to avoid flickering/redirects
+        if (isAuthenticated) return;
+      }
       setAuthenticatedState(false);
       setIsProfileComplete(false);
       setSessionToken(null);

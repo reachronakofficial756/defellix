@@ -118,9 +118,11 @@ func setupMiddleware(r *chi.Mux) {
 
 	// Recoverer middleware
 	r.Use(appmw.Recoverer)
+	
+	// CORS middleware handles preflight locally and serves as a fallback for production Nginx.
+	r.Use(appmw.CORS)
 
-	// Note: CORS is handled exclusively by Nginx
-
+	// Note: CORS headers are typically offloaded to Nginx in production.
 	// Request timeout middleware
 	r.Use(chimw.Timeout(60 * time.Second))
 }

@@ -33,6 +33,7 @@ func NewUserHandler(userService *service.UserService, profileService *service.Pr
 func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	// Public profile by user_name: ourdomain.com/user_name
 	r.Route("/api/v1/public/profile", func(r chi.Router) {
+		r.Get("/check-username", h.CheckUsername)
 		r.Get("/{user_name}", h.GetPublicProfile)
 	})
 
@@ -56,6 +57,23 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 			r.Delete("/me/portfolio/{itemId}", h.DeletePortfolioItem)
 		})
 	})
+}
+
+// CheckUsername checks if a username is available.
+func (h *UserHandler) CheckUsername(w http.ResponseWriter, r *http.Request) {
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		respondError(w, http.StatusBadRequest, "username is required", "BAD_REQUEST")
+		return
+	}
+
+	available, err := h.userService.IsUsernameAvailable(r.Context(), username)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to check username", "INTERNAL_ERROR")
+		return
+	}
+
+	respondSuccess(w, http.StatusOK, map[string]interface{}{"available": available}, "Check complete")
 }
 
 // GetPublicProfile returns the public profile by user_name (ourdomain.com/user_name). No auth required.

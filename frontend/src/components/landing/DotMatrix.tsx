@@ -11,21 +11,21 @@ const DotMatrix = () => {
   const gridRef = useRef<HTMLDivElement>(null);
 
   // Configuration for dynamic grid layout based on screen width
-  const [gridSize, setGridSize] = useState({ rows: 15, cols: 39 });
+  const [gridSize, setGridSize] = useState({ rows: 19, cols: 37 });
 
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
-      // On mobile standard 15 columns, on tablet 25, on desktop 39
+      // On mobile standard 19 columns, on tablet 25, on desktop 37
       if (width < 640) {
-        setGridSize({ rows: 15, cols: 13 });
+        setGridSize({ rows: 19, cols: 13 });
       } else if (width < 1024) {
-        setGridSize({ rows: 15, cols: 25 });
+        setGridSize({ rows: 19, cols: 25 });
       } else {
-        setGridSize({ rows: 15, cols: 39 });
+        setGridSize({ rows: 19, cols: 37 });
       }
     };
-    
+
     // Set initial size immediately
     handleResize();
 
@@ -78,7 +78,7 @@ const DotMatrix = () => {
       scrollTrigger: {
         trigger: containerRef.current,
         start: 'top top',
-        end: '+=600%', 
+        end: '+=600%',
         scrub: 1,
         pin: true,
         snap: 1 / activeSteps, // Snap cleanly to each phase
@@ -87,41 +87,41 @@ const DotMatrix = () => {
 
     // Step-by-step Hexagon expansion logic
     for (let i = 1; i <= maxHexagonSteps; i++) {
-        const stepDots = dots.filter(d => parseInt(d.dataset.step || '0', 10) === i);
-        if (stepDots.length > 0) {
-            tl.to(stepDots, {
-                backgroundColor: '#E2E8F0', // White/Light
-                scale: 1.15,
-                duration: 0.5,
-                ease: 'power3.out'
-            })
-            .to({}, { duration: 1.0 }); 
-        }
+      const stepDots = dots.filter(d => parseInt(d.dataset.step || '0', 10) === i);
+      if (stepDots.length > 0) {
+        tl.to(stepDots, {
+          backgroundColor: '#E2E8F0', // White/Light
+          scale: 1.15,
+          duration: 0.5,
+          ease: 'power3.out'
+        })
+          .to({}, { duration: 1.0 });
+      }
     }
 
     // Step-by-step Red Line drop logic
     for (let j = 1; j <= maxRedSteps; j++) {
-        const redDots = dots.filter(d => parseInt(d.dataset.redStep || '0', 10) === j);
-        if (redDots.length > 0) {
-            tl.to(redDots, {
-                backgroundColor: '#E06A57', // Defellix Red
-                scale: 1.25, 
-                duration: 0.5,
-                ease: 'back.out(2)' 
-            })
-            .to({}, { duration: 1.0 }); 
-        }
+      const redDots = dots.filter(d => parseInt(d.dataset.redStep || '0', 10) === j);
+      if (redDots.length > 0) {
+        tl.to(redDots, {
+          backgroundColor: '#3cb44f', // Defellix Red
+          scale: 1.25,
+          duration: 0.5,
+          ease: 'back.out(2)'
+        })
+          .to({}, { duration: 1.0 });
+      }
     }
 
     // Final Action: Wipe crossfade into FeatureCircles
     const centerRedDot = document.querySelector('.red-center-dot');
     const textSpans = gsap.utils.toArray('.center-text-group span');
     const featureContainer = document.querySelector('.feature-container');
-    
+
     // Performance optimization: Generate/Find overlay container for blur
     const gridEl = gridRef.current;
     let overlayContainer = gridEl?.parentElement?.querySelector('.grid-overlay-container') as HTMLDivElement;
-    
+
     if (!overlayContainer) {
       overlayContainer = document.createElement('div');
       overlayContainer.className = 'grid-overlay-container';
@@ -143,85 +143,87 @@ const DotMatrix = () => {
 
     // 1. Red circle begins slow expansion + background blur on overlay
     tl.to(centerRedDot, {
-        scale: 15,
-        duration: 2.5,
-        ease: 'power2.inOut'
+      scale: 15,
+      duration: 2.5,
+      ease: 'power2.inOut'
     }, 'expand_slow')
-    .add(() => {
+      .add(() => {
         if (gridEl && overlayContainer.children.length === 0) {
-            const clone = gridEl.cloneNode(true) as HTMLElement;
-            clone.style.filter = 'none';
-            overlayContainer.appendChild(clone);
+          const clone = gridEl.cloneNode(true) as HTMLElement;
+          clone.style.filter = 'none';
+          overlayContainer.appendChild(clone);
         }
-    }, 'expand_slow')
-    .to(overlayContainer, {
+      }, 'expand_slow')
+      .to(overlayContainer, {
         opacity: 1,
         filter: 'blur(30px)',
         duration: 2.5,
         ease: 'power2.inOut'
-    }, 'expand_slow')
-    .to(gridEl, {
+      }, 'expand_slow')
+      .to(gridEl, {
         opacity: 0,
         duration: 1.0
-    }, 'expand_slow')
-    .to(textSpans, {
+      }, 'expand_slow')
+      .to(textSpans, {
         opacity: 0,
         duration: 1.0
-    }, 'expand_slow');
-    
+      }, 'expand_slow');
+
     // 2. Red circle fully expands SLOWER
     tl.to(centerRedDot, {
-        scale: 250,
-        duration: 2.5,
-        ease: 'power3.inOut'
+      scale: 250,
+      duration: 2.5,
+      ease: 'power3.inOut'
     }, 'expand_full')
-    .to(overlayContainer, {
+      .to(overlayContainer, {
         filter: 'blur(100px)',
         duration: 2.5,
         ease: 'power3.inOut'
-    }, 'expand_full')
-    .to([dots, gridEl, overlayContainer], {
+      }, 'expand_full')
+      .to([dots, gridEl, overlayContainer], {
         opacity: 0,
         duration: 0.1
-    }, 'expand_full+=2.0');
-    
+      }, 'expand_full+=2.0');
+
     // 3. Immediately show the feature container
-    tl.set(featureContainer, { 
-        opacity: 1, 
-        pointerEvents: 'auto' 
-    }, 'expand_full+=2.5'); 
-    
+    tl.set(featureContainer, {
+      opacity: 1,
+      pointerEvents: 'auto'
+    }, 'expand_full+=2.5');
+
     // 4. Red circle fades out to reveal FeatureCircles
     tl.to(centerRedDot, {
-        opacity: 0,
-        duration: 1.0,
-        ease: 'power2.out'
+      opacity: 0,
+      duration: 1.0,
+      ease: 'power2.out'
     }, 'reveal_features')
-    
-    // 5. Animate individual FeatureCircles items entering
-    .from('.feature-circle', {
+
+      // 5. Animate individual FeatureCircles items entering
+      .from('.feature-circle', {
         scale: 0,
         opacity: 0,
         duration: 1,
         stagger: 0.2,
         ease: 'back.out(1.5)'
-    }, 'reveal_features+=0.2')
-    .from('.feature-text', {
+      }, 'reveal_features+=0.2')
+      .from('.feature-text', {
         y: 50,
         opacity: 0,
         duration: 1,
         ease: 'power3.out'
-    }, 'reveal_features+=0.5')
-    
-    // Give user buffer before unpinning section
-    .to({}, { duration: 1.5 });
+      }, 'reveal_features+=0.5')
+
+      // Give user buffer before unpinning section
+      .to({}, { duration: 1.5 });
 
   }, { scope: containerRef, dependencies: [rows, cols] }); // Rerun GSAP logic when rows/cols change
 
   const gridCells = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const inTextRow = Math.abs(r - centerRow) === 0;
+      const rowDistance = Math.abs(r - centerRow);
+      // Skip 3 rows for the text area (centerRow, centerRow-1, centerRow+1)
+      const inTextRow = rowDistance <= 1;
 
       if (inTextRow) {
         gridCells.push(<div key={`${r}-${c}`} className="w-6 h-6 sm:w-8 sm:h-8" />);
@@ -243,13 +245,13 @@ const DotMatrix = () => {
   return (
     <section
       ref={containerRef}
-      className="relative w-full h-screen bg-[#111111] overflow-hidden"
+      className="relative w-full h-screen bg-[#000] overflow-hidden"
     >
       <div className="absolute inset-0 flex items-center justify-center">
 
         <div
           ref={gridRef}
-          className="relative z-0 w-full max-w-full px-0 overflow-hidden"
+          className="relative z-0 w-full max-w-full overflow-hidden"
           style={{
             display: 'grid',
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
@@ -263,17 +265,17 @@ const DotMatrix = () => {
         </div>
 
         {/* The Text Layer (Absolutely positioned dead center) */}
-        <div className="center-text-group absolute left-1/2 right-1/4 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full z-10 flex items-center justify-center pointer-events-none px-4">
+        <div className="center-text-group absolute left-[47.7%] top-1/2 -translate-x-1/2 -translate-y-1/2 w-full z-10 flex items-center justify-center pointer-events-none px-4">
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center">
-            <span className="text-white font-medium text-3xl md:text-6xl tracking-tight leading-none" style={{ textShadow: '0 0 30px rgba(0,0,0,0.8)' }}>Beyond Insight.</span>
-            <div className="red-center-dot hidden sm:block w-4 h-4 md:w-8 md:h-8 rounded-full bg-[#E06A57] shrink-0" />
-            <span className="text-white font-medium text-3xl md:text-6xl tracking-tight leading-none" style={{ textShadow: '0 0 30px rgba(0,0,0,0.8)' }}>Into Impact.</span>
+            <span className="text-white font-medium text-3xl md:text-7xl" style={{ textShadow: '0 0 30px rgba(0,0,0,0.8)' }}>Beyond Promise.</span>
+            <div className="red-center-dot hidden sm:block w-4 h-4 md:w-12 md:h-12 rounded-full bg-[#3cb44f] shrink-0 transform-gpu" />
+            <span className="text-white font-medium text-3xl md:text-7xl" style={{ textShadow: '0 0 30px rgba(0,0,0,0.8)' }}>Into Evidence.</span>
           </div>
         </div>
 
         {/* FeatureCircles rendered absolutely over the dots, hidden at start */}
         <div className="feature-container absolute inset-0 z-50 opacity-0 pointer-events-none">
-           <FeatureCircles />
+          <FeatureCircles />
         </div>
 
       </div>

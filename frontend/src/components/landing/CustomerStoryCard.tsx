@@ -1,37 +1,18 @@
 import { useRef } from 'react';
 import { ArrowUpRight, ArrowRight } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-gsap.registerPlugin(ScrollTrigger);
+import dashboard from "../../assets/dashboard.png"
 
 const CustomerStoryCard = () => {
   const containerRef = useRef<HTMLElement>(null);
-  
-  // Scroll snap so the user perfectly pulls the card up over the image 
-  // and snaps to the final "card up" state without resting midway.
-  useGSAP(() => {
-    ScrollTrigger.create({
-      trigger: containerRef.current,
-      start: 'top top',
-      end: 'bottom bottom',
-      snap: {
-        snapTo: 1, // Snaps exactly to either 0 (start) or 1 (end) of the trigger
-        duration: { min: 0.2, max: 0.6 },
-        ease: 'power2.inOut'
-      }
-    });
-  }, { scope: containerRef });
 
   return (
-    <section ref={containerRef} className="relative h-[200vh] bg-[#0D0D0D]">
+    <section ref={containerRef} className="relative h-[300vh] bg-[#0D0D0D]">
       {/* ── Sticky Background Image ── 
           Stays fixed to the viewport while the section scrolls */}
       <div className="sticky top-0 h-screen w-full overflow-hidden z-0">
-        <img 
-          src="/phone-sun.webp" 
-          alt="Defellix Impact" 
+        <img
+          src={dashboard}
+          alt="Defellix Impact"
           className="w-full h-full object-cover object-top"
         />
         <div className="absolute inset-0 bg-black/10" /> {/* Subtle darkening to ensure text/image pop */}
@@ -42,7 +23,7 @@ const CustomerStoryCard = () => {
           As you scroll, it scrolls naturally up into the viewport, sliding OVER the sticky image. */}
       <div className="absolute bottom-0 left-0 w-full z-10 pt-10">
         <div className="w-full bg-[#97A8A3] p-8 pb-16 md:p-14 lg:p-16 flex flex-col relative shadow-[0_-20px_50px_rgba(0,0,0,0.25)] min-h-[70vh]">
-          
+
           {/* Top Header Row */}
           <div className="flex justify-between items-start mb-12 w-full max-w-[1400px] mx-auto">
             <p className="text-[#4E5C58] font-medium text-xl md:text-2xl tracking-normal">
@@ -67,7 +48,7 @@ const CustomerStoryCard = () => {
               <p className="text-[#4E5C58] text-lg sm:text-xl md:text-[22px] font-medium leading-relaxed mb-8 sm:mb-12 max-w-[500px]">
                 Crocus & Primrose unlocked 100% coverage, faster QA, and instant insights, turning conversations into performance at scale.
               </p>
-              
+
               {/* Logos */}
               <div className="flex items-center gap-10 text-[#131A18] opacity-90 mt-auto pb-4">
                 <span className="font-serif text-4xl font-normal lowercase tracking-tight italic" style={{ fontFamily: 'Georgia, serif' }}>
@@ -84,13 +65,13 @@ const CustomerStoryCard = () => {
             </div>
 
             {/* Right: Inner Image */}
-            <div 
-              className="lg:w-1/2 relative h-[300px] md:h-[400px] xl:h-[460px] w-full overflow-hidden shadow-md" 
+            <div
+              className="lg:w-1/2 relative h-[300px] md:h-[400px] xl:h-[460px] w-full overflow-hidden shadow-md"
               style={{ borderRadius: 'clamp(100px, 15vw, 260px) 1.5rem 1.5rem 1.5rem' }}
             >
-              <img 
-                src="https://images.unsplash.com/photo-1466692476877-380d19e99fbd" 
-                alt="Potted Plants Customer Integration" 
+              <img
+                src="https://images.unsplash.com/photo-1466692476877-380d19e99fbd"
+                alt="Potted Plants Customer Integration"
                 className="absolute inset-0 w-full h-full object-cover object-center scale-[1.03]"
               />
             </div>
@@ -131,7 +112,7 @@ const CustomerStoryCard = () => {
               <p className="text-[#2C3834] font-medium text-lg">Agent coaching efficiency</p>
             </div>
           </div>
-          
+
         </div>
       </div>
     </section>

@@ -1,30 +1,25 @@
-import { motion, useScroll, useTransform, useSpring, MotionValue } from 'motion/react';
+import { motion, useScroll, useTransform, useSpring, useMotionValue, MotionValue } from 'motion/react';
 import { useRef, useState, useEffect } from 'react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-gsap.registerPlugin(ScrollTrigger);
 
 // ─── slide data ───────────────────────────────────────────────────────────────
 const slides = [
   {
     id: 1,
-    title: 'Learn',
+    title: 'Protocol',
     description:
-      'Every call, chat, and ticket captured, revealing not just what happened, but why. Your conversations become a living, ever-growing source of truth.'
+      'Deconstruct traditional agreements into immutable, milestone-based smart contracts. Every term is hard-coded, ensuring total alignment before a single hour is logged.'
   },
   {
     id: 2,
-    title: 'Evolve',
+    title: 'Escrow',
     description:
-      'Go beyond insights. Our AI automates QA, compliance, and performance, continuously testing and refining what makes your team better, in real time.'
+      'Experience liquid security. Funds are locked in decentralized escrow, with settlement triggered instantly by milestone evidence—eliminating non-payment risk forever.'
   },
   {
     id: 3,
-    title: 'Scale',
+    title: 'Legacy',
     description:
-      'Transform your operations with intelligence that grows with you. Automate complex workflows and deliver exceptional customer experiences at any scale.'
+      'Every successful settlement is distilled into your permanent, verifiable reputation. Turn your track record into a cryptographically signed asset that scales your value.'
   }
 ];
 
@@ -35,13 +30,13 @@ const slides = [
 // Array of objects describing what goes where on the static wheel:
 const RING_ITEMS = [
   { angle: -65, id: 3, slideIndex: 2 },
-  { angle: 0,   id: 1, slideIndex: 0 },
-  { angle: 65,  id: 2, slideIndex: 1 },
+  { angle: 0, id: 1, slideIndex: 0 },
+  { angle: 65, id: 2, slideIndex: 1 },
   { angle: 130, id: 3, slideIndex: 2 },
   { angle: 195, id: 1, slideIndex: 0 },
 ];
 
-const SNAP_ROTATIONS = [0, -65, -130]; 
+const SNAP_ROTATIONS = [0, -65, -130];
 
 function polar(deg: number, R: number) {
   const rad = ((deg - 90) * Math.PI) / 180;
@@ -61,11 +56,12 @@ interface BadgeProps {
 
 function NumberBadge({ id, angleDeg, R, svgW, svgH, arcRotation, isActive }: BadgeProps) {
   const selfRotation = useTransform(arcRotation, (r: number) => -r);
-  const { x, y } = polar(angleDeg, R);
+  // Numbers sit at a RADIUS slightly LARGER than the arc to be "outside"
+  const { x, y } = polar(angleDeg, R + 80);
   const cx = svgW / 2 + x;
-  const cy = svgH + y; 
+  const cy = svgH + y;
 
-  const size = Math.max(44, Math.min(60, R * 0.075));
+  const size = Math.max(80, Math.min(60, R * 0.075));
 
   return (
     <motion.div
@@ -88,11 +84,11 @@ function NumberBadge({ id, angleDeg, R, svgW, svgH, arcRotation, isActive }: Bad
           justifyContent: 'center',
           fontSize: Math.max(14, size * 0.36),
           fontWeight: 700,
-          border: `2px solid ${isActive ? '#E8735A' : 'rgba(255,255,255,0.22)'}`,
-          background: isActive ? '#E8735A' : 'rgba(255,255,255,0.04)',
-          color: isActive ? '#fff' : 'rgba(255,255,255,0.45)',
+          border: `2px solid ${isActive ? '#3cb44f' : 'rgba(255,255,255,0.22)'}`,
+          background: isActive ? '#3cb44f' : 'rgba(255,255,255,0.04)',
+          color: isActive ? '#000' : 'rgba(255,255,255,0.45)', // Black text on green background for contrast
           transition: 'background 0.6s ease, border-color 0.6s ease, color 0.6s ease, box-shadow 0.6s ease',
-          boxShadow: isActive ? '0 0 32px rgba(232,115,90,0.55), 0 0 8px rgba(232,115,90,0.3)' : 'none',
+          boxShadow: isActive ? '0 0 32px rgba(60,180,79,0.55), 0 0 8px rgba(60,180,79,0.3)' : 'none',
           backdropFilter: 'blur(4px)'
         }}
       >
@@ -105,21 +101,6 @@ function NumberBadge({ id, angleDeg, R, svgW, svgH, arcRotation, isActive }: Bad
 // ─── CircularSlider ───────────────────────────────────────────────────────────
 const CircularSlider = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useGSAP(() => {
-    // We enforce native window snap behaviour over this large container
-    // This perfectly partitions the scroll track into 3 distinct stops!
-    ScrollTrigger.create({
-      trigger: containerRef.current,
-      start: 'top top',
-      end: 'bottom bottom',
-      snap: {
-        snapTo: 1 / 2, // Stops strictly at 0.0, 0.5, and 1.0 bounds
-        duration: { min: 0.2, max: 0.6 },
-        ease: 'power2.out'
-      }
-    });
-  }, { scope: containerRef });
 
   const [R, setR] = useState(680);
   useEffect(() => {
@@ -140,67 +121,66 @@ const CircularSlider = () => {
     offset: ['start start', 'end end']
   });
 
-  // Hold zones with brief rapid gliding between them so user sees numbers clearly snap.
-  const rawRotation = useTransform(
-    scrollYProgress,
-    [0,   0.28,             0.38,             0.61,             0.71,              1],
-    [0,   SNAP_ROTATIONS[0], SNAP_ROTATIONS[1], SNAP_ROTATIONS[1], SNAP_ROTATIONS[2], SNAP_ROTATIONS[2]]
-  );
-
-  const arcRotation = useSpring(rawRotation, { damping: 42, stiffness: 180, mass: 0.4 });
-
-  // Map the line opacity strictly to the physical rotation of the arc!
-  // This guarantees the line stays invisible during the entire spin, 
-  // and ONLY fades in when the number gently settles into the direct top position.
-  const lineOpacity = useTransform(
-    arcRotation,
-    [-140, -132, -128, -120, -73, -67, -63, -57, -8, -2, 2, 8],
-    [0,    0,    1,    0,    0,   1,   1,   0,   0,  1, 1, 0]
-  );
-
   const [activeIndex, setActiveIndex] = useState(0);
+  const [lineVisible, setLineVisible] = useState(true);
+
+  // Motion value for the discrete rotation target
+  const rotationTarget = useMotionValue(0);
+  const arcRotation = useSpring(rotationTarget, { damping: 42, stiffness: 180, mass: 0.4 });
+
   useEffect(
     () =>
       scrollYProgress.on('change', (v) => {
-        const idx = v < 0.33 ? 0 : v < 0.66 ? 1 : 2;
+        // Switch purely based on deeply expanded zones for stability
+        // Slide 2 now occupies 50% of the entire section!
+        const idx = v < 0.25 ? 0 : v < 0.75 ? 1 : 2;
         setActiveIndex((p) => (p !== idx ? idx : p));
       }),
     [scrollYProgress]
   );
 
-  const PAD   = 160;          
-  const svgW  = R * 2 + PAD;  
-  const svgH  = R;            
+  // When activeIndex changes, fire the rotation and hide the line!
+  useEffect(() => {
+    rotationTarget.set(SNAP_ROTATIONS[activeIndex]);
+    setLineVisible(false);
+    const timer = setTimeout(() => {
+      setLineVisible(true); // Fade line back in after wheel clicks into place
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [activeIndex, rotationTarget]);
+
+  const PAD = 160;
+  const svgW = R * 2 + PAD;
+  const svgH = R;
 
   // Line height heavily reduced to snug up against text
   const lineH = Math.round(R * 0.4);
 
   return (
-    <section ref={containerRef} className="relative h-[300vh] bg-[#191919]">
+    <section ref={containerRef} className="relative h-[400vh] bg-[#000]">
       <div className="sticky top-0 h-screen w-full overflow-hidden">
 
         {/* ── Heading ─────────────────────────────────────────────────────── */}
         <div className="absolute top-10 left-8 sm:top-14 sm:left-14 z-20 pointer-events-none">
-          <p className="text-white/40 text-[10px] sm:text-[11px] font-bold tracking-[0.28em] uppercase mb-3">
-            The Architecture of Autonomous CX
-          </p>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-[1.15] tracking-tight">
+          <h2 className="text-3xl sm:text-4xl lg:text-7xl font-bold text-white leading-[1.1] tracking-tighter">
             Think Different.<br />We Already Built It.
           </h2>
         </div>
 
         {/* ── Connector line + slide label ────────────────────────────────── */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center z-10"
-          style={{ top: `calc(100vh - ${R}px + 26px)` }}
+          className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center "
+          style={{ top: `calc(100vh - ${R}px - 20px)` }} // Lifted slightly away from arc
         >
-          {/* Gradient line mapping to lineOpacity */}
+          {/* Gradient line that sequences in after wheel stops */}
           <motion.div
-            className="w-px relative"
+            className="w-1 relative"
+            initial={false}
+            animate={{ opacity: lineVisible ? 1 : 0 }}
+            transition={{ duration: 0.4 }}
             style={{
               height: lineH,
-              opacity: lineOpacity,
-              background: 'linear-gradient(to bottom, rgba(232,115,90,1) 0%, rgba(232,115,90,0.15) 100%)'
+              background: 'linear-gradient(to bottom, rgba(60,180,79,1) 0%, rgba(60,180,79,0.15) 100%)'
             }}
           >
             <div
@@ -208,11 +188,11 @@ const CircularSlider = () => {
                 position: 'absolute',
                 left: '50%',
                 bottom: 0,
-                width: 9,
-                height: 9,
-                background: '#E8735A',
+                width: 20,
+                height: 20,
+                background: '#3cb44f',
                 transform: 'translateX(-50%) translateY(50%) rotate(45deg)',
-                boxShadow: '0 0 18px 4px rgba(232,115,90,0.75)'
+                boxShadow: '0 0 18px 4px rgba(60,180,79,0.75)'
               }}
             />
           </motion.div>
@@ -246,7 +226,8 @@ const CircularSlider = () => {
             width: svgW,
             height: svgH,
             marginLeft: -(svgW / 2),
-            transformOrigin: `${svgW / 2}px ${svgH}px`
+            transformOrigin: `${svgW / 2}px ${svgH}px`,
+            y: 80 // Shift ASSEMBLY lower
           }}
         >
           <svg

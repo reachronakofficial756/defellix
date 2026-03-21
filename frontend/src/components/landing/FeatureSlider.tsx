@@ -1,67 +1,70 @@
-import { motion, useScroll, useTransform, useSpring, MotionValue } from 'motion/react';
-import { useRef } from 'react';
+import { motion, useScroll, useTransform, useSpring, MotionValue, useMotionValue } from 'motion/react';
+import { useRef, useState, useEffect } from 'react';
 
 // ── Slide Data ─────────────────────────────────────────────────────────────────
 const slides = [
   {
-    bg: '#567573',
-    title: 'Performance,\nperfected',
+    bg: '#526264',
+    title: 'Keep What\nYou Earn',
     description:
-      'Turn every call into a growth opportunity. Automated reviews, objective and contextual perspective, personalized guidance and coaching that helps every agent constantly improve.'
+      'Other platforms take up to 20% of your hard work. Defellix charges a tiny, flat network fee so you bring home exactly what you deserve.'
   },
   {
-    bg: '#D4574B',
-    title: 'Compliance & QA\nthat keeps up',
+    bg: '#111f14',
+    title: 'Fair Dispute\nResolution',
     description:
-      'Zero blind spots. 100% interaction coverage. Real-time detection and alerts that protect performance and reputation.'
+      "Disagreements happen, but biased platforms shouldn't decide the winner. Our community-driven system ensures every dispute is settled fairly and objectively."
   },
   {
-    bg: '#C38DC9',
-    title: 'All Signals.\nOne System.',
+    bg: '#1a2e1d',
+    title: 'Get Paid\nYour Way',
     description:
-      'One platform. Every signal connected. From staffing to strategy, Hear brings data, people, and action together, effortlessly.'
+      'Get paid instantly in stablecoins or your favorite crypto. Say goodbye to waiting weeks for bank transfers and dealing with unfair currency exchange rates.'
   }
 ];
 
-// Hold zones: 0–28% slide0 | 28–40% glide | 40–60% slide1 | 60–72% glide | 72–100% slide2
-const OP0 = { i: [0, 0,    0.28, 0.40, 1],             o: [1, 1, 1, 0,    0] };
-const OP1 = { i: [0, 0.28, 0.40, 0.60, 0.72, 1],       o: [0, 0, 1, 1,    0, 0] };
-const OP2 = { i: [0, 0.60, 0.72, 1,   1],              o: [0, 0, 1, 1,    1] };
-const BG_I = [0,    0.28, 0.40,       0.60,       0.72,       1];
-const BG_O = [slides[0].bg, slides[0].bg, slides[1].bg, slides[1].bg, slides[2].bg, slides[2].bg];
+// We map opacity directly to a discrete integer slide index [0, 1, 2].
+// When transitioning (e.g. from 0 to 1), the first slide fades out halfway through, and the next fades in.
+const OP0 = { i: [0, 0.4, 0.6, 1, 2], o: [1, 0, 0, 0, 0] };
+const OP1 = { i: [0, 0.4, 0.6, 1, 1.4, 1.6, 2], o: [0, 0, 0, 1, 0, 0, 0] };
+const OP2 = { i: [0, 1, 1.4, 1.6, 2], o: [0, 0, 0, 0, 1] };
+
+// Background morphs linearly from index to index
+const BG_I = [0, 1, 2];
+const BG_O = [slides[0].bg, slides[1].bg, slides[2].bg];
 
 // ── SVGs ───────────────────────────────────────────────────────────────────────
 function SVG0() {
   return (
     <svg viewBox="0 0 300 310" width="260" height="260" fill="none">
       <defs>
-        <filter id="gP"><feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0" result="m"/><feComposite in="m" in2="SourceGraphic" operator="in"/></filter>
-        <clipPath id="cc"><polygon points="150,18 242,295 58,295"/></clipPath>
+        <filter id="gP"><feTurbulence type="fractalNoise" baseFrequency="0.72" numOctaves="4" stitchTiles="stitch" result="n" /><feColorMatrix in="n" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.55 0" result="m" /><feComposite in="m" in2="SourceGraphic" operator="in" /></filter>
+        <clipPath id="cc"><polygon points="150,18 242,295 58,295" /></clipPath>
       </defs>
-      <polygon points="150,18 242,295 58,295" fill="rgba(0,0,0,0.28)"/>
-      <rect x="0" y="0" width="300" height="310" fill="rgba(255,255,255,0.18)" filter="url(#gP)" clipPath="url(#cc)"/>
-      <motion.ellipse cx="150" cy="128" rx="76" ry="17" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 76 }} animate={{rx:[74,80,74]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut'}}/>
-      <motion.ellipse cx="150" cy="192" rx="96" ry="21" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 96 }} animate={{rx:[93,100,93]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:0.4}}/>
-      <motion.ellipse cx="150" cy="252" rx="108" ry="24" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 108 }} animate={{rx:[105,113,105]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:0.8}}/>
+      <polygon points="150,18 242,295 58,295" fill="rgba(0,0,0,0.28)" />
+      <rect x="0" y="0" width="300" height="310" fill="rgba(255,255,255,0.18)" filter="url(#gP)" clipPath="url(#cc)" />
+      <motion.ellipse cx="150" cy="128" rx="76" ry="17" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 76 }} animate={{ rx: [74, 80, 74] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.ellipse cx="150" cy="192" rx="96" ry="21" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 96 }} animate={{ rx: [93, 100, 93] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }} />
+      <motion.ellipse cx="150" cy="252" rx="108" ry="24" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 108 }} animate={{ rx: [105, 113, 105] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }} />
     </svg>
   );
 }
 function SVG1() {
   return (
     <svg viewBox="0 0 300 300" width="250" height="250" fill="none">
-      {[0,36,72,108,144].map(a=><ellipse key={a} cx="150" cy="150" rx="52" ry="118" stroke="rgba(255,255,255,0.65)" strokeWidth="1" transform={`rotate(${a},150,150)`}/>)}
-      <motion.circle cx="100" cy="150" r="5.5" fill="#5B9CF6" initial={{ cx: 100, cy: 150 }} animate={{cx:[100,150,200,150,100],cy:[150,32,150,268,150]}} transition={{duration:3.5,repeat:Infinity,ease:'easeInOut'}}/>
-      <motion.circle cx="200" cy="150" r="4.5" fill="#4FD1A0" initial={{ cx: 200, cy: 150 }} animate={{cx:[200,150,100,150,200],cy:[150,268,150,32,150]}} transition={{duration:3.5,repeat:Infinity,ease:'easeInOut',delay:1.75}}/>
+      {[0, 36, 72, 108, 144].map(a => <ellipse key={a} cx="150" cy="150" rx="52" ry="118" stroke="rgba(255,255,255,0.65)" strokeWidth="1" transform={`rotate(${a},150,150)`} />)}
+      <motion.circle cx="100" cy="150" r="5.5" fill="#5B9CF6" initial={{ cx: 100, cy: 150 }} animate={{ cx: [100, 150, 200, 150, 100], cy: [150, 32, 150, 268, 150] }} transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.circle cx="200" cy="150" r="4.5" fill="#4FD1A0" initial={{ cx: 200, cy: 150 }} animate={{ cx: [200, 150, 100, 150, 200], cy: [150, 268, 150, 32, 150] }} transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 1.75 }} />
     </svg>
   );
 }
 function SVG2() {
   return (
     <svg viewBox="0 0 300 300" width="250" height="250" fill="none">
-      <motion.circle cx="118" cy="150" r="88" stroke="rgba(255,255,255,0.80)" strokeWidth="1.3" animate={{r:[86,92,86]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut'}}/>
-      <motion.circle cx="175" cy="148" r="88" stroke="rgba(255,255,255,0.80)" strokeWidth="1.3" animate={{r:[86,92,86]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:0.5}}/>
-      <motion.circle cx="146" cy="116" r="72" stroke="rgba(255,255,255,0.55)" strokeWidth="1" animate={{r:[70,76,70]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:1}}/>
-      <motion.circle cx="146" cy="182" r="58" stroke="rgba(255,255,255,0.40)" strokeWidth="1" animate={{r:[56,62,56]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:1.5}}/>
+      <motion.circle cx="118" cy="150" r="88" stroke="rgba(255,255,255,0.80)" strokeWidth="1.3" animate={{ r: [86, 92, 86] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} />
+      <motion.circle cx="175" cy="148" r="88" stroke="rgba(255,255,255,0.80)" strokeWidth="1.3" animate={{ r: [86, 92, 86] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }} />
+      <motion.circle cx="146" cy="116" r="72" stroke="rgba(255,255,255,0.55)" strokeWidth="1" animate={{ r: [70, 76, 70] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }} />
+      <motion.circle cx="146" cy="182" r="58" stroke="rgba(255,255,255,0.40)" strokeWidth="1" animate={{ r: [56, 62, 56] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }} />
     </svg>
   );
 }
@@ -86,13 +89,13 @@ function SvgLayer({ op, prog, children }: { op: typeof OP0; prog: MotionValue<nu
 // Text layer
 function TextLayer({ op, prog, title, description, isBase = false }: { op: typeof OP0; prog: MotionValue<number>; title: string; description: string; isBase?: boolean }) {
   const opacity = useTransform(prog, op.i, op.o);
-  const y       = useTransform(prog, op.i, op.o.map(v => (v === 0 ? 20 : 0)));
+  const y = useTransform(prog, op.i, op.o.map(v => (v === 0 ? 20 : 0)));
   return (
     <motion.div style={{ opacity, y }} className={`${isBase ? 'relative' : 'absolute md:absolute top-0 left-0 right-0'}`}>
-      <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-800 mb-4 md:mb-7 leading-tight tracking-tight" style={{ whiteSpace: 'pre-line' }}>
+      <h2 className="text-3xl md:text-4xl lg:text-7xl font-semibold text-black mb-4 md:mb-7 leading-tight tracking-tight" style={{ whiteSpace: 'pre-line' }}>
         {title}
       </h2>
-      <p className="text-slate-700 text-sm md:text-base leading-relaxed">{description}</p>
+      <p className="text-slate-700 text-lg md:text-2xl leading-relaxed">{description}</p>
     </motion.div>
   );
 }
@@ -100,27 +103,45 @@ function TextLayer({ op, prog, title, description, isBase = false }: { op: typeo
 // ── Main ──────────────────────────────────────────────────────────────────────
 const FeatureSlider = () => {
   const ref = useRef<HTMLDivElement>(null);
+
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] });
 
-  // ONE spring at the top — drives all children via prop, no hooks in loops
-  const prog = useSpring(scrollYProgress, { stiffness: 220, damping: 58, mass: 0.25 });
+  const [activeIndex, setActiveIndex] = useState(0);
+  const targetIndex = useMotionValue(0);
+
+  // ONE spring at the top — drives all children via prop
+  // Bounding to discrete integers [0, 1, 2] creates a flawless, mechanical "snap" slideshow!
+  const prog = useSpring(targetIndex, { stiffness: 220, damping: 58, mass: 0.25 });
+
+  useEffect(() => {
+    return scrollYProgress.on('change', (v) => {
+      // Create massive zones so you definitively stop at each slide.
+      // 0.25 and 0.75 are the perfect transition midpoints for h-[400vh].
+      const idx = v < 0.25 ? 0 : v < 0.75 ? 1 : 2;
+      setActiveIndex((p) => (p !== idx ? idx : p));
+    });
+  }, [scrollYProgress]);
+
+  useEffect(() => {
+    targetIndex.set(activeIndex);
+  }, [activeIndex, targetIndex]);
 
   // Background — computed here (top level), not in a loop
   const bg = useTransform(prog, BG_I, BG_O);
 
   return (
-    <section ref={ref} className="relative h-[450vh]">
+    <section ref={ref} className="relative h-[400vh]">
       <div className="sticky top-0 h-screen w-full flex flex-col md:flex-row overflow-hidden">
 
         {/* LEFT — coloured bg + SVG layers, overflow:hidden clips layers cleanly */}
-        <motion.div style={{ backgroundColor: bg }} className="w-full md:w-1/2 h-1/2 md:h-full relative overflow-hidden">
+        <motion.div style={{ backgroundColor: bg }} className="w-full md:w-1/2 h-1/2 scale-200 md:h-full relative overflow-hidden">
           <SvgLayer op={OP0} prog={prog}><SVG0 /></SvgLayer>
           <SvgLayer op={OP1} prog={prog}><SVG1 /></SvgLayer>
           <SvgLayer op={OP2} prog={prog}><SVG2 /></SvgLayer>
         </motion.div>
 
-        {/* RIGHT — grey bg + text layers */}
-        <div className="w-full md:w-1/2 h-1/2 md:h-full relative" style={{ backgroundColor: '#8B9E99' }}>
+        {/* RIGHT — dark slate bg + text layers */}
+        <div className="w-full md:w-1/2 h-1/2 md:h-full relative" style={{ backgroundColor: '#b0b5af' }}>
           <div className="absolute inset-0 flex items-center px-6 md:px-12 lg:px-20">
             {/* Fixed height + overflow:hidden ensures all absolute text layers are clipped to the same box */}
             <div className="relative w-full max-w-md h-auto md:h-[320px] md:overflow-hidden">

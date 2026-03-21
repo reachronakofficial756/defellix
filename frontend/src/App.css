@@ -4,7 +4,7 @@
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
   --color-primary: #04070B;
   --color-secondary: #0B1420;
-  --color-accent: #22C55E;
+  --color-accent: #3cb44f;
 }
 
 @layer base {
