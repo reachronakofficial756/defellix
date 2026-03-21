@@ -17,6 +17,12 @@ type ContractNotifier interface {
 	// NotifyWorkAccepted is called when a client accepts the submitted work.
 	NotifyWorkAccepted(ctx context.Context, contractID uint, freelancerEmail, projectName string, rating int)
 
+	// NotifyContractCompleted is called when all milestones are approved and contract is marked completed.
+	NotifyContractCompleted(ctx context.Context, contractID uint, clientEmail, projectName, reviewLink string)
+
+	// NotifyReviewReceived is called when a client submits a review/testimonial for a completed contract.
+	NotifyReviewReceived(ctx context.Context, contractID uint, freelancerEmail, projectName string, rating int)
+
 	// SendSigningOTP emails the 6-digit OTP to the client for identity verification before contract sign.
 	SendSigningOTP(ctx context.Context, clientEmail, otp, projectName string)
 }
@@ -28,4 +34,6 @@ func (NoopNotifier) NotifyContractSent(context.Context, uint, string, string)   
 func (NoopNotifier) NotifyWorkSubmitted(context.Context, uint, string, string, string)     {}
 func (NoopNotifier) NotifyRevisionRequested(context.Context, uint, string, string, string) {}
 func (NoopNotifier) NotifyWorkAccepted(context.Context, uint, string, string, int)         {}
+func (NoopNotifier) NotifyContractCompleted(context.Context, uint, string, string, string) {}
+func (NoopNotifier) NotifyReviewReceived(context.Context, uint, string, string, int)       {}
 func (NoopNotifier) SendSigningOTP(context.Context, string, string, string)                {}

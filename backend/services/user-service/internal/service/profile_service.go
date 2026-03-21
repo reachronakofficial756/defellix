@@ -89,6 +89,34 @@ func (s *ProfileService) CreateProfile(ctx context.Context, userID uint, email s
 		return nil, err
 	}
 
+	// Calculate initial credibility score from profile signals
+	profileSignals := ProfileSignals{
+		HasPhoto:         user.Photo != "",
+		HasBio:           user.Bio != "",
+		HasSkills:        len(req.Skills) > 0,
+		SkillCount:       len(req.Skills),
+		HasGitHub:        user.GitHubLink != "",
+		HasLinkedIn:      user.LinkedInLink != "",
+		HasPortfolio:     user.PortfolioLink != "",
+		HasInstagram:     user.InstagramLink != "",
+		IsEmailVerified:  user.IsVerified,
+		IsPhoneVerified:  user.Phone != "",
+		HasProjects:      false,
+		ProjectCount:     0,
+		AccountAgeMonths: 0,
+	}
+
+	overallScore, dims := CalculateInitialScore(profileSignals)
+	tier := GetTierLabel(overallScore)
+
+	dimsJSON, _ := json.Marshal(dims)
+	user.CredibilityScore = overallScore
+	user.ScoreTier = tier
+	user.DimensionScores = datatypes.JSON(dimsJSON)
+
+	// Save updated score (non-blocking, don't fail if this errors)
+	_ = s.userRepo.Update(ctx, user)
+
 	return user, nil
 }
 

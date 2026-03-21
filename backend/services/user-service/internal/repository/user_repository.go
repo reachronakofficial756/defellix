@@ -36,6 +36,7 @@ type UserRepository interface {
 	UpdatePortfolioItem(ctx context.Context, userID uint, itemID string, item *domain.PortfolioItem) (*domain.PortfolioItem, error)
 	DeletePortfolioItem(ctx context.Context, userID uint, itemID string) error
 	UpdateSkills(ctx context.Context, userID uint, skills datatypes.JSON) error
+	FindUsersWithPositiveScore(ctx context.Context) ([]*domain.User, error)
 }
 
 // userRepository implements UserRepository interface
@@ -372,4 +373,16 @@ func (r *userRepository) DeletePortfolioItem(ctx context.Context, userID uint, i
 	profile.UpdatedAt = time.Now()
 
 	return r.db.WithContext(ctx).Model(profile).Update("portfolio", portfolioJSON).Error
+}
+
+// FindUsersWithPositiveScore returns all users that have a credibility score > 0
+func (r *userRepository) FindUsersWithPositiveScore(ctx context.Context) ([]*domain.User, error) {
+	var users []*domain.User
+	if err := r.db.WithContext(ctx).
+		Where("credibility_score > 0").
+		Select("id, credibility_score, score_tier").
+		Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
 }

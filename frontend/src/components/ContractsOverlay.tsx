@@ -5,7 +5,7 @@ import { gsap } from 'gsap';
 import { useContractsStore } from '../store/useContractsStore';
 import { apiClient } from "@/api/client";
 import { calculateContractProgress } from "@/utils/contractProgress";
-import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid, Copy, ExternalLink, FilePen, Send, MessageSquareMore, PenLine, Banknote, XCircle, Flag, BookOpen, X, Loader2 } from 'lucide-react';
+import { Clock, DollarSign, CheckCircle, AlertCircle, RotateCcw, FileText, User, Calendar, FileCheck, CreditCard, LayoutGrid, Copy, ExternalLink, FilePen, Send, MessageSquareMore, PenLine, Banknote, XCircle, Flag, BookOpen, X, Loader2, Star } from 'lucide-react';
 import contractsBg3d from '@/assets/contracts_bg_3d.png';
 
 /** Milestone row as in CreateContractForm (Scope & Deliverables / Payment) */
@@ -245,6 +245,11 @@ export default function ContractsOverlay() {
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [drafts, setDrafts] = useState<any[]>([]);
 
+  // ─── Submissions data (for milestone ratings) ─────────────────────────
+  const [milestoneSubmissions, setMilestoneSubmissions] = useState<any[]>([]);
+  // ─── Contract review data ─────────────────────────────────────────────
+  const [contractReview, setContractReview] = useState<any>(null);
+
   useEffect(() => {
     if (!draftsOpen) return;
     const active = contracts[activeIndex];
@@ -358,6 +363,35 @@ export default function ContractsOverlay() {
     };
     fetchContracts();
   }, []);
+
+  // ─── Fetch submissions (for milestone ratings) & contract review when active contract changes ──
+  useEffect(() => {
+    const active = contracts[activeIndex];
+    if (!active) return;
+    // Fetch submissions for milestone ratings
+    (async () => {
+      try {
+        const res = await apiClient.get(`/contracts/${active.id}/submissions`);
+        const all: any[] = res.data?.data ?? res.data ?? [];
+        setMilestoneSubmissions(all.filter((s: any) => s.status === 'accepted'));
+      } catch {
+        setMilestoneSubmissions([]);
+      }
+    })();
+    // Fetch contract review (for completed contracts)
+    if ((active as any).rawStatus === 'completed') {
+      (async () => {
+        try {
+          const res = await apiClient.get(`/contracts/${active.id}/review`);
+          setContractReview(res.data?.data ?? res.data ?? null);
+        } catch {
+          setContractReview(null);
+        }
+      })();
+    } else {
+      setContractReview(null);
+    }
+  }, [activeIndex, contracts]);
 
   // Auto-select contract from dashboard "Open contract" click
   useEffect(() => {
@@ -918,10 +952,27 @@ export default function ContractsOverlay() {
                                         {msDetail.amount > 0 && (
                                           <span className="text-[#a78bfa] font-medium">{(active as { contractCurrency?: string }).contractCurrency ?? 'USD'} {msDetail.amount.toLocaleString()}</span>
                                         )}
-                                        {msDetail.due_date && <span>Due: {msDetail.due_date}</span>}
+                                      {msDetail.due_date && <span>Due: {msDetail.due_date}</span>}
                                         {msDetail.submission_criteria && <span className="text-gray-600 truncate max-w-[180px]">Submit: {msDetail.submission_criteria}</span>}
                                       </div>
                                     )}
+                                    {/* Show client rating for approved milestones */}
+                                    {(m.status === 'approved' || m.status === 'paid') && (() => {
+                                      const sub = milestoneSubmissions.find((s: any) => s.milestone_id === m.id);
+                                      if (!sub || !sub.client_rating) return null;
+                                      return (
+                                        <div className="ml-9 mt-1 flex items-center gap-2">
+                                          <div className="flex gap-0.5">
+                                            {[1,2,3,4,5].map(star => (
+                                              <Star key={star} size={12} className={star <= sub.client_rating ? 'text-[#fbc02d] fill-[#fbc02d]' : 'text-gray-700'} />
+                                            ))}
+                                          </div>
+                                          {sub.client_comment && (
+                                            <span className="text-gray-500 text-[10px] italic truncate max-w-[200px]">"{sub.client_comment}"</span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                     {m.status === 'revision' && (
                                       <button
                                         onClick={(e) => { e.stopPropagation(); navigate(`/submit-milestone/${active.id}?milestoneId=${m.id}`); }}
@@ -935,6 +986,48 @@ export default function ContractsOverlay() {
                               })}
                             </div>
                           </div>
+
+                          {/* Contract Review (for completed contracts) */}
+                          {contractReview && (
+                            <div className="pt-4 border-t border-white/8">
+                              <h4 className="text-white font-medium text-sm mb-3 flex items-center gap-2">
+                                <Star size={14} className="text-[#fbc02d]" /> Client Review
+                              </h4>
+                              <div className="p-4 rounded-xl border border-[#fbc02d]/20 bg-[#fbc02d]/5 space-y-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="flex gap-0.5">
+                                    {[1,2,3,4,5].map(s => (
+                                      <Star key={s} size={16} className={s <= contractReview.overall_rating ? 'text-[#fbc02d] fill-[#fbc02d]' : 'text-gray-700'} />
+                                    ))}
+                                  </div>
+                                  <span className="text-white font-bold text-sm">{contractReview.overall_rating}/5</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-[10px]">
+                                  <div className="text-center">
+                                    <p className="text-gray-500 mb-1">Delivery</p>
+                                    <p className="text-white font-bold">{contractReview.delivery_rating}/5</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-gray-500 mb-1">Quality</p>
+                                    <p className="text-white font-bold">{contractReview.quality_rating}/5</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-gray-500 mb-1">Communication</p>
+                                    <p className="text-white font-bold">{contractReview.communication_rating}/5</p>
+                                  </div>
+                                </div>
+                                {contractReview.comment && (
+                                  <p className="text-gray-300 text-xs italic leading-relaxed">"{contractReview.comment}"</p>
+                                )}
+                                {contractReview.testimonial && (
+                                  <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1">Testimonial</p>
+                                    <p className="text-gray-200 text-xs leading-relaxed">"{contractReview.testimonial}"</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Activity — dynamic timeline */}

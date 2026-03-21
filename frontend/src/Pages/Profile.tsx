@@ -4,7 +4,7 @@ import { apiClient } from '@/api/client';
 import { motion } from 'motion/react';
 import {
   MapPin, Building, Briefcase,
-  Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Eye, Sparkles
+  Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Eye, Sparkles, Activity, CheckCircle2
 } from 'lucide-react';
 
 interface UserProfile {
@@ -27,6 +27,9 @@ interface UserProfile {
   show_projects?: boolean;
   show_contracts?: boolean;
   skills?: string[];
+  credibility_score?: number;
+  score_tier?: string;
+  dimension_scores?: any;
 }
 
 function InfoField({ label, value }: { label: string, value?: string }) {
@@ -80,135 +83,77 @@ function ToggleRow({ title, desc, checked }: any) {
   );
 }
 
-function ReputationGauge({ score, animated }: { score: number; animated: boolean }) {
-  const [normalized, setNormalized] = useState(0);
-  const min = 0;
-  const max = 100;
+function ScoreHistoryGraph({ data, currentScore }: { data: any[]; currentScore: number }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-gray-500 text-sm">
+        <h1 className="text-6xl font-black text-white/5 mb-2">{currentScore}</h1>
+        No score history yet.
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (animated) {
-      const val = Math.max(0, Math.min(1, (score - min) / (max - min)));
-      setNormalized(val);
-    } else {
-      setNormalized(0);
-    }
-  }, [animated, score, min, max]);
+  // Assume data is sorted newest to oldest from backend, we want oldest to newest for left-to-right graph
+  const sortedData = [...data].reverse();
+  const scores = sortedData.map(d => d.overall_score);
+  
+  if (scores.length === 1) scores.push(scores[0]); // Duplicate for line rendering
 
-  const arcLength = 251.3;
-  const offset = arcLength - normalized * arcLength;
-  const rotation = -90 + normalized * 180;
+  const width = 320;
+  const height = 140;
+  const paddingX = 15;
+  const paddingY = 20;
+  
+  const minScore = 0;
+  const maxScore = 1000;
+
+  const points = scores.map((val, i) => {
+    const x = paddingX + (i / (scores.length - 1)) * (width - 2 * paddingX);
+    const y = height - paddingY - ((val - minScore) / (maxScore - minScore)) * (height - 2 * paddingY);
+    return `${x},${y}`;
+  });
+
+  const pathData = `M ${points.join(' L ')}`;
+  const areaData = `${pathData} L ${width - paddingX},${height - paddingY} L ${paddingX},${height - paddingY} Z`;
 
   return (
-    <div className="relative w-[320px] max-w-[100%] mx-auto my-4 mt-2">
-      <div className="absolute inset-0 flex flex-col items-center justify-center pt-8 pointer-events-none z-0">
-        <span className="text-white text-5xl mb-8 font-bold tracking-tight">{score}</span>
+    <div className="relative w-full max-w-[320px] mx-auto mt-2 mb-4 group select-none">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
+        <defs>
+          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#3cb44f" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#3cb44f" stopOpacity="0.0" />
+          </linearGradient>
+          <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Horizontal Grid lines */}
+        {[200, 400, 600, 800].map(val => {
+           const y = height - paddingY - ((val - minScore) / (maxScore - minScore)) * (height - 2 * paddingY);
+           return <line key={val} x1={paddingX} y1={y} x2={width-paddingX} y2={y} stroke="#ffffff08" strokeWidth="1" strokeDasharray="4 4" />
+        })}
+
+        <path d={areaData} fill="url(#areaGradient)" />
+        <path d={pathData} fill="none" stroke="#3cb44f" strokeWidth="3" filter="url(#lineGlow)" strokeLinecap="round" strokeLinejoin="round" />
+        
+        {scores.map((val, i) => {
+          const x = paddingX + (i / (scores.length - 1)) * (width - 2 * paddingX);
+          const y = height - paddingY - ((val - minScore) / (maxScore - minScore)) * (height - 2 * paddingY);
+          return (
+             <circle key={i} cx={x} cy={y} r="4" fill="#111f14" stroke="#3cb44f" strokeWidth="2.5" className="cursor-pointer hover:stroke-white transition-all duration-300" />
+          );
+        })}
+      </svg>
+      {/* Current Score Overlay */}
+      <div className="absolute top-0 right-2 flex flex-col items-end">
+         <span className="text-3xl font-bold text-white tracking-tighter drop-shadow-md">{currentScore}</span>
       </div>
-
-      <svg viewBox="0 0 200 120" className="w-full overflow-visible">
-                <defs>
-                    {/* Progress arc gradient */}
-                    <linearGradient id="progressGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                        {/* Dark base at the bottom-left arc start (20,100) */}
-                        <stop offset="0%" stopColor="#111f14" />
-                        <stop offset="70%" stopColor="#3cb44f" />
-                        <stop offset="100%" stopColor="#2d8a3e" />
-                    </linearGradient>
-
-                    {/* True bottom-up radial fade for the glow layer */}
-                    {/* <radialGradient id="radialArcGlow" cx="20" cy="100" r="80" gradientUnits="userSpaceOnUse">
-                        <stop offset="5%" stopColor="#00e676" stopOpacity="0.85" />
-                        <stop offset="50%" stopColor="#00e676" stopOpacity="0.28" />
-                        <stop offset="95%" stopColor="#0d140d" stopOpacity="0" />
-                    </radialGradient> */}
-
-                    {/* Subtle outer glow filter */}
-                    <filter id="hueGlow" x="-10%" y="-10%" width="120%" height="120%">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur" />
-                        <feColorMatrix
-                            in="blur"
-                            type="matrix"
-                            values="
-                                1 0 0 0 0
-                                0 1 0 0 0
-                                0 0 1 0 0
-                                0 0 0 0.28 0
-                            "
-                            result="softGlow"
-                        />
-                        <feMerge>
-                            <feMergeNode in="softGlow" />
-                        </feMerge>
-                    </filter>
-
-                    {/* Arrow shadow filter */}
-                    <filter id="arrowShadow" x="-30%" y="-30%" width="160%" height="160%">
-                        <feDropShadow
-                            dx="0"
-                            dy="1.5"
-                            stdDeviation="1.6"
-                            floodColor="#000000"
-                            floodOpacity="0.4"
-                        />
-                    </filter>
-                </defs>
-
-                {/* BG fade from arc bottom start */}
-                <path
-                    d="M20 100 A80 80 0 0 1 180 100"
-                    fill="none"
-                    stroke="url(#radialArcGlow)"
-                    strokeWidth="26"
-                    strokeLinecap="round"
-                    opacity="0.7"
-                />
-
-                {/* Subtle glow layer over main arc using the same bottom-up concept */}
-                <path
-                    d="M20 100 A80 80 0 0 1 180 100"
-                    fill="none"
-                    stroke="url(#progressGradient)"
-                    strokeWidth="22"
-                    strokeLinecap="round"
-                    filter="url(#hueGlow)"
-                    opacity={0.45}
-                    style={{
-                        strokeDasharray: arcLength,
-                        strokeDashoffset: offset,
-                        transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                />
-
-                {/* Core progress arc */}
-                <path
-                    d="M20 100 A80 80 0 0 1 180 100"
-                    fill="none"
-                    stroke="url(#progressGradient)"
-                    strokeWidth="20"
-                    strokeLinecap="round"
-                    style={{
-                        strokeDasharray: arcLength,
-                        strokeDashoffset: offset,
-                        transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                />
-
-                {/* Arrow Pointer Group */}
-                <g
-                    style={{
-                        transformOrigin: "100px 100px",
-                        transform: `rotate(${rotation}deg)`,
-                        transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                >
-                    {/* Arrow */}
-                    <path
-                        d="M 100 80 L 88 108 L 100 100 L 112 108 Z"
-                        fill="#ffffff"
-                        opacity={0.9}
-                        filter="url(#arrowShadow)"
-                    />
-                </g>
-            </svg>
     </div>
   );
 }
@@ -216,29 +161,43 @@ function ReputationGauge({ score, animated }: { score: number; animated: boolean
 export default function Profile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [scoreHistory, setScoreHistory] = useState<any[]>([]);
+  const [latestAnchor, setLatestAnchor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [animated, setAnimated] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setAnimated(true), 300);
-    return () => clearTimeout(t);
-  }, []);
-
-
-  useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchData = async () => {
       try {
         const res = await apiClient.get('/users/me');
         const apiData = res.data?.data || res.data;
         const nested = apiData.profile || {};
-        setProfile({ ...apiData, ...nested } as UserProfile);
+        const profileObj = { ...apiData, ...nested };
+        setProfile(profileObj as UserProfile);
+
+        // Fetch E12 Score History
+        try {
+          const histRes = await apiClient.get('/users/me/score-history');
+          setScoreHistory((histRes.data?.data || []).slice(0, 52)); // Keep max 52 entries
+        } catch (e) {
+          console.error('Failed to fetch score history', e);
+        }
+
+        // Fetch E11 Blockchain Anchor
+        if (apiData.id) {
+          try {
+             const anchorRes = await apiClient.get(`/blockchain/score-anchors/${apiData.id}/latest`);
+             setLatestAnchor(anchorRes.data?.data || null);
+          } catch (e) {
+             console.error('Failed to fetch score anchor', e);
+          }
+        }
       } catch (err) {
-        console.error('Failed to fetch profile', err);
+        console.error('Failed to fetch profile data', err);
       } finally {
         setLoading(false);
       }
     };
-    fetchProfile();
+    fetchData();
   }, []);
 
   if (loading) {
@@ -429,14 +388,34 @@ export default function Profile() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Reputation Score</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-white text-lg font-bold flex items-center gap-2">
+                  <Activity size={20} className="text-[#3cb44f]" /> Reputation Score
+                </h3>
+                {latestAnchor && latestAnchor.transaction_hash && (
+                  <a 
+                    href={`https://sepolia.basescan.org/tx/${latestAnchor.transaction_hash}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors cursor-pointer group"
+                    title="View score on Base L2 blockchain"
+                  >
+                    <div className="w-4 h-4 rounded-full bg-[#0052FF] flex items-center justify-center p-0.5">
+                      <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                        <div className="w-2 h-2 rounded-full bg-[#0052FF]"></div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-300 group-hover:text-white pt-px">Verified on Base</span>
+                  </a>
+                )}
               </div>
-              <div>
-                <div className="flex flex-col items-center justify-center relative my-4">
-                  <ReputationGauge score={82} animated={animated} />
-                </div>
-                <p className="text-xs text-center text-gray-400 leading-relaxed mb-6 mt-2">Your score grows as profile details stay complete, links remain verified, and projects stay visible.</p>
+              <div className="flex-1 flex flex-col justify-center relative my-2">
+                <ScoreHistoryGraph data={scoreHistory} currentScore={(data as any).credibility_score || 0} />
+              </div>
+              <div className="text-center mt-2">
+                <p className="text-[#3cb44f] text-sm font-bold mb-1">{(data as any).score_tier || 'Starter'}</p>
+                <p className="text-xs text-gray-400 leading-relaxed max-w-[260px] mx-auto">
+                  Your credibility score grows as you deliver complex milestones and retain clients. 
+                </p>
               </div>
               {/* <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-[11px] text-gray-300 font-semibold">
                 <div className="flex items-center gap-2"><Check size={16} className="text-[#3cb44f] shrink-0" /> Photo uploaded</div>

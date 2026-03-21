@@ -10,6 +10,7 @@ import response_rate from "@/assets/response_rate.png";
 import on_time_delivery from "@/assets/on_time_delivery.png";
 import active_contracts from "@/assets/active_contracts.png";
 import disputes from "@/assets/disputes.png";
+import { Score } from "@/components/Score";
 
 // --- Types ---
 interface MetricCard {
@@ -44,14 +45,7 @@ interface Contract {
 // }
 
 // --- Data ---
-const metrics: MetricCard[] = [
-    { label: "Contract Completion", value: "92", unit: "%", impact: "High Impact", impactDots: 3, icon: contract_completition, iconBg: "bg-[#d4edda]" },
-    { label: "Client Reviews", value: "100", unit: "%", impact: "High Impact", impactDots: 3, icon: client_reviews, iconBg: "bg-[#d4edda]" },
-    { label: "Response Rate", value: "85", unit: "%", impact: "High Impact", impactDots: 3, icon: response_rate, iconBg: "bg-[#d4edda]" },
-    { label: "On-Time Delivery", value: "98", unit: "%", impact: "Medium Impact", impactDots: 2, icon: on_time_delivery, iconBg: "bg-[#d4edda]" },
-    { label: "Active Contracts", value: "12", unit: "", impact: "Low Impact", impactDots: 1, icon: active_contracts, iconBg: "bg-[#d4edda]" },
-    { label: "Disputes", value: "0", unit: "%", impact: "Low Impact", impactDots: 1, icon: disputes, iconBg: "bg-[#d4edda]" },
-];
+// Metrics are now computed dynamically from contracts data — see computeMetrics() below
 
 
 
@@ -62,11 +56,11 @@ const metrics: MetricCard[] = [
 // { id: 4, text: "Invoice #004 marked as paid", highlight: "Invoice #004", time: "2d ago", dotColor: "bg-[#00e676]" },
 // ];
 
-const ReputationGauge = ({ score, animated }: { score: number; animated: boolean }) => {
+const ReputationGauge = ({ score, animated, maxScale = 1000 }: { score: number; animated: boolean; maxScale?: number }) => {
     const [normalized, setNormalized] = useState(0);
 
     const min = 0;
-    const max = 900;
+    const max = maxScale;
 
     useEffect(() => {
         if (animated) {
@@ -222,10 +216,16 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const { openContracts } = useContractsStore();
     const [contracts, setContracts] = useState<Contract[]>([]);
+    const [rawContracts, setRawContracts] = useState<any[]>([]); // raw API data for computing metrics
     const [loadingContracts, setLoadingContracts] = useState(true);
     const [animated, setAnimated] = useState(false);
     const [tab, setTab] = useState<"Overall" | "Last Project">("Overall");
     const [scrollY, setScrollY] = useState(0);
+    const [score, setScore] = useState(0);
+    const [scoreTier, setScoreTier] = useState('Starter');
+    const [dimensionScores, setDimensionScores] = useState<any>(null);
+    const [scoreHistory, setScoreHistory] = useState<any[]>([]);
+    const [totalEarnings, setTotalEarnings] = useState(0);
 
     useEffect(() => {
         const fetchContracts = async () => {
@@ -282,6 +282,7 @@ const Dashboard = () => {
                 });
 
                 setContracts(mapped);
+                setRawContracts(data);
             } catch (err) {
                 console.error("Failed to fetch contracts", err);
             } finally {
@@ -291,14 +292,93 @@ const Dashboard = () => {
         fetchContracts();
     }, []);
 
+    // Fetch user profile for credibility score
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await apiClient.get('/users/me');
+                const profile = (res as any).data?.data || (res as any).data;
+                if (profile) {
+                    setScore(profile.credibility_score || 0);
+                    setScoreTier(profile.score_tier || 'Starter');
+                    setDimensionScores(profile.dimension_scores || null);
+                }
+
+                try {
+                    const histRes = await apiClient.get('/users/me/score-history');
+                    setScoreHistory((histRes.data?.data || []).slice(0, 52));
+                } catch (e) {
+                    console.error('Failed to fetch score history', e);
+                }
+            } catch (err) {
+                console.error('Failed to fetch profile', err);
+            }
+        })();
+    }, []);
+
     // Trigger animation on mount (and on every refresh via key state)
     useEffect(() => {
         const t = setTimeout(() => setAnimated(true), 300);
         return () => clearTimeout(t);
     }, []);
 
-    const score = 750;
+    // Compute metrics from raw contract data
+    const computeMetrics = (): MetricCard[] => {
+        const total = rawContracts.length;
+        const completed = rawContracts.filter((c: any) => c.status === 'completed').length;
+        const active = rawContracts.filter((c: any) => c.status === 'active' || c.status === 'signed').length;
+        const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+        const hasReviews = completed > 0; // proxied from completed contracts
+        const earnings = rawContracts
+            .filter((c: any) => c.status === 'completed')
+            .reduce((sum: number, c: any) => sum + (c.total_amount || 0), 0);
+
+        // Store earnings for display
+        if (earnings !== totalEarnings) setTotalEarnings(earnings);
+
+        return [
+            { label: 'Contract Completion', value: completionPct.toString(), unit: '%', impact: completionPct >= 80 ? 'High Impact' : 'Medium Impact', impactDots: completionPct >= 80 ? 3 : 2, icon: contract_completition, iconBg: 'bg-[#d4edda]' },
+            { label: 'Client Reviews', value: hasReviews ? completed.toString() : '0', unit: '', impact: 'High Impact', impactDots: 3, icon: client_reviews, iconBg: 'bg-[#d4edda]' },
+            { label: 'Response Rate', value: '100', unit: '%', impact: 'High Impact', impactDots: 3, icon: response_rate, iconBg: 'bg-[#d4edda]' },
+            { label: 'On-Time Delivery', value: total > 0 ? Math.round(((completed) / Math.max(total, 1)) * 100).toString() : '0', unit: '%', impact: 'Medium Impact', impactDots: 2, icon: on_time_delivery, iconBg: 'bg-[#d4edda]' },
+            { label: 'Active Contracts', value: active.toString(), unit: '', impact: 'Low Impact', impactDots: 1, icon: active_contracts, iconBg: 'bg-[#d4edda]' },
+            { label: 'Disputes', value: '0', unit: '', impact: 'Low Impact', impactDots: 1, icon: disputes, iconBg: 'bg-[#d4edda]' },
+        ];
+    };
+
+    const metrics = computeMetrics();
     const isEmpty = !loadingContracts && contracts.length === 0;
+    const isOverall = tab === "Overall";
+
+    let lastProjectScoreChange = 0;
+
+    // Helper to calculate estimated base score from just profile creation (Verification + Expertise)
+    const getBaseScore = () => {
+        if (!dimensionScores) return 175;
+        return Math.round(175 + (dimensionScores.expertise || 0) * 0.10 + (dimensionScores.verification || 0) * 0.08);
+    };
+
+    if (scoreHistory && scoreHistory.length > 0) {
+        const currentHistScore = scoreHistory[0].overall_score;
+        // Find the most recent historical score that is different from the current score
+        const prevScoreObj = scoreHistory.find(s => s.overall_score !== currentHistScore);
+
+        if (prevScoreObj) {
+            lastProjectScoreChange = currentHistScore - prevScoreObj.overall_score;
+        } else {
+            // If all history snapshots are identical, they likely only have 1 project
+            // Compute the jump from their base profile score to current
+            const baseScore = getBaseScore();
+            lastProjectScoreChange = currentHistScore > baseScore ? currentHistScore - baseScore : currentHistScore;
+        }
+    } else if (score > 0) {
+        // Fallback if APIs haven't returned history but we have a score
+        const baseScore = getBaseScore();
+        lastProjectScoreChange = score > baseScore ? score - baseScore : score;
+    }
+
+    const displayScore = isOverall ? score : lastProjectScoreChange;
+    const gaugeMax = isOverall ? 1000 : 200;
 
     return (
         <motion.div
@@ -327,16 +407,19 @@ const Dashboard = () => {
 
                             {/* Gauge */}
                             <div className="flex flex-col items-center gap-2">
-                                <p className="text-sm font-medium text-[#3cb44f]">↗ Starting score</p>
-                                <h1 className="text-[96px] font-bold text-white tracking-tighter leading-none">750</h1>
-                                <p className="text-gray-400 text-sm font-medium">Excellent baseline</p>
+                                <p className="text-sm font-medium text-[#3cb44f]">
+                                    ↗ {lastProjectScoreChange > 0 ? `+${lastProjectScoreChange}` : lastProjectScoreChange} {isOverall ? 'from last project' : 'gained'}
+                                </p>
+                                <h1 className="text-[96px] font-bold text-white tracking-tighter leading-none">{displayScore}</h1>
+                                <p className="text-gray-400 text-sm font-medium">{isOverall ? scoreTier : 'Last Project Impact'}</p>
                                 <div className="scale-[1.25] origin-top mt-2">
-                                    <ReputationGauge score={score} animated={animated} />
+                                    <ReputationGauge score={displayScore} animated={animated} maxScale={gaugeMax} />
                                 </div>
                             </div>
 
+
                             {/* Tab selector (still functional) */}
-                            <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800 mt-8">
+                            {/* <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800 mt-8">
                                 {(["Overall", "Last Project"] as const).map((t) => (
                                     <button
                                         key={t}
@@ -347,7 +430,7 @@ const Dashboard = () => {
                                         {t}
                                     </button>
                                 ))}
-                            </div>
+                            </div> */}
                         </div>
                     ) : (
                         /* ── NORMAL STATE: full 12-col grid ── */
@@ -378,14 +461,20 @@ const Dashboard = () => {
                                 </div>
 
                                 {/* Middle: Score and Gauge */}
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 mt-6">
                                     <div>
-                                        <p className="text-sm font-medium text-[#00e676] mb-2">↗ 5 pts</p>
-                                        <h1 className="text-[80px] font-bold text-white tracking-tighter leading-none">{score}</h1>
-                                        <p className="text-gray-400 text-sm font-medium">Excellent</p>
+                                        {isOverall && lastProjectScoreChange !== 0 && (
+                                            <p className="text-sm font-medium text-[#00e676] mb-2">
+                                                ↗ {lastProjectScoreChange > 0 ? `+${lastProjectScoreChange}` : lastProjectScoreChange}{' '}
+                                                from last project
+                                            </p>
+                                        )}
+
+                                        <Score displayScore={displayScore} />
+                                        {/* <p className="text-gray-400 text-sm font-medium">{isOverall ? scoreTier : 'Last Project Impact'}</p> */}
                                     </div>
                                     <div className="flex justify-center md:justify-end flex-1 origin-right scale-110 mr-4">
-                                        <ReputationGauge score={score} animated={animated} />
+                                        <ReputationGauge score={displayScore} animated={animated} maxScale={gaugeMax} />
                                     </div>
                                 </div>
 
@@ -393,15 +482,15 @@ const Dashboard = () => {
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="bg-[#111f14] rounded-[40px] p-6 flex flex-col justify-between min-h-[140px]">
                                         <div className="flex justify-between items-start">
-                                            <p className="text-gray-400 font-medium text-sm">Rising Talent</p>
+                                            <p className="text-gray-400 font-medium text-sm">Tier</p>
                                         </div>
-                                        <p className="text-white font-bold text-5xl">Tier 2</p>
+                                        <p className="text-white font-bold text-3xl">{scoreTier}</p>
                                     </div>
                                     <div className="bg-[#111f14] rounded-[40px] p-6 flex flex-col justify-between min-h-[140px]">
                                         <div className="flex justify-between items-start">
-                                            <p className="text-gray-400 font-medium text-sm">Total Growth</p>
+                                            <p className="text-gray-400 font-medium text-sm">Total Earnings</p>
                                         </div>
-                                        <p className="text-white font-bold text-5xl">$12<span className="text-xl text-gray-400 font-medium">.4k</span></p>
+                                        <p className="text-white font-bold text-5xl">{totalEarnings >= 1000 ? `₹${(totalEarnings / 1000).toFixed(1)}` : `₹${totalEarnings}`}<span className="text-xl text-gray-400 font-medium">{totalEarnings >= 1000 ? 'k' : ''}</span></p>
                                     </div>
                                 </div>
                             </motion.div>
@@ -448,7 +537,7 @@ const Dashboard = () => {
             </div>
 
             {/* --- BOTTOM SECTION (curved, overlaps, parallax) --- */}
-            <div className={`relative min-h-screen ${isEmpty ? 'pt-[560px]' : 'pt-[700px]'}`}>
+            <div className={`relative min-h-screen ${isEmpty ? 'pt-[700px]' : 'pt-[700px]'}`}>
                 <div
                     className="relative z-20 rounded-t-[100px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
                 >

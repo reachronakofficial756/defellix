@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Plus, X, Upload, Check, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from '@/api/client';
 import { useParams } from 'react-router-dom';
 
@@ -182,8 +183,8 @@ const CreateContractForm = ({ onClose }: { onClose: () => void }) => {
     const [coreDeliverable, setCoreDeliverable] = useState("");
     const [revisionPolicy, setRevisionPolicy] = useState("2 Rounds");
     const [intellectualProperty, setIntellectualProperty] = useState("Client owns all upon payment");
-    const [contractCurrency] = useState("INR");
-    const [contractAmount] = useState("");
+    const [contractCurrency, setContractCurrency] = useState("INR");
+    const [contractAmount, setContractAmount] = useState("");
     const [isGenerating, setIsGenerating] = useState(false);
     const [contractText, setContractText] = useState("");
 
@@ -450,6 +451,7 @@ By signing below, both parties agree to the terms outlined in this agreement.
         // If the user specified a base fee, we automatically wrap it into a final milestone.
         if (totalBase > 0) {
             finalMilestones.push({
+                id: undefined,
                 title: "Core Project Deliverables (Final Payment)",
                 description: "Final payment upon completion of the core project scope.",
                 amount: totalBase,

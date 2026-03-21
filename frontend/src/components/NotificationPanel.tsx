@@ -4,13 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   X, Bell, Send, MessageSquareMore, PenLine,
   Flag, AlertTriangle, Loader2, RotateCcw,
-  CalendarClock, FilePen, CheckCircle2
+  CalendarClock, FilePen, CheckCircle2, Star, TrendingUp
 } from 'lucide-react';
 import { apiClient } from '@/api/client';
 import { useContractsStore } from '@/store/useContractsStore';
 
 /* ─────────────────────────── Types ──────────────────────────────── */
-type NType = 'sent' | 'review' | 'signed' | 'overdue' | 'due_soon' | 'completed' | 'draft';
+type NType = 'sent' | 'review' | 'signed' | 'overdue' | 'due_soon' | 'completed' | 'draft' | 'milestone_rated' | 'review_received' | 'score_updated';
 
 interface Notification {
   id: string;
@@ -39,6 +39,9 @@ const TYPE_CFG: Record<NType, {
   due_soon:  { Icon: CalendarClock,    dot: '#fb923c', ring: 'bg-orange-500/10', pill: 'bg-orange-500/10 text-orange-300' },
   completed: { Icon: Flag,             dot: '#c084fc', ring: 'bg-violet-500/10', pill: 'bg-violet-500/10 text-violet-300' },
   draft:     { Icon: FilePen,          dot: '#6b7280', ring: 'bg-white/5',       pill: 'bg-white/6 text-gray-400' },
+  milestone_rated: { Icon: Star,       dot: '#fbbf24', ring: 'bg-amber-500/10', pill: 'bg-amber-500/10 text-amber-300' },
+  review_received: { Icon: Star,       dot: '#4ade80', ring: 'bg-green-500/10', pill: 'bg-green-500/10 text-green-300' },
+  score_updated:   { Icon: TrendingUp, dot: '#c084fc', ring: 'bg-violet-500/10', pill: 'bg-violet-500/10 text-violet-300' },
 };
 
 /* ──────────────────────── Data helpers ─────────────────────────── */
@@ -118,15 +121,32 @@ function deriveNotifications(contracts: any[]): Notification[] {
         });
       }
 
-      // Handle Approved
+      // Handle Approved — with rating info if available
       if (ms.status === 'approved' || ms.status === 'paid') {
+        const sub = ms.latest_submission;
+        const hasRating = sub && sub.client_rating && sub.client_rating > 0;
+        
         out.push({
           id: `approved-${id}-${ms.id}`, type: 'completed',
           title: 'Milestone approved!',
           message: `The client approved "${ms.title}". Funds will be released soon · ${name}`,
           contractName: name, contractId: id,
-          timestamp: ms.latest_submission?.reviewed_at || ms.updated_at || c.updated_at, isNew: ms.status === 'approved',
+          timestamp: sub?.reviewed_at || ms.updated_at || c.updated_at, isNew: ms.status === 'approved',
         });
+
+        // Separate notification for the rating
+        if (hasRating) {
+          const stars = '★'.repeat(sub.client_rating) + '☆'.repeat(5 - sub.client_rating);
+          out.push({
+            id: `rated-${id}-${ms.id}`, type: 'milestone_rated',
+            title: `Client rated milestone ${stars}`,
+            message: sub.client_comment
+              ? `"${sub.client_comment.slice(0, 80)}${sub.client_comment.length > 80 ? '…' : ''}" · ${ms.title} · ${name}`
+              : `${c.client_name || 'Client'} gave ${sub.client_rating}/5 stars for "${ms.title}" · ${name}`,
+            contractName: name, contractId: id,
+            timestamp: sub.reviewed_at || ms.updated_at || c.updated_at, isNew: ms.status === 'approved',
+          });
+        }
       }
 
       // Handle Drafts
@@ -175,6 +195,33 @@ function deriveNotifications(contracts: any[]): Notification[] {
         timestamp: c.updated_at || c.created_at, isNew: false,
       });
     }
+
+    // ── Contract review received ─────────────────────────────────
+    if (c.contract_review) {
+      const rev = c.contract_review;
+      const stars = '★'.repeat(rev.overall_rating || 0) + '☆'.repeat(5 - (rev.overall_rating || 0));
+      out.push({
+        id: `review-recv-${id}`, type: 'review_received',
+        title: `New contract review ${stars}`,
+        message: rev.comment
+          ? `"${rev.comment.slice(0, 80)}${rev.comment.length > 80 ? '…' : ''}" · ${name}`
+          : `${c.client_name || 'Client'} left a ${rev.overall_rating}/5 review · ${name}`,
+        contractName: name, contractId: id,
+        timestamp: rev.reviewed_at || rev.created_at || c.updated_at, isNew: true,
+        action: { label: 'View review' },
+      });
+
+      // Testimonial notification
+      if (rev.testimonial) {
+        out.push({
+          id: `testimonial-${id}`, type: 'review_received',
+          title: 'New testimonial received!',
+          message: `"${rev.testimonial.slice(0, 80)}${rev.testimonial.length > 80 ? '…' : ''}" · ${name}`,
+          contractName: name, contractId: id,
+          timestamp: rev.reviewed_at || rev.created_at || c.updated_at, isNew: true,
+        });
+      }
+    }
   });
 
   // Sort purely by timestamp descending (newest first) — industry standard
@@ -222,9 +269,34 @@ export default function NotificationPanel({ isOpen, onClose }: Props) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Fetch contract-derived notifications
       const res = await apiClient.get('/contracts');
       const contracts: any[] = (res as any).data?.data?.contracts || [];
-      setAll(deriveNotifications(contracts));
+      const derived = deriveNotifications(contracts);
+
+      // E8: Fetch server-side score notifications
+      try {
+        const notifRes = await apiClient.get('/users/me/notifications');
+        const serverNotifs: any[] = (notifRes as any).data?.data || [];
+        for (const sn of serverNotifs) {
+          derived.push({
+            id: `score-notif-${sn.id}`,
+            type: 'score_updated' as NType,
+            title: sn.title || 'Credibility score updated',
+            message: sn.message || `Score changed: ${sn.old_score} → ${sn.new_score}`,
+            contractName: '',
+            contractId: 0,
+            timestamp: sn.created_at,
+            isNew: !sn.is_read,
+          });
+        }
+      } catch {
+        // Server notifications are optional, don't fail the whole panel
+      }
+
+      // Re-sort by timestamp
+      derived.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setAll(derived);
     } catch { setAll([]); }
     finally { setLoading(false); }
   }, []);
@@ -261,9 +333,20 @@ export default function NotificationPanel({ isOpen, onClose }: Props) {
   }, [onClose]);
 
   // go — navigate to the right page based on notification type
-  const go = (n: Notification) => {
+  const go = async (n: Notification) => {
     const newRead = new Set([...readIds, n.id]);
     persistRead(newRead);
+
+    // E8: Mark as read in backend if it's a server-side score notification
+    if (n.type === 'score_updated' && n.id.startsWith('score-notif-')) {
+      try {
+        const dbId = n.id.replace('score-notif-', '');
+        await apiClient.put(`/users/me/notifications/${dbId}/read`);
+      } catch (err) {
+        console.error('Failed to mark notification as read in backend:', err);
+      }
+    }
+
     if (n.type === 'review' && n.id.startsWith('submitted-')) {
       // Navigate to the milestone submission page so freelancer can view their submission
       navigate(`/submit-milestone/${n.contractId}`);
@@ -274,6 +357,14 @@ export default function NotificationPanel({ isOpen, onClose }: Props) {
       onClose();
     } else if (n.type === 'draft') {
       navigate(`/submit-milestone/${n.contractId}`);
+      onClose();
+    } else if (n.type === 'review_received' || n.type === 'milestone_rated') {
+      // Open contract to see the review/rating
+      openContracts(n.contractId);
+      onClose();
+    } else if (n.type === 'score_updated') {
+      // Navigate to profile to see score
+      navigate('/dashboard/profile');
       onClose();
     } else {
       openContracts(n.contractId);
@@ -460,7 +551,6 @@ function Card({
 }: { n: Notification; i: number; onGo: () => void; onDismiss: () => void }) {
   const c = TYPE_CFG[n.type];
   const Icon = c.Icon;
-  const isRead = !n.isNew;
 
   return (
     <motion.div

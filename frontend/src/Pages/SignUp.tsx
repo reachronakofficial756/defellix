@@ -13,7 +13,7 @@ const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your f
 
 export default function SignUp() {
     const navigate = useNavigate();
-    const { setAuthenticated, refetch } = useAuth();
+    const { setAuthenticated, setProfileComplete, refetch } = useAuth();
 
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [isOtpStage, setIsOtpStage] = useState(false);
@@ -86,9 +86,14 @@ export default function SignUp() {
                 const isProfileComplete = profile && profile !== null && profile.user_name;
                 
                 if (isProfileComplete) {
+                    setAuthenticated(true);
+                    setProfileComplete(true);
                     // Fully onboarded already → re-fetch auth state then go to dashboard
                     await refetch();
-                    navigate("/dashboard", { replace: true });
+                    
+                    setTimeout(() => {
+                        navigate("/dashboard", { replace: true });
+                    }, 50);
                 } else {
                     // Auth user but no completed profile → stay on step 2
                     setIsOtpStage(false);
@@ -99,7 +104,7 @@ export default function SignUp() {
                 setStep(2);
             }
         })();
-    }, [email, navigate, setAuthenticated, refetch]);
+    }, [email, navigate, setAuthenticated, setProfileComplete, refetch]);
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();

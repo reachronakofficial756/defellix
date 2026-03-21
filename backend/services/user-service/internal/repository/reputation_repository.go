@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/saiyam0211/defellix/services/user-service/internal/domain"
 	"gorm.io/gorm"
@@ -11,6 +12,7 @@ type ReputationRepository interface {
 	Create(ctx context.Context, reputation *domain.Reputation) error
 	GetByContractID(ctx context.Context, contractID uint) (*domain.Reputation, error)
 	GetByFreelancerID(ctx context.Context, freelancerID uint) ([]*domain.Reputation, error)
+	GetRecentByFreelancerID(ctx context.Context, freelancerID uint, withinDays int) ([]*domain.Reputation, error)
 }
 
 type reputationRepository struct {
@@ -36,6 +38,17 @@ func (r *reputationRepository) GetByContractID(ctx context.Context, contractID u
 func (r *reputationRepository) GetByFreelancerID(ctx context.Context, freelancerID uint) ([]*domain.Reputation, error) {
 	var list []*domain.Reputation
 	if err := r.db.WithContext(ctx).Where("freelancer_id = ?", freelancerID).Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (r *reputationRepository) GetRecentByFreelancerID(ctx context.Context, freelancerID uint, withinDays int) ([]*domain.Reputation, error) {
+	var list []*domain.Reputation
+	cutoff := time.Now().AddDate(0, 0, -withinDays)
+	if err := r.db.WithContext(ctx).
+		Where("freelancer_id = ? AND created_at >= ?", freelancerID, cutoff).
+		Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil

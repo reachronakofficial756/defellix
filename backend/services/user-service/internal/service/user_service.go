@@ -246,6 +246,41 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 		return nil, err
 	}
 
+	// Recalculate credibility score if profile fields changed (verification dimension may shift)
+	if profile.CredibilityScore == 0 {
+		var skills []string
+		if len(profile.Skills) > 0 {
+			json.Unmarshal(profile.Skills, &skills)
+		}
+		var projects []domain.Project
+		if len(profile.Projects) > 0 {
+			json.Unmarshal(profile.Projects, &projects)
+		}
+		profileSignals := ProfileSignals{
+			HasPhoto:         profile.Photo != "",
+			HasBio:           profile.Bio != "",
+			HasSkills:        len(skills) > 0,
+			SkillCount:       len(skills),
+			HasGitHub:        profile.GitHubLink != "",
+			HasLinkedIn:      profile.LinkedInLink != "",
+			HasPortfolio:     profile.PortfolioLink != "",
+			HasInstagram:     profile.InstagramLink != "",
+			IsEmailVerified:  profile.IsVerified,
+			IsPhoneVerified:  profile.Phone != "",
+			HasProjects:      len(projects) > 0,
+			ProjectCount:     len(projects),
+			AccountAgeMonths: int(time.Since(profile.CreatedAt).Hours() / 24 / 30),
+		}
+		overallScore, dims := CalculateInitialScore(profileSignals)
+		tier := GetTierLabel(overallScore)
+		dimsJSON, _ := json.Marshal(dims)
+		profile.CredibilityScore = overallScore
+		profile.ScoreTier = tier
+		profile.DimensionScores = datatypes.JSON(dimsJSON)
+		errUpdate := s.userRepo.Update(ctx, profile)
+		fmt.Printf("[DEBUG] Recalculated score: %d, err: %v\n", profile.CredibilityScore, errUpdate)
+	}
+
 	return s.toProfileResponse(profile), nil
 }
 
@@ -460,6 +495,12 @@ func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse 
 		}
 	}
 
+	// Parse dimension scores from JSONB
+	var dimensionScores map[string]int
+	if len(profile.DimensionScores) > 0 {
+		json.Unmarshal(profile.DimensionScores, &dimensionScores)
+	}
+
 	return &dto.UserResponse{
 		ID:                fmt.Sprintf("%d", profile.ID),
 		Email:             profile.Email,
@@ -483,6 +524,9 @@ func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse 
 		NoOfProjectsDone: noOfProjectsDone,
 		OnTimeCompletion: onTimeCompletion,
 		ReputationScore:   reputationScore,
+		CredibilityScore:  profile.CredibilityScore,
+		ScoreTier:         profile.ScoreTier,
+		DimensionScores:   dimensionScores,
 		Testimonials:      testimonials,
 		CompanyName:       profile.CompanyName,
 		ShowProfile:       profile.ShowProfile,

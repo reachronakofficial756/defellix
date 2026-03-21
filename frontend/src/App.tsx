@@ -7,6 +7,7 @@ import Login from './Pages/Login'
 import ClientContractReview from './Pages/ClientContractReview'
 import MilestoneSubmission from './Pages/MilestoneSubmission'
 import MilestoneReview from './Pages/MilestoneReview'
+import ContractReview from './Pages/ContractReview'
 import { useAuth } from './contexts/AuthContext'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function App() {
       <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
       <Route path="/submit-milestone/:contractId" element={<ProtectedRoute><MilestoneSubmission /></ProtectedRoute>} />
       <Route path="/review-milestone/:contractId" element={<MilestoneReview />} />
+      <Route path="/review/:token" element={<ContractReview />} />
       {/* All dashboard routes are protected */}
       <Route path="/dashboard/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       {/* Catch-all: go to dashboard if logged in, else landing */}

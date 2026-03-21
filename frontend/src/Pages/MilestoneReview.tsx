@@ -4,7 +4,7 @@ import {
   CheckCircle2, AlertCircle, Loader2, Calendar, DollarSign,
   Link2, ArrowRight, MessageSquare, ExternalLink,
   ShieldCheck, FileText, Send, Clock, Copy, Check,
-  Paperclip
+  Paperclip, Star
 } from 'lucide-react';
 import { apiClient, API_BASE } from '../api/client';
 import { calculateContractProgress } from '@/utils/contractProgress';
@@ -110,7 +110,7 @@ function MsStatusPill({ status }: { status: string }) {
 
 // ─────────────────────────────── Component ───────────────────────────────────
 
-type SidebarState = 'review' | 'reiterate' | 'otp' | 'success';
+type SidebarState = 'review' | 'rate' | 'reiterate' | 'otp' | 'success';
 
 export default function MilestoneReview() {
   const { contractId } = useParams<{ contractId: string }>();
@@ -126,6 +126,9 @@ export default function MilestoneReview() {
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject' | null>(null);
   const [reiterateText, setReiterateText] = useState('');
   const [reiterateSuccess, setReiterateSuccess] = useState(false);
+  const [milestoneRating, setMilestoneRating] = useState(0);
+  const [milestoneComment, setMilestoneComment] = useState('');
+  const [ratingHover, setRatingHover] = useState(0);
   const [newDueDate, setNewDueDate] = useState<string>('');
 
   // OTP
@@ -237,7 +240,8 @@ export default function MilestoneReview() {
       await apiClient.post(`${CONTRACT_API_BASE}/${contract.client_view_token}/submissions/${activeSub.id}/review`, {
         otp: code,
         action: reviewAction === 'approve' ? 'accept' : 'revision',
-        comment: reviewAction === 'reject' ? reiterateText : '',
+        comment: reviewAction === 'approve' ? milestoneComment : reiterateText,
+        rating: reviewAction === 'approve' && milestoneRating > 0 ? milestoneRating : undefined,
         new_due_date: reviewAction === 'reject' && newDueDate ? new Date(newDueDate).toISOString() : undefined
       });
 
@@ -500,7 +504,7 @@ export default function MilestoneReview() {
                       </div>
                     )}
                     <button
-                      onClick={() => startOtpFlow('approve')}
+                      onClick={() => { setMilestoneRating(0); setMilestoneComment(''); setSideState('rate'); }}
                       className="w-full py-5 rounded-2xl bg-[#3cb44f] text-black font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_8px_24px_rgba(60,180,79,0.25)] flex items-center justify-center gap-2 cursor-pointer group"
                     >
                       Approve & Release Funds
@@ -546,6 +550,77 @@ export default function MilestoneReview() {
                     <p className="text-gray-400 text-xs font-bold truncate pr-3">{contract.client_view_token ? `.../${contract.client_view_token}` : 'Copy Review Link'}</p>
                     {copied ? <Check size={14} className="text-[#3cb44f]" /> : <Copy size={14} className="text-gray-500 group-hover:text-white" />}
                   </button>
+                </div>
+              </div>
+            )}
+
+            {sideState === 'rate' && (
+              <div className="space-y-8">
+                <div>
+                  <button onClick={() => setSideState('review')} className="text-gray-500 hover:text-white mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                    <ArrowRight size={14} className="rotate-180" /> Back
+                  </button>
+                  <h3 className="text-2xl font-black text-white mb-2">Rate This Milestone</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">How satisfied are you with the work delivered for this milestone?</p>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Star Rating */}
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setMilestoneRating(star)}
+                          onMouseEnter={() => setRatingHover(star)}
+                          onMouseLeave={() => setRatingHover(0)}
+                          className="cursor-pointer transition-all hover:scale-110 active:scale-95"
+                        >
+                          <Star
+                            size={36}
+                            className={`transition-colors ${
+                              star <= (ratingHover || milestoneRating)
+                                ? 'text-[#fbc02d] fill-[#fbc02d]'
+                                : 'text-gray-700'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-gray-400 text-xs font-bold">
+                      {milestoneRating === 0 && 'Select a rating'}
+                      {milestoneRating === 1 && 'Poor'}
+                      {milestoneRating === 2 && 'Below Average'}
+                      {milestoneRating === 3 && 'Average'}
+                      {milestoneRating === 4 && 'Good'}
+                      {milestoneRating === 5 && 'Excellent'}
+                    </p>
+                  </div>
+
+                  {/* Optional Comment */}
+                  <div>
+                    <label className="block text-gray-400 text-[10px] font-black uppercase tracking-widest mb-2">Comment (Optional)</label>
+                    <textarea
+                      value={milestoneComment}
+                      onChange={(e) => setMilestoneComment(e.target.value)}
+                      placeholder="Any feedback on this milestone..."
+                      className="w-full h-28 bg-white/3 border border-white/10 rounded-2xl p-4 text-white text-sm focus:outline-none focus:border-[#3cb44f]/40 transition-all placeholder:text-gray-700 resize-none"
+                    />
+                  </div>
+
+                  <button
+                    disabled={milestoneRating === 0 || isSendingOtp}
+                    onClick={() => startOtpFlow('approve')}
+                    className="w-full py-5 rounded-2xl bg-[#3cb44f] text-black font-black text-sm uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all shadow-[0_8px_24px_rgba(60,180,79,0.25)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
+                  >
+                    {isSendingOtp ? <Loader2 size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                    Continue to Verify
+                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  <p className="text-gray-600 text-[10px] text-center uppercase tracking-widest font-bold">
+                    You'll verify with OTP in the next step
+                  </p>
                 </div>
               </div>
             )}

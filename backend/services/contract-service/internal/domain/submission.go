@@ -30,6 +30,8 @@ type Submission struct {
 	Description     string         `gorm:"type:text;not null" json:"description"`                 // Originally DetailedDescription
 	Status          string         `gorm:"type:varchar(20);default:draft;not null" json:"status"` // draft, pending_review, accepted, revision_requested, ghosted
 	RevisionHistory string         `gorm:"type:jsonb" json:"revision_history,omitempty"`          // array of RevisionComment
+	ClientRating    *int           `gorm:"type:int" json:"client_rating,omitempty"`               // 1-5 stars, set on accept
+	ClientComment   string         `gorm:"type:text" json:"client_comment,omitempty"`             // optional comment on accept
 	SubmittedAt     time.Time      `gorm:"autoCreateTime" json:"submitted_at"`
 	ReviewedAt      *time.Time     `json:"reviewed_at,omitempty"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
@@ -56,4 +58,5 @@ type SubmissionReviewRequest struct {
 	Comment    *string    `json:"comment" validate:"omitempty,max=1000"`
 	OTP        string     `json:"otp" validate:"required,len=6"`
 	NewDueDate *time.Time `json:"new_due_date,omitempty"`
+	Rating     *int       `json:"rating" validate:"omitempty,min=1,max=5"` // 1-5 stars on milestone accept
 }

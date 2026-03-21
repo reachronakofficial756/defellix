@@ -10,7 +10,7 @@ import logo from "../assets/logo.svg";
 
 export default function LoginFormDemo() {
   const navigate = useNavigate();
-  const { setAuthenticated, refetch } = useAuth();
+  const { setAuthenticated, setProfileComplete, refetch } = useAuth();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -52,15 +52,24 @@ export default function LoginFormDemo() {
 
         if (isProfileComplete) {
           setAuthenticated(true);
+          // Set profile complete synchronously in context so the protected route doesn't bounce us
+          setProfileComplete(true);
           // Fully onboarded → re-fetch context then go to dashboard
           await refetch();
-          navigate("/dashboard", { replace: true });
+          
+          // Allow React to flush the context state updates before triggering the router
+          setTimeout(() => {
+            navigate("/dashboard", { replace: true });
+          }, 50);
         } else {
           // Auth user exists but has no completed profile → send to step 2 to finish onboarding
           const emailParam = params.get("email") || apiData?.email;
           let redirectUrl = `/signup?step=2&access_token=${token}`;
           if (emailParam) redirectUrl += `&email=${encodeURIComponent(emailParam)}`;
-          navigate(redirectUrl, { replace: true });
+          
+          setTimeout(() => {
+            navigate(redirectUrl, { replace: true });
+          }, 50);
         }
       } catch {
         // OAuth user but auth record does not exist at all → redirect to step 2

@@ -26,10 +26,11 @@ var (
 )
 
 type BlockchainService struct {
-	contractRepo repository.ContractRecordRepository
-	walletRepo   repository.WalletRepository
-	rpcURL       string
-	chainID      int64
+	contractRepo     repository.ContractRecordRepository
+	walletRepo       repository.WalletRepository
+	scoreAnchorRepo  repository.ScoreAnchorRepository
+	rpcURL           string
+	chainID          int64
 	encryptionKey    string
 	masterPrivateKey string
 	network          string
@@ -38,6 +39,7 @@ type BlockchainService struct {
 func NewBlockchainService(
 	contractRepo repository.ContractRecordRepository,
 	walletRepo repository.WalletRepository,
+	scoreAnchorRepo repository.ScoreAnchorRepository,
 	rpcURL string,
 	chainID int64,
 	encryptionKey string,
@@ -45,9 +47,10 @@ func NewBlockchainService(
 	network string,
 ) *BlockchainService {
 	return &BlockchainService{
-		contractRepo: contractRepo,
-		walletRepo:   walletRepo,
-		rpcURL:       rpcURL,
+		contractRepo:     contractRepo,
+		walletRepo:       walletRepo,
+		scoreAnchorRepo:  scoreAnchorRepo,
+		rpcURL:           rpcURL,
 		chainID:          chainID,
 		encryptionKey:    encryptionKey,
 		masterPrivateKey: masterPrivateKey,
@@ -152,6 +155,70 @@ func (s *BlockchainService) GetContractRecord(ctx context.Context, contractID ui
 		return nil, err
 	}
 	return s.toWriteContractResponse(cr), nil
+}
+
+// AnchorScoreToChain anchors a credibility score hash on Base L2
+func (s *BlockchainService) AnchorScoreToChain(ctx context.Context, req *dto.AnchorScoreRequest) (*dto.AnchorScoreResponse, error) {
+	// Prepare score data for on-chain storage
+	scoreData := map[string]interface{}{
+		"type":             "score_anchor",
+		"user_id":          req.UserID,
+		"overall_score":    req.OverallScore,
+		"score_tier":       req.ScoreTier,
+		"dimension_scores": req.DimensionScores,
+		"timestamp":        req.Timestamp,
+		"score_hash":       req.ScoreHash,
+	}
+
+	// We need a wallet for submitting; use a system/master wallet approach
+	// Create a temporary wallet struct pointing to the master key
+	masterWallet := &domain.Wallet{
+		Address: "master",
+	}
+
+	txHash, blockNumber, gasUsed, err := s.submitToBaseL2(ctx, masterWallet, scoreData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to anchor score on-chain: %w", err)
+	}
+
+	// Persist the anchor record
+	anchor := &domain.ScoreAnchor{
+		UserID:              req.UserID,
+		ScoreHash:           req.ScoreHash,
+		TransactionHash:     txHash,
+		BlockNumber:         blockNumber,
+		GasUsed:             gasUsed,
+		OverallScore:        req.OverallScore,
+		ScoreTier:           req.ScoreTier,
+		DimensionScoresJSON: req.DimensionScores,
+		Network:             s.network,
+		Status:              "confirmed",
+	}
+
+	if err := s.scoreAnchorRepo.Create(ctx, anchor); err != nil {
+		return nil, fmt.Errorf("failed to save score anchor: %w", err)
+	}
+
+	return &dto.AnchorScoreResponse{
+		UserID:          anchor.UserID,
+		ScoreHash:       anchor.ScoreHash,
+		TransactionHash: anchor.TransactionHash,
+		BlockNumber:     anchor.BlockNumber,
+		GasUsed:         anchor.GasUsed,
+		Status:          anchor.Status,
+		Network:         anchor.Network,
+		CreatedAt:       anchor.CreatedAt.Format(time.RFC3339),
+	}, nil
+}
+
+// GetScoreAnchors retrieves score anchors for a user
+func (s *BlockchainService) GetScoreAnchors(ctx context.Context, userID uint) ([]domain.ScoreAnchor, error) {
+	return s.scoreAnchorRepo.GetByUserID(ctx, userID, 50)
+}
+
+// GetLatestScoreAnchor retrieves the latest score anchor for a user
+func (s *BlockchainService) GetLatestScoreAnchor(ctx context.Context, userID uint) (*domain.ScoreAnchor, error) {
+	return s.scoreAnchorRepo.GetLatestByUserID(ctx, userID)
 }
 
 // submitToBaseL2 submits contract data to Base L2 blockchain

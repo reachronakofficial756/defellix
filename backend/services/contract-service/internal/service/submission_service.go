@@ -217,6 +217,14 @@ func (s *SubmissionService) ClientReviewSubmission(ctx context.Context, clientTo
 	if req.Action == "accept" {
 		sub.Status = "accepted"
 
+		// Save milestone rating and comment from client
+		if req.Rating != nil {
+			sub.ClientRating = req.Rating
+		}
+		if req.Comment != nil {
+			sub.ClientComment = *req.Comment
+		}
+
 		// If submission is linked to a milestone, mark milestone as approved
 		allApproved := false
 		if sub.MilestoneID != nil {
@@ -232,6 +240,11 @@ func (s *SubmissionService) ClientReviewSubmission(ctx context.Context, clientTo
 		if allApproved {
 			contract.Status = "completed"
 			s.contractRepo.UpdateContractOnly(ctx, contract)
+
+			// Send email to client with review link
+			baseFrontend := strings.TrimSuffix(s.baseURL, "/review-contract")
+			reviewLink := fmt.Sprintf("%s/review/%s", baseFrontend, contract.ClientViewToken)
+			s.notifier.NotifyContractCompleted(ctx, contract.ID, contract.ClientEmail, contract.ProjectName, reviewLink)
 		} else if contract.Status == "signed" {
 			contract.Status = "active"
 			s.contractRepo.UpdateContractOnly(ctx, contract)

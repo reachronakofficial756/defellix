@@ -77,7 +77,12 @@ type UserResponse struct {
 	NoOfProjectsDone int          `json:"no_of_projects_done,omitempty"`
 	OnTimeCompletion  float64      `json:"on_time_completion,omitempty"`
 	ReputationScore   float64      `json:"reputation_score,omitempty"`
-	
+
+	// Credibility Score (Hybrid C+D algorithm)
+	CredibilityScore  int                    `json:"credibility_score"`
+	ScoreTier         string                 `json:"score_tier"`
+	DimensionScores   map[string]int         `json:"dimension_scores,omitempty"`
+
 	// Testimonials
 	Testimonials  []TestimonialResponse `json:"testimonials,omitempty"`
 	

@@ -35,7 +35,7 @@ func main() {
 	}
 
 	// Run migrations
-	if err := config.AutoMigrate(db, &domain.User{}, &domain.Reputation{}); err != nil {
+	if err := config.AutoMigrate(db, &domain.User{}, &domain.Reputation{}, &domain.ScoreNotification{}, &domain.ScoreHistory{}); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
@@ -53,7 +53,9 @@ func main() {
 	// Initialize services
 	userService := service.NewUserService(userRepo, cfg.Auth.ServiceURL)
 	profileService := service.NewProfileService(userRepo)
-	repService := service.NewReputationService(repRepo, userRepo)
+	notifRepo := repository.NewNotificationRepository(db)
+	scoreHistoryRepo := repository.NewScoreHistoryRepository(db)
+	repService := service.NewReputationService(repRepo, userRepo, notifRepo, scoreHistoryRepo)
 
 	// Create router
 	r := chi.NewRouter()
@@ -62,7 +64,10 @@ func main() {
 	setupMiddleware(r)
 
 	// Setup routes
-	setupRoutes(r, userService, profileService, repService)
+	setupRoutes(r, userService, profileService, repService, notifRepo, scoreHistoryRepo)
+
+	// E7: Start inactivity decay cron job
+	service.StartInactivityDecayCron(repService)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -121,7 +126,7 @@ func setupMiddleware(r *chi.Mux) {
 }
 
 // setupRoutes configures all application routes
-func setupRoutes(r *chi.Mux, userService *service.UserService, profileService *service.ProfileService, repService *service.ReputationService) {
+func setupRoutes(r *chi.Mux, userService *service.UserService, profileService *service.ProfileService, repService *service.ReputationService, notifRepo repository.NotificationRepository, scoreHistoryRepo repository.ScoreHistoryRepository) {
 	// Health check handler
 	healthHandler := handler.NewHealthHandler()
 	healthHandler.RegisterRoutes(r)
@@ -131,10 +136,14 @@ func setupRoutes(r *chi.Mux, userService *service.UserService, profileService *s
 	userHandler.RegisterRoutes(r)
 
 	// Reputation handler
-	repHandler := handler.NewReputationHandler(repService)
+	repHandler := handler.NewReputationHandler(repService, scoreHistoryRepo)
 	repHandler.RegisterRoutes(r)
 
 	// Contract link handler (internal, called by contract-service)
 	contractLinkHandler := handler.NewContractLinkHandler(profileService)
 	contractLinkHandler.RegisterRoutes(r)
+
+	// E8: Notification handler
+	notifHandler := handler.NewNotificationHandler(notifRepo)
+	notifHandler.RegisterRoutes(r)
 }
