@@ -83,6 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('access_token');
+      // Also clear standard http-only cookie on the client side just in case (though it's httpOnly usually, this clears any non-httpOnly copies)
+      document.cookie = "access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    }
+    
     setSessionToken(null);
     setAuthenticatedState(false);
     setIsProfileComplete(false);
