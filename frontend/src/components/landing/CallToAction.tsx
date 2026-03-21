@@ -19,7 +19,7 @@ const CallToAction = () => {
   // Slowly disappear as requested starting at exactly 87.6824% dropping reliably to 0 at 91.4731%
   const ballOpacity = useTransform(
     smoothDistance,
-    [0, 0.876824, 0.934731, 1],
+    [0, 0.876824, 0.914731, 1],
     [1, 1, 0, 0]
   );
 
@@ -35,12 +35,12 @@ const CallToAction = () => {
           viewport={{ once: false, amount: 0.3 }}
           className="w-full max-w-5xl mx-auto flex flex-col items-center text-center px-4 relative z-10 flex-grow justify-center"
         >
-          <h2 className="text-[#1C1C1C] text-5xl md:text-[4.5rem] font-medium tracking-tight leading-[1.1] mt-8 mb-8">
+          <h2 className="text-[#1C1C1C] text-4xl sm:text-5xl md:text-[4.5rem] font-medium tracking-tight leading-[1.1] mt-8 mb-6 sm:mb-8">
             Built to fit today.<br />
             Ready for tomorrow
           </h2>
 
-          <p className="text-[#1C1C1C] text-lg md:text-xl font-medium max-w-3xl leading-relaxed mb-10">
+          <p className="text-[#1C1C1C] text-base sm:text-lg md:text-xl font-medium max-w-3xl leading-relaxed mb-8 sm:mb-10 px-2 sm:px-0">
             Turn every call into strategy, and get all the capabilities<br className="hidden md:block" />
             to manage it with confidence.
           </p>

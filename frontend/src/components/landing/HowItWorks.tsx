@@ -44,7 +44,7 @@ const HowItWorks = () => {
        
         <div className="mb-24 text-center flex flex-col items-center">
 
-          <h2 className="text-2xl md:text-7xl font-bold tracking-tight leading-[1.05] max-w-3xl">
+          <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-[1.05] max-w-3xl px-4 sm:px-0">
             <span className="text-white">How </span>
             <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">
               Defellix Works
@@ -68,22 +68,26 @@ const HowItWorks = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
               transition={{ delay: i * 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className={`relative h-[380px] p-10 rounded-[2.5rem] overflow-hidden group transition-transform duration-500 hover:scale-[1.01] ${step.color}`}
+              className={`relative min-h-[380px] p-8 sm:p-10 rounded-[2.5rem] overflow-hidden group transition-transform duration-500 hover:scale-[1.01] ${step.color}`}
             >
               <div className="relative z-10 flex flex-col h-full">
                 <p className="text-white/60 font-medium text-lg mb-2">{step.role}</p>
                 <h3 className="text-3xl md:text-4xl font-bold text-white mb-6">
                   {step.title}
                 </h3>
-                <p className="text-white/80 text-lg font-medium leading-relaxed max-w-sm">
+                <p className="text-white/80 text-base sm:text-lg font-medium leading-relaxed max-w-sm">
                   {step.desc}
                 </p>
 
-                <div className="mt-auto">
-                  <button className="flex items-center gap-3 text-white font-bold text-lg group/btn">
+                <div className="mt-8 sm:mt-auto">
+                  <button 
+                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                    aria-label={`See the impact of ${step.title}`}
+                    className="flex items-center gap-2 sm:gap-3 text-white font-bold text-base sm:text-lg group/btn"
+                  >
                     See the impact
-                    <div className="w-10 h-10 rounded-full bg-[#fa644d] flex items-center justify-center transition-transform group-hover/btn:translate-x-1 group-hover/btn:scale-110">
-                      <ArrowRight className="w-5 h-5" />
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#fa644d] flex items-center justify-center transition-transform group-hover/btn:translate-x-1 group-hover/btn:scale-110 shrink-0">
+                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                   </button>
                 </div>

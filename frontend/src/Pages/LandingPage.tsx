@@ -1,6 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import Lenis from 'lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Hero from '../components/landing/Hero';
 import TrustBanner from '../components/landing/TrustBanner';
 import DotMatrix from '../components/landing/DotMatrix';
@@ -13,6 +16,8 @@ import CustomerStoryCard from '../components/landing/CustomerStoryCard';
 import CallToAction from '../components/landing/CallToAction';
 import Footer from '../components/landing/Footer';
 
+gsap.registerPlugin(ScrollTrigger);
+
 const LandingPage = () => {
   const { isAuthenticated, isProfileComplete, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -24,13 +29,54 @@ const LandingPage = () => {
     }
   }, [isLoading, isAuthenticated, isProfileComplete, navigate]);
 
+  // Integrated Lenis for smooth scroll
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      wheelMultiplier: 1,
+      touchMultiplier: 2,
+      infinite: false,
+    });
+
+    function raf(time: number) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+
+    requestAnimationFrame(raf);
+
+    // Synchronize Lenis with GSAP ScrollTrigger
+    lenis.on('scroll', ScrollTrigger.update);
+
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000);
+    });
+
+    gsap.ticker.lagSmoothing(0);
+
+    // Add lenis class to html for CSS scoping
+    document.documentElement.classList.add('lenis');
+
+    return () => {
+      lenis.destroy();
+      gsap.ticker.remove((time) => {
+        lenis.raf(time * 1000);
+      });
+      document.documentElement.classList.remove('lenis');
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-primary scroll-smooth selection:bg-accent selection:text-primary">
+    <div className="min-h-screen bg-primary selection:bg-accent selection:text-primary">
       {/* Navigation */}
       <nav className="fixed top-0 inset-x-0 h-24 z-[100] px-6 lg:px-12 pointer-events-none">
         <div className="max-w-7xl mx-auto h-full flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="Defellix Logo" className="h-48 w-48" />
+            <img src="/logo.svg" alt="Defellix Logo" className="h-28 w-28 md:h-48 md:w-48 -ml-4 md:-ml-8" />
           </div>
 
           <div className="hidden md:flex items-center gap-10">

@@ -40,9 +40,9 @@ function SVG0() {
       </defs>
       <polygon points="150,18 242,295 58,295" fill="rgba(0,0,0,0.28)"/>
       <rect x="0" y="0" width="300" height="310" fill="rgba(255,255,255,0.18)" filter="url(#gP)" clipPath="url(#cc)"/>
-      <motion.ellipse cx="150" cy="128" rx="76" ry="17" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" animate={{rx:[74,80,74]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut'}}/>
-      <motion.ellipse cx="150" cy="192" rx="96" ry="21" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" animate={{rx:[93,100,93]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:0.4}}/>
-      <motion.ellipse cx="150" cy="252" rx="108" ry="24" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" animate={{rx:[105,113,105]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:0.8}}/>
+      <motion.ellipse cx="150" cy="128" rx="76" ry="17" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 76 }} animate={{rx:[74,80,74]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut'}}/>
+      <motion.ellipse cx="150" cy="192" rx="96" ry="21" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 96 }} animate={{rx:[93,100,93]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:0.4}}/>
+      <motion.ellipse cx="150" cy="252" rx="108" ry="24" stroke="rgba(255,255,255,0.85)" strokeWidth="1.2" initial={{ rx: 108 }} animate={{rx:[105,113,105]}} transition={{duration:4,repeat:Infinity,ease:'easeInOut',delay:0.8}}/>
     </svg>
   );
 }
@@ -50,8 +50,8 @@ function SVG1() {
   return (
     <svg viewBox="0 0 300 300" width="250" height="250" fill="none">
       {[0,36,72,108,144].map(a=><ellipse key={a} cx="150" cy="150" rx="52" ry="118" stroke="rgba(255,255,255,0.65)" strokeWidth="1" transform={`rotate(${a},150,150)`}/>)}
-      <motion.circle r="5.5" fill="#5B9CF6" animate={{cx:[100,150,200,150,100],cy:[150,32,150,268,150]}} transition={{duration:3.5,repeat:Infinity,ease:'easeInOut'}}/>
-      <motion.circle r="4.5" fill="#4FD1A0" animate={{cx:[200,150,100,150,200],cy:[150,268,150,32,150]}} transition={{duration:3.5,repeat:Infinity,ease:'easeInOut',delay:1.75}}/>
+      <motion.circle cx="100" cy="150" r="5.5" fill="#5B9CF6" initial={{ cx: 100, cy: 150 }} animate={{cx:[100,150,200,150,100],cy:[150,32,150,268,150]}} transition={{duration:3.5,repeat:Infinity,ease:'easeInOut'}}/>
+      <motion.circle cx="200" cy="150" r="4.5" fill="#4FD1A0" initial={{ cx: 200, cy: 150 }} animate={{cx:[200,150,100,150,200],cy:[150,268,150,32,150]}} transition={{duration:3.5,repeat:Infinity,ease:'easeInOut',delay:1.75}}/>
     </svg>
   );
 }
