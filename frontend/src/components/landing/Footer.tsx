@@ -1,5 +1,12 @@
 import { Linkedin, Twitter, Facebook, Instagram, Youtube } from 'lucide-react';
 
+const socialLinks = [
+  { icon: Linkedin, label: 'LinkedIn' },
+  { icon: Twitter, label: 'Twitter' },
+  { icon: Facebook, label: 'Facebook' },
+  { icon: Instagram, label: 'Instagram' },
+  { icon: Youtube, label: 'YouTube' }
+];
 const Footer = () => {
   return (
     <footer className="bg-[#0D0D0D] text-white pt-24 pb-12 px-6 border-t border-white/5 font-sans">
@@ -18,13 +25,16 @@ const Footer = () => {
             
             {/* Social Icons */}
             <div className="flex gap-4">
-              {[Linkedin, Twitter, Facebook, Instagram, Youtube].map((Icon, i) => (
+              {socialLinks.map(({ icon: Icon, label }, i) => (
                 <a 
                   key={i} 
-                  href="#" 
-                  className="w-11 h-11 rounded-full border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:border-white/40 transition-all"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => e.preventDefault()}
+                  aria-label={label}
+                  className="w-11 h-11 rounded-full border border-white/20 flex items-center justify-center text-white/80 hover:text-white hover:border-white/40 transition-all cursor-pointer"
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-5 h-5" aria-hidden="true" />
                 </a>
               ))}
             </div>
@@ -36,10 +46,10 @@ const Footer = () => {
             <div>
               <h5 className="text-[#999999] font-medium text-xl mb-7">By Roles</h5>
               <ul className="space-y-4 text-[#CCCCCC] font-medium">
-                <li><a href="#" className="hover:text-white transition-colors">Compliance Managers</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Customer Experience</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Operation Leaders</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Sales and Marketing</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Compliance Managers</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Customer Experience</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Operation Leaders</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Sales and Marketing</a></li>
               </ul>
             </div>
 
@@ -47,8 +57,8 @@ const Footer = () => {
             <div>
               <h5 className="text-[#999999] font-medium text-xl mb-7">Knowledge</h5>
               <ul className="space-y-4 text-[#CCCCCC] font-medium">
-                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Trust Center</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Blog</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Trust Center</a></li>
               </ul>
             </div>
 
@@ -56,11 +66,11 @@ const Footer = () => {
             <div>
               <h5 className="text-[#999999] font-medium text-xl mb-7">Company</h5>
               <ul className="space-y-4 text-[#CCCCCC] font-medium">
-                <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Partners</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms & Conditions</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">About Us</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Careers</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Partners</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Privacy Policy</a></li>
+                <li><a role="button" tabIndex={0} onClick={(e) => e.preventDefault()} className="hover:text-white transition-colors cursor-pointer">Terms & Conditions</a></li>
               </ul>
             </div>
           </div>
@@ -71,7 +81,7 @@ const Footer = () => {
         {/* Footer Bottom */}
         <div className="text-center">
           <p className="text-[#666666] text-lg font-medium">
-            © 2026 Defellix. All rights reserved.
+            &copy; {new Date().getFullYear()} Defellix. All rights reserved.
           </p>
         </div>
       </div>

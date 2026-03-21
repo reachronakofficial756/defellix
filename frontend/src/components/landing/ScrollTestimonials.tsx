@@ -111,7 +111,7 @@ export default function ScrollTestimonials() {
       ))}
 
       {/* ── Viewport (Stacks on Mobile, Sticky on Desktop) ── */}
-      <div className="sticky top-0 h-screen flex flex-col md:flex-row overflow-hidden">
+      <div className="sticky top-0 min-h-screen md:h-screen flex flex-col md:flex-row overflow-auto md:overflow-hidden">
 
         {/* LEFT: heading + nav buttons */}
         <div
@@ -158,7 +158,7 @@ export default function ScrollTestimonials() {
         </div>
 
         {/* RIGHT: carousel */}
-        <div className="relative flex-1 overflow-hidden w-full px-6 md:px-0" style={{ padding: '0 clamp(1.5rem,5vw,5rem) 0 2rem' }}>
+        <div className="relative flex-1 overflow-hidden w-full" style={{ padding: '0 clamp(1.5rem,5vw,5rem) 0 2rem' }}>
 
           {/* Moving stack */}
           <motion.div

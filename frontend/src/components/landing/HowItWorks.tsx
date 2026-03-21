@@ -80,7 +80,11 @@ const HowItWorks = () => {
                 </p>
 
                 <div className="mt-8 sm:mt-auto">
-                  <button className="flex items-center gap-2 sm:gap-3 text-white font-bold text-base sm:text-lg group/btn">
+                  <button 
+                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                    aria-label={`See the impact of ${step.title}`}
+                    className="flex items-center gap-2 sm:gap-3 text-white font-bold text-base sm:text-lg group/btn"
+                  >
                     See the impact
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-[#fa644d] flex items-center justify-center transition-transform group-hover/btn:translate-x-1 group-hover/btn:scale-110 shrink-0">
                       <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
