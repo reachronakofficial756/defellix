@@ -363,7 +363,18 @@ export function downloadContractPdf(input: ContractDocumentInput, fileBaseName?:
 
         doc.setFont("times", font);
         doc.setFontSize(size);
-        const wrapped = doc.splitTextToSize(text, maxW - (align === "left" ? firstIndent : 0));
+        const splitWithIndents = (t: string) => {
+            if (align !== "left" || (firstIndent <= 0 && restIndent <= 0)) {
+                return doc.splitTextToSize(t, maxW);
+            }
+            const first = doc.splitTextToSize(t, Math.max(30, maxW - firstIndent));
+            if (first.length <= 1) return first;
+            // Re-wrap remaining lines to respect restIndent width
+            const remainingText = first.slice(1).join(" ");
+            const rest = doc.splitTextToSize(remainingText, Math.max(30, maxW - restIndent));
+            return [first[0], ...rest];
+        };
+        const wrapped = splitWithIndents(text);
         const lineH = (size / 72) * 25.4 * lineMult;
 
         for (let i = 0; i < wrapped.length; i++) {
@@ -437,6 +448,8 @@ export function downloadContractPdf(input: ContractDocumentInput, fileBaseName?:
 
     const lines = md.split("\n");
     let firstH2Rendered = false;
+    let inTable = false;
+    let tableHeaderDone = false;
     for (const raw of lines) {
         const line = raw.trim();
         if (!line) {
@@ -453,6 +466,8 @@ export function downloadContractPdf(input: ContractDocumentInput, fileBaseName?:
         }
         if (line.startsWith("## ")) {
             const t = cleanInline(line.replace(/^##\s+/, ""));
+            inTable = false;
+            tableHeaderDone = false;
             if (!firstH2Rendered) {
                 writeWrappedLine(t, {
                     font: "bold",
@@ -489,6 +504,12 @@ export function downloadContractPdf(input: ContractDocumentInput, fileBaseName?:
             continue;
         }
         if (/^\|.*\|$/.test(line)) {
+            if (!inTable) {
+                // Give the table a bit of breathing room from prior paragraph.
+                y += MM_PER_LINE * 0.18;
+                inTable = true;
+                tableHeaderDone = false;
+            }
             const cells = line
                 .split("|")
                 .slice(1, -1)
@@ -497,11 +518,19 @@ export function downloadContractPdf(input: ContractDocumentInput, fileBaseName?:
             if (isSeparator) {
                 continue;
             }
-            const isHeader = cells.some((c) =>
+            const looksLikeHeader = cells.some((c) =>
                 /sr\.\s*no\.?|milestone|due\s*date|amount|submission/i.test(c)
             );
+            const isHeader = !tableHeaderDone && looksLikeHeader;
             drawTableRow(cells, isHeader);
+            if (isHeader) tableHeaderDone = true;
             continue;
+        }
+        if (inTable) {
+            // Leaving table mode: add a little gap after the table.
+            y += MM_PER_LINE * 0.18;
+            inTable = false;
+            tableHeaderDone = false;
         }
         if (/^[-*]\s+/.test(line)) {
             const t = `• ${cleanInline(line.replace(/^[-*]\s+/, ""))}`;
