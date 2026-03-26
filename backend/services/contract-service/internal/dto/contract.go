@@ -13,7 +13,7 @@ type CreateContractRequest struct {
 	TotalAmount        float64    `json:"total_amount" validate:"required,min=0"`
 	Currency           string     `json:"currency" validate:"omitempty,len=3"`
 	PRDFileURL         string     `json:"prd_file_url,omitempty" validate:"omitempty,url"`
-	SubmissionCriteria string     `json:"submission_criteria,omitempty" validate:"omitempty,max=2000"`
+	SubmissionCriteria string     `json:"submission_criteria,omitempty" validate:"omitempty,max=10000"`
 
 	// Client
 	ClientName        string `json:"client_name" validate:"required,max=120"`
@@ -26,7 +26,7 @@ type CreateContractRequest struct {
 	TermsAndConditions     string     `json:"terms_and_conditions,omitempty" validate:"omitempty,max=10000"`
 	StartDate              *time.Time `json:"start_date,omitempty"`
 	RevisionPolicy         string     `json:"revision_policy,omitempty" validate:"omitempty,max=5000"`
-	OutOfScopeWork         string     `json:"out_of_scope_work,omitempty" validate:"omitempty,max=5000"`
+	OutOfScopeWork         string     `json:"out_of_scope_work,omitempty" validate:"omitempty,max=10000"`
 	IntellectualProperty   string     `json:"intellectual_property,omitempty" validate:"omitempty,max=5000"`
 	EstimatedDuration      string     `json:"estimated_duration,omitempty" validate:"omitempty,max=100"`
 	PaymentMethod          string     `json:"payment_method,omitempty" validate:"omitempty,max=50"`
@@ -56,7 +56,7 @@ type UpdateContractRequest struct {
 	TotalAmount            *float64               `json:"total_amount,omitempty" validate:"omitempty,min=0"`
 	Currency               *string                `json:"currency,omitempty" validate:"omitempty,len=3"`
 	PRDFileURL             *string                `json:"prd_file_url,omitempty" validate:"omitempty,url"`
-	SubmissionCriteria     *string                `json:"submission_criteria,omitempty" validate:"omitempty,max=2000"`
+	SubmissionCriteria     *string                `json:"submission_criteria,omitempty" validate:"omitempty,max=10000"`
 	ClientName             *string                `json:"client_name,omitempty" validate:"omitempty,max=120"`
 	ClientCompanyName      *string                `json:"client_company_name,omitempty" validate:"omitempty,max=120"`
 	ClientEmail            *string                `json:"client_email,omitempty" validate:"omitempty,email"`
@@ -65,12 +65,13 @@ type UpdateContractRequest struct {
 	TermsAndConditions     *string                `json:"terms_and_conditions,omitempty" validate:"omitempty,max=10000"`
 	StartDate              *time.Time             `json:"start_date,omitempty"`
 	RevisionPolicy         *string                `json:"revision_policy,omitempty" validate:"omitempty,max=5000"`
-	OutOfScopeWork         *string                `json:"out_of_scope_work,omitempty" validate:"omitempty,max=5000"`
+	OutOfScopeWork         *string                `json:"out_of_scope_work,omitempty" validate:"omitempty,max=10000"`
 	IntellectualProperty   *string                `json:"intellectual_property,omitempty" validate:"omitempty,max=5000"`
 	EstimatedDuration      *string                `json:"estimated_duration,omitempty" validate:"omitempty,max=100"`
 	PaymentMethod          *string                `json:"payment_method,omitempty" validate:"omitempty,max=50"`
 	AdvancePaymentRequired *bool                  `json:"advance_payment_required,omitempty"`
 	AdvancePaymentAmount   *float64               `json:"advance_payment_amount,omitempty" validate:"omitempty,min=0"`
+	IsPublic               *bool                  `json:"is_public,omitempty"`
 	Milestones             []UpdateMilestoneInput `json:"milestones,omitempty" validate:"omitempty,dive"`
 }
 
@@ -119,6 +120,7 @@ type ContractResponse struct {
 	ClientViewToken        string              `json:"client_view_token,omitempty"`
 	ShareableLink          string              `json:"shareable_link,omitempty"` // Set when status is sent; base URL + /:id
 	ClientReviewComment    string              `json:"client_review_comment,omitempty"`
+	IsPublic               bool                `json:"is_public"`
 	Milestones             []MilestoneResponse `json:"milestones,omitempty"`
 	CreatedAt              time.Time           `json:"created_at"`
 	UpdatedAt              time.Time           `json:"updated_at"`
@@ -244,4 +246,106 @@ type ExtractedContract struct {
 	Scope              string          `json:"scope,omitempty"`
 	Deliverables       string          `json:"deliverables,omitempty"`
 	PaymentTerms       string          `json:"payment_terms,omitempty"`
+}
+
+// SuggestScopeRequest is the body for POST /api/v1/contracts/suggest/scope (AI core deliverable + out-of-scope).
+type SuggestScopeRequest struct {
+	ProjectName          string  `json:"project_name" validate:"required,min=2,max=200"`
+	ProjectCategory      string  `json:"project_category" validate:"required,max=80"`
+	Description          string  `json:"description" validate:"required,min=10,max=5000"`
+	TotalAmount          float64 `json:"total_amount" validate:"required,gt=0"`
+	Currency             string  `json:"currency,omitempty" validate:"omitempty,len=3"`
+	StartDate            string  `json:"start_date,omitempty"`
+	Deadline             string  `json:"deadline,omitempty"`
+	EstimatedDuration    string  `json:"estimated_duration,omitempty"`
+	RevisionPolicy       string  `json:"revision_policy,omitempty"`
+	IntellectualProperty string  `json:"intellectual_property,omitempty"`
+	ClientName           string  `json:"client_name,omitempty" validate:"omitempty,max=200"`
+	ClientCompany        string  `json:"client_company,omitempty" validate:"omitempty,max=200"`
+	PrdUploaded          bool    `json:"prd_uploaded"`
+	PrdExtractedText     string  `json:"prd_extracted_text,omitempty" validate:"omitempty,max=110000"`
+}
+
+// SuggestScopeResponse is returned by POST /contracts/suggest/scope.
+type SuggestScopeResponse struct {
+	CoreDeliverable string `json:"core_deliverable"`
+	OutOfScopeWork  string `json:"out_of_scope_work"`
+}
+
+// SuggestTermsMilestoneInput is one milestone row sent when generating T&Cs.
+type SuggestTermsMilestoneInput struct {
+	Title                string  `json:"title" validate:"required,max=200"`
+	Amount               float64 `json:"amount"`
+	DueDate              string  `json:"due_date,omitempty"`
+	Description          string  `json:"description,omitempty" validate:"omitempty,max=2000"`
+	SubmissionCriteria   string  `json:"submission_criteria,omitempty" validate:"omitempty,max=2000"`
+	CompletionCriteriaTC string  `json:"completion_criteria_tc,omitempty" validate:"omitempty,max=2000"`
+}
+
+// SuggestTermsRequest is the body for POST /api/v1/contracts/suggest/terms (AI terms & conditions).
+type SuggestTermsRequest struct {
+	ProjectName          string                       `json:"project_name" validate:"required,min=2,max=200"`
+	ProjectCategory      string                       `json:"project_category" validate:"required,max=80"`
+	Description          string                       `json:"description" validate:"required,min=10,max=5000"`
+	TotalAmount          float64                      `json:"total_amount" validate:"required,gt=0"`
+	Currency             string                       `json:"currency,omitempty" validate:"omitempty,len=3"`
+	StartDate            string                       `json:"start_date,omitempty"`
+	Deadline             string                       `json:"deadline,omitempty"`
+	EstimatedDuration    string                       `json:"estimated_duration,omitempty"`
+	CoreDeliverable      string                       `json:"core_deliverable" validate:"required,min=2,max=10000"`
+	OutOfScopeWork       string                       `json:"out_of_scope_work" validate:"required,min=2,max=10000"`
+	RevisionPolicy       string                       `json:"revision_policy,omitempty"`
+	IntellectualProperty string                       `json:"intellectual_property,omitempty"`
+	ClientName           string                       `json:"client_name,omitempty" validate:"omitempty,max=200"`
+	ClientCompany        string                       `json:"client_company,omitempty" validate:"omitempty,max=200"`
+	ClientEmail          string                       `json:"client_email,omitempty" validate:"omitempty,email,max=255"`
+	ClientPhone          string                       `json:"client_phone,omitempty" validate:"omitempty,max=30"`
+	ClientCountry        string                       `json:"client_country,omitempty" validate:"omitempty,max=100"`
+	FreelancerName       string                       `json:"freelancer_name,omitempty" validate:"omitempty,max=200"`
+	PaymentMethod        string                       `json:"payment_method,omitempty" validate:"omitempty,max=80"`
+	Milestones           []SuggestTermsMilestoneInput `json:"milestones" validate:"required,min=1,dive"`
+	PrdUploaded          bool                         `json:"prd_uploaded"`
+	PrdExtractedText     string                       `json:"prd_extracted_text,omitempty" validate:"omitempty,max=110000"`
+	ExistingTerms        string                       `json:"existing_terms,omitempty" validate:"omitempty,max=10000"`
+}
+
+// SuggestTermsResponse is returned by suggest/terms.
+type SuggestTermsResponse struct {
+	TermsAndConditions string `json:"terms_and_conditions"`
+}
+
+// SuggestMilestonesRequest is the body for POST /api/v1/contracts/suggest-milestones
+type SuggestMilestonesRequest struct {
+	ProjectName          string  `json:"project_name" validate:"required,min=2,max=200"`
+	ProjectCategory      string  `json:"project_category" validate:"required,max=80"`
+	Description          string  `json:"description" validate:"required,min=10,max=5000"`
+	TotalAmount          float64 `json:"total_amount" validate:"required,gt=0"`
+	Currency             string  `json:"currency,omitempty" validate:"omitempty,len=3"`
+	StartDate            string  `json:"start_date,omitempty"`
+	Deadline             string  `json:"deadline,omitempty"`
+	EstimatedDuration    string  `json:"estimated_duration,omitempty"`
+	CoreDeliverable      string  `json:"core_deliverable" validate:"required,min=2,max=10000"`
+	OutOfScopeWork       string  `json:"out_of_scope_work" validate:"required,min=2,max=10000"`
+	RevisionPolicy       string  `json:"revision_policy,omitempty"`
+	IntellectualProperty string  `json:"intellectual_property,omitempty"`
+	TermsAndConditions   string  `json:"terms_and_conditions,omitempty"`
+	PrdUploaded          bool    `json:"prd_uploaded"`
+	// PrdExtractedText is optional raw document text from PRD upload (client session cache); server truncates for the LLM.
+	PrdExtractedText string `json:"prd_extracted_text,omitempty" validate:"omitempty,max=110000"`
+	PaymentMethod    string `json:"payment_method,omitempty" validate:"omitempty,max=80"`
+}
+
+// SuggestMilestonesResponse wraps AI-generated milestones (amounts sum to total_amount).
+type SuggestMilestonesResponse struct {
+	Milestones []SuggestedMilestoneAI `json:"milestones"`
+}
+
+// SuggestedMilestoneAI is one AI-suggested milestone for the client.
+type SuggestedMilestoneAI struct {
+	Title                string  `json:"title"`
+	Description          string  `json:"description,omitempty"`
+	Amount               float64 `json:"amount"`
+	DueDate              string  `json:"due_date,omitempty"`
+	SubmissionCriteria   string  `json:"submission_criteria,omitempty"`
+	CompletionCriteriaTC string  `json:"completion_criteria_tc,omitempty"`
 }

@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"github.com/saiyam0211/defellix/services/user-service/internal/domain"
 	"github.com/saiyam0211/defellix/services/user-service/internal/dto"
 	"github.com/saiyam0211/defellix/services/user-service/internal/repository"
+	"gorm.io/datatypes"
 )
 
 var (
@@ -50,15 +50,19 @@ func normaliseUserName(s string) (string, error) {
 
 // UserService handles user profile business logic
 type UserService struct {
-	userRepo        repository.UserRepository
-	authServiceURL  string
+	userRepo           repository.UserRepository
+	repRepo            repository.ReputationRepository
+	authServiceURL     string
+	contractServiceURL string
 }
 
 // NewUserService creates a new user service
-func NewUserService(userRepo repository.UserRepository, authServiceURL string) *UserService {
+func NewUserService(userRepo repository.UserRepository, repRepo repository.ReputationRepository, authServiceURL, contractServiceURL string) *UserService {
 	return &UserService{
-		userRepo:       userRepo,
-		authServiceURL: authServiceURL,
+		userRepo:           userRepo,
+		repRepo:            repRepo,
+		authServiceURL:     authServiceURL,
+		contractServiceURL: contractServiceURL,
 	}
 }
 
@@ -142,12 +146,93 @@ func (s *UserService) GetPublicProfileByUserName(ctx context.Context, userName s
 	}
 	profile, err := s.userRepo.FindByUserName(ctx, userName)
 	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, ErrProfileNotFound
+		}
 		return nil, err
 	}
 	if !profile.IsActive {
 		return nil, ErrProfileNotFound
 	}
-	return s.toPublicProfileResponse(profile), nil
+
+	var contracts []dto.ContractSummary
+	if profile.ShowProjects {
+		contracts = s.fetchPublicContractsAndReputation(ctx, profile.ID)
+	}
+
+	return s.toPublicProfileResponse(profile, contracts), nil
+}
+
+func (s *UserService) fetchPublicContractsAndReputation(ctx context.Context, userID uint) []dto.ContractSummary {
+	var summaries []dto.ContractSummary
+
+	// 1. Fetch public contracts from contract-service
+	url := fmt.Sprintf("%s/api/v1/internal/contracts/public/%d", s.contractServiceURL, userID)
+	resp, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to fetch public contracts for user %d: %v\n", userID, err)
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Printf("[ERROR] Contract service returned status %d for user %d\n", resp.StatusCode, userID)
+		return nil
+	}
+
+	var apiResp struct {
+		Data []struct {
+			ID                uint                           `json:"id"`
+			ProjectName       string                         `json:"project_name"`
+			ProjectCategory   string                         `json:"project_category"`
+			ClientName        string                         `json:"client_name"`
+			ClientCompanyName string                         `json:"client_company_name"`
+			ClientSignedAt    *time.Time                     `json:"client_signed_at"`
+			DueDate           *time.Time                     `json:"due_date"`
+			TotalAmount       float64                        `json:"total_amount"`
+			Currency          string                         `json:"currency"`
+			Status            string                         `json:"status"`
+			PRDFileURL        string                         `json:"prd_file_url,omitempty"`
+			Milestones        []dto.ContractMilestoneSummary `json:"milestones,omitempty"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
+		fmt.Printf("[ERROR] Failed to decode contract service response for user %d: %v\n", userID, err)
+		return nil
+	}
+
+	// 2. For each contract, get reputation score from our local DB
+	for _, c := range apiResp.Data {
+		summary := dto.ContractSummary{
+			ID:              c.ID,
+			ProjectName:     c.ProjectName,
+			ProjectCategory: c.ProjectCategory,
+			ClientName:      c.ClientName,
+			ClientCompany:   c.ClientCompanyName,
+			TotalAmount:     c.TotalAmount,
+			Currency:        c.Currency,
+			Status:          c.Status,
+			PRDFileURL:      c.PRDFileURL,
+			Milestones:      c.Milestones,
+		}
+		if c.ClientSignedAt != nil {
+			summary.CompletedDate = c.ClientSignedAt.Format("2006-01-02")
+		}
+		if c.DueDate != nil {
+			summary.Deadline = c.DueDate.Format("2006-01-02")
+		}
+
+		rep, err := s.repRepo.GetByContractID(ctx, c.ID)
+		if err == nil && rep != nil {
+			summary.ReputationScore = float64(rep.CalculatedScore)
+			summary.Rating = float64(rep.BaseRating)
+		}
+
+		summaries = append(summaries, summary)
+	}
+
+	return summaries
 }
 
 // IsUsernameAvailable checks if a user_name is available (not taken by another user).
@@ -177,8 +262,8 @@ func (s *UserService) UpdateProfile(ctx context.Context, userID uint, req *dto.U
 		// If profile doesn't exist, create a new one
 		if err == repository.ErrUserNotFound {
 			profile = &domain.User{
-				ID: userID,
-				Role:   domain.RoleFreelancer, // Default role
+				ID:   userID,
+				Role: domain.RoleFreelancer, // Default role
 			}
 		} else {
 			return nil, err
@@ -539,9 +624,9 @@ func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse 
 		InstagramLink:     profile.InstagramLink,
 		Skills:            skills,
 		Portfolio:         portfolioItems,
-		Projects:         projects,
-		NoOfProjectsDone: noOfProjectsDone,
-		OnTimeCompletion: onTimeCompletion,
+		Projects:          projects,
+		NoOfProjectsDone:  noOfProjectsDone,
+		OnTimeCompletion:  onTimeCompletion,
 		ReputationScore:   reputationScore,
 		CredibilityScore:  profile.CredibilityScore,
 		ScoreTier:         profile.ScoreTier,
@@ -559,10 +644,13 @@ func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse 
 	}
 }
 
-func (s *UserService) toPublicProfileResponse(profile *domain.User) *dto.PublicProfileResponse {
+func (s *UserService) toPublicProfileResponse(profile *domain.User, contracts []dto.ContractSummary) *dto.PublicProfileResponse {
 	out := &dto.PublicProfileResponse{
 		UserName:                 profile.UserName,
 		AggregateReputationScore: profile.AggregateReputationScore,
+		CredibilityScore:         profile.CredibilityScore,
+		ScoreTier:                profile.ScoreTier,
+		Contracts:                contracts,
 	}
 	if profile.ShowProfile {
 		out.FullName = profile.FullName
@@ -645,4 +733,3 @@ func (s *UserService) toPortfolioItemResponse(item *domain.PortfolioItem) *dto.P
 		CreatedAt:    item.CreatedAt,
 	}
 }
-

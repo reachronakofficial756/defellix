@@ -1807,6 +1807,109 @@ curl -s -X DELETE http://localhost:8082/api/v1/contracts/2 \
 - [ ] List by `status=sent` shows sent contracts
 - [ ] Delete draft returns 200; delete non-draft returns 4xx
 
+### AI milestone suggestions (`POST /api/v1/contracts/suggest-milestones`)
+
+**Prereq:** contract-service running, `GROQ_API_KEY` set, valid JWT.
+
+**Request (minimal valid body):**
+```bash
+curl -s -X POST http://localhost:8082/api/v1/contracts/suggest-milestones \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_name": "E-commerce MVP",
+    "project_category": "Web Development",
+    "description": "Next.js storefront with checkout and admin panel for Indian D2C brand.",
+    "total_amount": 250000,
+    "currency": "INR",
+    "start_date": "2026-04-01",
+    "deadline": "2026-06-30",
+    "estimated_duration": "3 months",
+    "core_deliverable": "Live production URL + repo handover",
+    "out_of_scope_work": "Native mobile apps, 24/7 support",
+    "revision_policy": "2 Rounds",
+    "intellectual_property": "Client owns all upon payment",
+    "terms_and_conditions": "Net-15 on milestone approval.",
+    "prd_uploaded": false
+  }'
+```
+
+Optional: add `"prd_extracted_text": "<plain text from PRD upload>"` (max ~110k chars validated server-side; prompt uses a truncated excerpt). The SPA stores upload text in `sessionStorage` and attaches it automatically.
+
+**PRD upload (`POST /api/v1/contracts/prd-upload`):** Response `data` includes `prd_extracted_text` alongside `prd_file_url` and `extracted_contract`.
+
+**Expected:** `200`; `data.milestones` is a non-empty array; each item has `title`, `amount`, optional `description`, `due_date`, etc.; sum of `amount` ≈ `total_amount` (server normalizes).
+
+**Failure cases:** Missing `GROQ_API_KEY` → `500`; invalid/short `description` → `400` validation.
+
+**Checklist**
+
+- [ ] With `GROQ_API_KEY`, suggest-milestones returns milestones summing to `total_amount`
+- [ ] With `prd_extracted_text` set, still returns 200 and sensible milestones
+- [ ] Without key, endpoint returns 500 with clear message
+
+### AI scope — core deliverable & out of scope (`POST /api/v1/contracts/suggest/scope`)
+
+**Prereq:** contract-service, `GROQ_API_KEY`, valid JWT.
+
+```bash
+curl -s -X POST http://localhost:8083/api/v1/contracts/suggest/scope \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_name": "Trust platform MVP",
+    "project_category": "Web Development",
+    "description": "Freelancer contracts, signatures, reputation, payments.",
+    "total_amount": 65000,
+    "currency": "INR",
+    "start_date": "2026-04-01",
+    "deadline": "2026-07-01",
+    "estimated_duration": "3 months",
+    "revision_policy": "2 Rounds",
+    "intellectual_property": "Client owns all upon payment",
+    "client_name": "Jane",
+    "client_company": "Acme",
+    "prd_uploaded": false
+  }'
+```
+
+**Expected:** `200`; `data.core_deliverable` and `data.out_of_scope_work` are non-empty strings.
+
+**Checklist**
+
+- [ ] With `GROQ_API_KEY`, suggest-scope returns both fields
+- [ ] Optional `prd_extracted_text` still returns 200
+
+### AI terms & conditions (`POST /api/v1/contracts/suggest/terms`)
+
+**Prereq:** `GROQ_API_KEY`, JWT. Body must include at least one milestone with `title`, plus `core_deliverable`, `out_of_scope_work`.
+
+```bash
+curl -s -X POST http://localhost:8083/api/v1/contracts/suggest/terms \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_name": "Trust platform",
+    "project_category": "Web Development",
+    "description": "Contracts, reputation, payments for freelancers.",
+    "total_amount": 10000,
+    "currency": "INR",
+    "start_date": "2026-04-01",
+    "deadline": "2026-06-30",
+    "core_deliverable": "Deployed MVP per scope.",
+    "out_of_scope_work": "24/7 support, legal advice.",
+    "revision_policy": "2 Rounds",
+    "intellectual_property": "Client owns all upon payment",
+    "client_name": "Jane",
+    "client_email": "jane@example.com",
+    "payment_method": "Bank Transfer",
+    "milestones": [{"title": "Kickoff", "amount": 2500, "due_date": "2026-04-15"}],
+    "prd_uploaded": false
+  }'
+```
+
+**Expected:** `200`; `data.terms_and_conditions` is a long non-empty string.
+
 ### Phase 3.2: Draft auto-delete, shareable link, email trigger
 
 **Shareable link:** Set `SHAREABLE_LINK_BASE_URL=https://app.example.com/contract` (or leave unset). Send a contract; response includes `shareable_link` = base + token (UUID), e.g. `https://app.example.com/contract/a1b2c3d4-...`. Client uses that URL to view/sign/send-for-review (Phase 3.3).

@@ -123,8 +123,41 @@ type PublicProfileResponse struct {
 	HourlyRate    *float64             `json:"hourly_rate,omitempty"`
 	Availability             string               `json:"availability,omitempty"`
 	AggregateReputationScore int                  `json:"aggregate_reputation_score,omitempty"`
+	CredibilityScore         int                  `json:"credibility_score"`
+	ScoreTier                string               `json:"score_tier,omitempty"`
 	Projects                 []ProjectResponse    `json:"projects,omitempty"` // only if show_projects
-	// Contracts     []ContractSummary   `json:"contracts,omitempty"` // when integrated
+	Contracts                []ContractSummary    `json:"contracts,omitempty"` // only if show_projects
+}
+
+// ContractSummary represents a verified contract shown on public profile
+type ContractSummary struct {
+	ID               uint    `json:"id"`
+	ProjectName      string  `json:"project_name"`
+	ProjectCategory  string  `json:"project_category"`
+	ClientName       string  `json:"client_name"`
+	ClientCompany    string  `json:"client_company,omitempty"`
+	CompletedDate    string  `json:"completed_date,omitempty"` // YYYY-MM-DD
+	Deadline         string  `json:"deadline,omitempty"`
+	TotalAmount      float64                      `json:"total_amount"`
+	Currency         string                       `json:"currency"`
+	ReputationScore  float64                      `json:"reputation_score,omitempty"`
+	Rating           float64                      `json:"rating,omitempty"`
+	Status           string                       `json:"status"`
+	PRDFileURL       string                       `json:"prd_file_url,omitempty"`
+	Milestones       []ContractMilestoneSummary   `json:"milestones,omitempty"`
+}
+
+type ContractMilestoneSummary struct {
+	Title            string                     `json:"title"`
+	Amount           float64                    `json:"amount"`
+	Status           string                     `json:"status"`
+	LatestSubmission *ContractSubmissionSummary `json:"latest_submission,omitempty"`
+}
+
+type ContractSubmissionSummary struct {
+	Status        string                 `json:"status"`
+	SubmittedData map[string]interface{} `json:"submitted_data,omitempty"`
+	Description   string                 `json:"description,omitempty"`
 }
 
 // ProjectResponse represents a project in API response

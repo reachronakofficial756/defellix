@@ -4,7 +4,7 @@ import { apiClient } from '@/api/client';
 import { motion } from 'motion/react';
 import {
   MapPin, Building, Briefcase,
-  Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Eye, Sparkles, Activity, CheckCircle2
+  Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Eye, Sparkles, Activity, Copy, Check, X
 } from 'lucide-react';
 
 interface UserProfile {
@@ -65,20 +65,24 @@ function LinkRow({ icon: Icon, title, subtitle, verified }: any) {
   );
 }
 
-function ToggleRow({ title, desc, checked }: any) {
+function ToggleRow({ title, desc, checked, onChange, loading }: any) {
   return (
     <div className="flex items-start justify-between gap-4 py-1">
-      <div>
+      <div className="flex-1">
         <div className="text-sm font-bold text-white mb-1.5">{title}</div>
         <div className="text-xs text-gray-400 leading-relaxed pr-4">{desc}</div>
       </div>
-      <div className={`w-11 h-6 shrink-0 rounded-full flex items-center p-0.5 transition-all duration-300 border ${checked ? 'bg-[#3cb44f] border-[#3cb44f] shadow-[0_0_12px_rgba(60,180,79,0.35)]' : 'bg-[#172b1c] border-white/10'}`}>
+      <button 
+        onClick={() => !loading && onChange(!checked)}
+        disabled={loading}
+        className={`w-11 h-6 shrink-0 rounded-full flex items-center p-0.5 transition-all duration-300 border cursor-pointer ${loading ? 'opacity-50 grayscale' : ''} ${checked ? 'bg-[#3cb44f] border-[#3cb44f] shadow-[0_0_12px_rgba(60,180,79,0.35)]' : 'bg-[#172b1c] border-white/10'}`}
+      >
         <motion.div
           className="w-5 h-5 bg-white rounded-full shadow-md"
           animate={{ x: checked ? 18 : 2 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         />
-      </div>
+      </button>
     </div>
   );
 }
@@ -164,6 +168,14 @@ export default function Profile() {
   const [scoreHistory, setScoreHistory] = useState<any[]>([]);
   const [latestAnchor, setLatestAnchor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [allContracts, setAllContracts] = useState<any[]>([]);
+  const [fetchingContracts, setFetchingContracts] = useState(false);
+
+  const publicUrl = profile?.user_name ? `${window.location.origin}/${profile.user_name}` : '';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -199,6 +211,60 @@ export default function Profile() {
     };
     fetchData();
   }, []);
+
+  const handleToggle = async (field: string, value: boolean) => {
+    setUpdating(field);
+    try {
+      await apiClient.put('/users/me', { [field]: value });
+      setProfile(prev => prev ? { ...prev, [field]: value } : null);
+      
+      if (field === 'show_projects' && value) {
+        setShowProjectModal(true);
+        fetchContracts();
+      }
+    } catch (err) {
+      console.error(`Failed to update ${field}`, err);
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const fetchContracts = async () => {
+    setFetchingContracts(true);
+    try {
+      // Fetch all contracts and filter on frontend for maximum resilience
+      const res = await apiClient.get('/contracts?limit=100');
+      const rawData = res.data?.data?.contracts || res.data?.contracts || res.data?.data || [];
+      const data = Array.isArray(rawData) ? rawData : [];
+      
+      // Only include contracts that are signed, active, or completed
+      const showable = data.filter((c: any) => 
+        ['signed', 'active', 'completed'].includes(c.status?.toLowerCase())
+      );
+      
+      setAllContracts(showable);
+    } catch (err) {
+      console.error('Failed to fetch contracts', err);
+      setAllContracts([]);
+    } finally {
+      setFetchingContracts(false);
+    }
+  };
+
+  const toggleContractVisibility = async (contractId: number, isPublic: boolean) => {
+    try {
+      await apiClient.patch(`/contracts/${contractId}/visibility`, { is_public: isPublic });
+      setAllContracts(prev => prev.map(c => c.id === contractId ? { ...c, is_public: isPublic } : c));
+    } catch (err) {
+      console.error('Failed to toggle visibility', err);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(publicUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (loading) {
     return (
@@ -436,11 +502,51 @@ export default function Profile() {
                 <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">What others see</span>
               </div>
               <div className="px-6 pb-6 pt-4 space-y-5">
-                <ToggleRow title="Show profile" desc="Your public profile is visible and included in search." checked={data.show_profile !== false} />
+                <ToggleRow 
+                  title="Show profile" 
+                  desc="Your public profile is visible and included in search." 
+                  checked={data.show_profile !== false} 
+                  loading={updating === 'show_profile'}
+                  onChange={(v: boolean) => handleToggle('show_profile', v)}
+                />
+
+                {data.show_profile !== false && profile?.user_name && (
+                  <motion.div 
+                    className="p-3 bg-[#0d1a10] rounded-2xl border border-[#3cb44f]/20 flex items-center justify-between gap-3 mt-2"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <Link2 size={14} className="text-[#3cb44f] shrink-0" />
+                      <span className="text-[10px] text-gray-300 font-mono truncate">{publicUrl}</span>
+                    </div>
+                    <button 
+                      onClick={copyToClipboard}
+                      className="p-1.5 hover:bg-white/5 rounded-lg text-[#3cb44f] transition-colors cursor-pointer"
+                    >
+                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                  </motion.div>
+                )}
+
                 <div className="w-full h-px bg-white/[0.06]" />
-                <ToggleRow title="Show projects" desc="Published projects are visible and boost reputation." checked={data.show_projects !== false} />
-                <div className="w-full h-px bg-white/[0.06]" />
-                <ToggleRow title="Show contracts" desc="Contract history appears in your trust summary." checked={data.show_contracts !== false} />
+                
+                <ToggleRow 
+                  title="Show projects" 
+                  desc="Showcase your verified work and boost reputation." 
+                  checked={data.show_projects !== false} 
+                  loading={updating === 'show_projects'}
+                  onChange={(v: boolean) => handleToggle('show_projects', v)}
+                />
+
+                {data.show_projects !== false && (
+                  <button 
+                    onClick={() => { setShowProjectModal(true); fetchContracts(); }}
+                    className="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-[#3cb44f]/10 hover:border-[#3cb44f]/30 transition-all cursor-pointer flex items-center justify-center gap-2 mt-1"
+                  >
+                    <Edit2 size={12} /> Select displayed projects
+                  </button>
+                )}
               </div>
             </motion.div>
             <motion.div
@@ -464,6 +570,85 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* PROJECT SELECTION MODAL */}
+      {showProjectModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 backdrop-blur-xl bg-black/80">
+          <motion.div 
+            className="w-full max-w-2xl bg-[#0f1117] border border-white/10 rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+          >
+            <div className="px-8 py-6 border-b border-white/5 bg-[#172b1c]/30 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                  <Briefcase size={22} className="text-[#3cb44f]" /> 
+                  Showcase Your Legacy
+                </h3>
+                <p className="text-xs text-gray-400 mt-1">Select completed or signed contracts to display on your trust profile.</p>
+              </div>
+              <button 
+                onClick={() => setShowProjectModal(false)}
+                className="p-2 hover:bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-4 scrBar">
+              {fetchingContracts ? (
+                <div className="py-20 flex flex-col items-center justify-center gap-4">
+                  <div className="w-8 h-8 rounded-full border-2 border-[#3cb44f]/20 border-t-[#3cb44f] animate-spin" />
+                  <span className="text-xs text-gray-500 font-medium">Scanning trust graph...</span>
+                </div>
+              ) : allContracts.length === 0 ? (
+                <div className="py-20 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto text-gray-600">
+                    <Activity size={32} />
+                  </div>
+                  <p className="text-gray-400 font-medium">No verified contracts found yet.</p>
+                  <p className="text-[10px] text-gray-600 max-w-[200px] mx-auto">Only contracts that are signed or completed can be showcased.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allContracts.map((c) => (
+                    <div 
+                      key={c.id}
+                      className={`p-4 rounded-2xl border transition-all duration-300 flex items-center justify-between gap-4 ${c.is_public ? 'bg-[#172b1c]/40 border-[#3cb44f]/30' : 'bg-white/5 border-white/10 hover:border-white/20'}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[9px] font-black text-[#3cb44f] uppercase tracking-widest">{c.project_category || 'General'}</span>
+                          <span className={`px-2 py-0.5 rounded-md text-[8px] font-bold uppercase ${c.status === 'completed' ? 'bg-[#3cb44f]/20 text-[#3cb44f]' : 'bg-blue-500/10 text-blue-400'}`}>
+                            {c.status}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white truncate">{c.project_name}</h4>
+                        <p className="text-[10px] text-gray-500 truncate mt-0.5">With {c.client_name}</p>
+                      </div>
+                      <button 
+                        onClick={() => toggleContractVisibility(c.id, !c.is_public)}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${c.is_public ? 'bg-[#3cb44f] text-white shadow-[0_0_15px_rgba(60,180,79,0.3)]' : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'}`}
+                      >
+                        {c.is_public ? 'Public' : 'Private'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-8 border-t border-white/5 bg-[#0a0a0a]/50 flex justify-end">
+              <button 
+                onClick={() => setShowProjectModal(false)}
+                className="px-8 py-3 bg-[#3cb44f] text-white rounded-2xl font-black text-xs hover:bg-[#34a045] transition-all shadow-lg shadow-[#3cb44f]/20 cursor-pointer"
+              >
+                Close & Save Changes
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

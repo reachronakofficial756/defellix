@@ -91,3 +91,24 @@ Expected shape: `{"status":"healthy","service":"contract-service",...}`
 - `POST /api/v1/public/contracts/:token/sign` – Body: `company_address` (required), optional email, phone, gst_number, etc. Status → signed (blockchain in 3.4).
 
 Use the same access token from auth-service login for protected routes. Drafts are automatically deleted after 14 days (configurable).
+
+---
+
+## AI helpers (Groq)
+
+Requires `GROQ_API_KEY` in `.env` (optional `GROQ_MODEL`).
+
+- `POST /api/v1/contracts/suggest-milestones` – milestone split from project context (+ optional `prd_extracted_text`).
+- `POST /api/v1/contracts/suggest/scope` – **core deliverable** + **out of scope** (same context + PRD excerpt). Nested path under `/contracts/suggest/…`.
+- `POST /api/v1/contracts/suggest/terms` – **terms & conditions** from full context (client, milestones JSON, scope, timeline, payment, PRD excerpt, optional existing textarea). Legacy: `POST /api/v1/contracts/suggest-terms`.
+- Legacy alias: `POST /api/v1/contracts/suggest-scope` (same handler as `/suggest/scope`).
+
+**Production (`api.defellix.com`):** If the app gets **404** on scope AI, the running **contract-service image is outdated**. Rebuild and restart:
+
+```bash
+cd backend
+docker compose build --no-cache contract-service
+docker compose up -d contract-service api-gateway
+```
+
+Or your CI/CD pipeline equivalent so the server runs a binary that includes `SuggestScope`.

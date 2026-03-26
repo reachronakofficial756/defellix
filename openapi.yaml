@@ -391,6 +391,207 @@ components:
         completion_criteria_tc:
           type: string
 
+    SuggestMilestonesRequest:
+      type: object
+      required:
+        - project_name
+        - project_category
+        - description
+        - total_amount
+        - core_deliverable
+        - out_of_scope_work
+      properties:
+        project_name:
+          type: string
+        project_category:
+          type: string
+        description:
+          type: string
+        total_amount:
+          type: number
+        currency:
+          type: string
+        start_date:
+          type: string
+        deadline:
+          type: string
+        estimated_duration:
+          type: string
+        core_deliverable:
+          type: string
+        out_of_scope_work:
+          type: string
+        revision_policy:
+          type: string
+        intellectual_property:
+          type: string
+        terms_and_conditions:
+          type: string
+        prd_uploaded:
+          type: boolean
+        prd_extracted_text:
+          type: string
+          description: >
+            Optional raw PRD body from the user's session (e.g. sessionStorage after upload).
+            Server truncates for the LLM context window.
+        payment_method:
+          type: string
+          description: Selected payment method on Payment Terms (optional context for AI).
+
+    SuggestedMilestoneAI:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        amount:
+          type: number
+        due_date:
+          type: string
+        submission_criteria:
+          type: string
+        completion_criteria_tc:
+          type: string
+
+    SuggestMilestonesResponse:
+      type: object
+      properties:
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedMilestoneAI'
+
+    SuggestScopeRequest:
+      type: object
+      required:
+        - project_name
+        - project_category
+        - description
+        - total_amount
+      properties:
+        project_name:
+          type: string
+        project_category:
+          type: string
+        description:
+          type: string
+        total_amount:
+          type: number
+        currency:
+          type: string
+        start_date:
+          type: string
+        deadline:
+          type: string
+        estimated_duration:
+          type: string
+        revision_policy:
+          type: string
+        intellectual_property:
+          type: string
+        client_name:
+          type: string
+        client_company:
+          type: string
+        prd_uploaded:
+          type: boolean
+        prd_extracted_text:
+          type: string
+          description: Optional PRD plain text from client session; server truncates for LLM.
+
+    SuggestScopeResponse:
+      type: object
+      properties:
+        core_deliverable:
+          type: string
+        out_of_scope_work:
+          type: string
+
+    SuggestTermsMilestoneInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        amount:
+          type: number
+        due_date:
+          type: string
+        description:
+          type: string
+        submission_criteria:
+          type: string
+        completion_criteria_tc:
+          type: string
+
+    SuggestTermsRequest:
+      type: object
+      required:
+        - project_name
+        - project_category
+        - description
+        - total_amount
+        - core_deliverable
+        - out_of_scope_work
+        - milestones
+      properties:
+        project_name:
+          type: string
+        project_category:
+          type: string
+        description:
+          type: string
+        total_amount:
+          type: number
+        currency:
+          type: string
+        start_date:
+          type: string
+        deadline:
+          type: string
+        estimated_duration:
+          type: string
+        core_deliverable:
+          type: string
+        out_of_scope_work:
+          type: string
+        revision_policy:
+          type: string
+        intellectual_property:
+          type: string
+        client_name:
+          type: string
+        client_company:
+          type: string
+        client_email:
+          type: string
+        client_phone:
+          type: string
+        client_country:
+          type: string
+        freelancer_name:
+          type: string
+        payment_method:
+          type: string
+        milestones:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestTermsMilestoneInput'
+        prd_uploaded:
+          type: boolean
+        prd_extracted_text:
+          type: string
+        existing_terms:
+          type: string
+          description: Optional current textarea content to refine.
+
+    SuggestTermsResponse:
+      type: object
+      properties:
+        terms_and_conditions:
+          type: string
+
     ContractResponse:
       type: object
       properties:
@@ -909,6 +1110,12 @@ paths:
                         type: string
                         format: uri
                         example: https://res.cloudinary.com/demo/raw/upload/v1234567890/prd.pdf
+                      extracted_contract:
+                        type: object
+                        description: Structured fields parsed from the PRD (same shape as extract-from-prd).
+                      prd_extracted_text:
+                        type: string
+                        description: Plain text extracted from the PRD (capped server-side) for client session cache and milestone AI.
                   message:
                     type: string
                     example: PRD uploaded
@@ -916,6 +1123,109 @@ paths:
           description: File is required or invalid
         '500':
           description: Cloudinary not configured or upload failed
+
+  /api/v1/contracts/suggest-milestones:
+    post:
+      tags: [Contract]
+      summary: AI-suggested milestone breakdown
+      description: >
+        Returns milestone rows whose amounts sum to the requested total_amount, tuned for Indian freelancer–client
+        workflows and progressive payouts (Groq LLM).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestMilestonesRequest'
+      responses:
+        '200':
+          description: Suggested milestones
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SuggestMilestonesResponse'
+                  message:
+                    type: string
+        '400':
+          description: Validation error
+        '500':
+          description: GROQ_API_KEY missing or AI failure
+
+  /api/v1/contracts/suggest/scope:
+    post:
+      tags: [Contract]
+      summary: AI-suggested core deliverable and out-of-scope
+      description: >
+        Returns core_deliverable and out_of_scope_work from project description, timeline, contract total,
+        client context, and optional PRD excerpt (Groq LLM). Path uses two segments (`suggest/scope`) so it
+        is not mistaken for `GET /contracts/{id}`. Legacy alias `POST /contracts/suggest-scope` may still be enabled server-side.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestScopeRequest'
+      responses:
+        '200':
+          description: Suggested scope text
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SuggestScopeResponse'
+                  message:
+                    type: string
+        '400':
+          description: Validation error
+        '500':
+          description: GROQ_API_KEY missing or AI failure
+
+  /api/v1/contracts/suggest/terms:
+    post:
+      tags: [Contract]
+      summary: AI-suggested terms & conditions
+      description: >
+        Full contract-style terms from project, client, milestones, timeline, payment method, scope, optional PRD excerpt,
+        and optional existing draft. Includes communication/ghosting and integrity clauses (India-oriented); not legal advice.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestTermsRequest'
+      responses:
+        '200':
+          description: Generated terms text (truncated server-side to fit contract storage limits)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SuggestTermsResponse'
+                  message:
+                    type: string
+        '400':
+          description: Validation error
+        '500':
+          description: GROQ_API_KEY missing or AI failure
 
   /api/v1/contracts/extract-from-prd:
     post:
@@ -949,54 +1259,60 @@ paths:
                   data:
                     type: object
                     properties:
-                      project_title:
-                        type: string
-                        example: E-commerce Platform Development
-                      project_type:
-                        type: string
-                        example: Web Development
-                      project_description:
-                        type: string
-                        example: Build a modern e-commerce platform with payment integration
-                      terms_and_conditions:
-                        type: string
-                        example: Standard professional conduct and confidentiality terms apply
-                      start_date:
-                        type: string
-                        format: date
-                        example: 2026-03-15
-                      deadline:
-                        type: string
-                        format: date
-                        example: 2026-06-30
-                      client:
+                      extracted_contract:
                         type: object
                         properties:
-                          name:
+                          project_title:
                             type: string
-                            example: John Doe
-                          email:
+                            example: E-commerce Platform Development
+                          project_type:
                             type: string
-                            format: email
-                            example: john@example.com
-                          phone:
+                            example: Web Development
+                          project_description:
                             type: string
-                            example: +1234567890
-                          company:
+                            example: Build a modern e-commerce platform with payment integration
+                          terms_and_conditions:
                             type: string
-                            example: Acme Corp
-                          country:
+                            example: Standard professional conduct and confidentiality terms apply
+                          start_date:
                             type: string
-                            example: United States
-                      scope:
+                            format: date
+                            example: 2026-03-15
+                          deadline:
+                            type: string
+                            format: date
+                            example: 2026-06-30
+                          client:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                                example: John Doe
+                              email:
+                                type: string
+                                format: email
+                                example: john@example.com
+                              phone:
+                                type: string
+                                example: +1234567890
+                              company:
+                                type: string
+                                example: Acme Corp
+                              country:
+                                type: string
+                                example: United States
+                          scope:
+                            type: string
+                            example: Full-stack development with payment integration
+                          deliverables:
+                            type: string
+                            example: Deployed application with admin panel
+                          payment_terms:
+                            type: string
+                            example: 50% upfront, 50% on completion
+                      prd_extracted_text:
                         type: string
-                        example: Full-stack development with payment integration
-                      deliverables:
-                        type: string
-                        example: Deployed application with admin panel
-                      payment_terms:
-                        type: string
-                        example: 50% upfront, 50% on completion
+                        description: Plain text extracted from the PRD (capped) for client session cache.
                   message:
                     type: string
                     example: PRD extracted

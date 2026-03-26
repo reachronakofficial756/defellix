@@ -534,7 +534,7 @@ export default function ContractsOverlay() {
       <img src={contractsBg3d} alt="Contracts Overlay Background" className="w-96 h-96 object-cover absolute top-30 left-1/2 -translate-x-1/2" />
       <div className="absolute top-50 left-20 sm:flex-row sm:items-end sm:justify-between gap-4 mb-4">
         <div className="shrink-0">
-          <h2 className="text-2xl md:text-4xl font-bold text-white leading-tight">
+          <h2 className="text-2xl md:text-4xl font-bold text-white leading-tight w-[80%]">
             {viewMode === 'all' ? 'All projects' : active.title}
           </h2>
           <p className="text-white text-sm md:text-base mt-1">

@@ -1220,7 +1220,29 @@ All except health require `Authorization: Bearer <access_token>` (same token as 
 
 ---
 
-**Document Version:** 4.0  
-**Last Updated:** January 24, 2026  
+### Contract form: total amount, milestone sum, AI suggestions (March 2026)
+
+**Frontend (`CreateContractForm.tsx`):**  
+- **Project details:** User sets **contract currency** and **total contract amount**; milestone amounts must sum to that total (enforced in `buildContractPayload` and UI hints on step 3 and 4).  
+- **Payment terms:** Advance payment UI removed; payload sends `advance_payment_required: false`, `advance_payment_amount: 0`.  
+- **Scope & deliverables (step 3):** Revision policy, out of scope, core deliverable, IP only — no milestones here. **Generate with AI** on Out of scope / Core deliverable calls **`POST /api/v1/contracts/suggest/scope`** (project details, client name/company, timeline, **total amount**, **PRD session cache**); both textareas are filled together for a consistent split.  
+- **Payment terms (step 4):** Milestones, payment split check, **AI suggest milestones** button, payment method, **Terms & Conditions** with **Generate with AI** (`POST /api/v1/contracts/suggest/terms`, fallback `suggest-terms`) using project, client, milestones, timeline, payment method, scope, PRD cache, optional existing terms. **Continue to review** skips the AI modal if milestones already sum to the contract total; otherwise opens the same modal (missing fields vs Groq suggestions). Add/edit milestone dialog is mounted at the **root** (high z-index) so it is not lost on step changes.  
+- **AI modal:** **`POST /api/v1/contracts/suggest-milestones`** includes optional **`payment_method`**. If the user uploaded a PRD, **`prd_extracted_text`** is sent from **`sessionStorage`** (`frontend/src/utils/prdSessionCache.ts`) so Groq can ground milestones in the document. **`prd_uploaded`** is true if a file is selected or cached text exists. Cache is cleared when the contract is **sent**, when the user **closes** the form to the dashboard (`HomePage` + `leaveContractToDashboard`), or when **navigating away** from `/contract` / `/contract/:id` (same-origin `sessionStorage` also clears when the **browser tab** closes).  
+- **PRD upload response** includes **`prd_extracted_text`** (plain text, capped server-side); the form stores it in session cache on success.  
+
+**Backend (contract-service):**  
+- **`SuggestMilestonesRequest` / response** in `internal/dto/contract.go`; **`ContractService.SuggestMilestones`** uses Groq with a system prompt focused on **Indian freelancer–client** milestone splits; **`normalizeSuggestedMilestoneAmounts`** forces amounts to sum to `total_amount`. Optional **`prd_extracted_text`** is appended to the user message (**truncated** with `truncateRunes` for the LLM).  
+- **`ExtractFromPRDBytes` / `ExtractFromPRD`** return **`(*ExtractedContract, plainText, error)`**; **`POST /prd-upload`** and **`POST /extract-from-prd`** include **`prd_extracted_text`** in `data` (extract-from-prd wraps structured fields under **`extracted_contract`**).  
+- **`SuggestScope`** / **`POST /suggest/scope`** (and legacy **`POST /suggest-scope`**): `SuggestScopeRequest` → Groq JSON **`core_deliverable`**, **`out_of_scope_work`**; optional **`prd_extracted_text`** appended (truncated like milestones).  
+- **`SuggestTerms`** / **`POST /suggest/terms`** (and legacy **`POST /suggest-terms`**): `SuggestTermsRequest` (includes **milestones** array + client + scope + PRD) → Groq JSON **`terms_and_conditions`**; output truncated to storage max (~10k runes). Prompt covers **ghosting/responsiveness**, **integrity / anti-fraud**, IP, payment, liability, disputes (India-oriented framing; not legal advice).  
+- **Routes (authenticated):** `POST /api/v1/contracts/suggest-milestones` (`SuggestMilestones`); `POST /api/v1/contracts/suggest/scope` (`SuggestScope`); `POST /api/v1/contracts/suggest/terms` (`SuggestTerms`).  
+- **OpenAPI:** `openapi.yaml` documents paths and schemas (`SuggestMilestonesRequest` / response, `SuggestScope*`, `SuggestTerms*`, etc.).
+
+**Env:** `GROQ_API_KEY` (required for suggestions), optional `GROQ_MODEL`.
+
+---
+
+**Document Version:** 4.1  
+**Last Updated:** March 12, 2026  
 **Next Update:** After Phase 4 (submission, review, reputation)
 

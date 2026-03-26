@@ -73,6 +73,9 @@ type Contract struct {
 	BlockchainNetwork  string  `gorm:"type:varchar(20)" json:"blockchain_network,omitempty"` // base_sepolia, base_mainnet
 	BlockchainStatus   string  `gorm:"type:varchar(20)" json:"blockchain_status,omitempty"`  // pending, confirmed, failed
 
+	// Visibility: show on public profile
+	IsPublic bool `gorm:"default:false" json:"is_public"`
+
 	DraftCount int64 `gorm:"-" json:"draft_count"`
 
 	CreatedAt time.Time      `json:"created_at"`

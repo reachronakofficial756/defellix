@@ -8,154 +8,26 @@ import { IconBrandGoogle } from "@tabler/icons-react";
 import { FaLinkedin } from "react-icons/fa6";
 import { Eye, EyeOff, AlertCircle } from "lucide-react";
 import logo from "../assets/logo.svg";
+import { FREELANCER_JOB_TITLES } from "@/constants/jobTitles";
+
+/** Same list as contract form "Other" project type picker */
+const JOB_TITLES: string[] = FREELANCER_JOB_TITLES;
 
 const SIGNUP_STEPS = ["Create an account", "Set up your profile", "Create your first contract"];
 
-const JOB_TITLES = [
-    // Core Software & Engineering
-    "Frontend Developer", "Backend Developer", "Fullstack Engineer", "Software Engineer",
-    "Web Developer", "Mobile App Developer", "iOS Developer", "Android Developer",
-    "Game Developer", "AR/VR Developer", "Embedded Systems Engineer",
-    "API Developer", "SDK Developer", "Plugin Developer",
-
-    // Specialized Dev Roles
-    "Shopify Developer", "WordPress Developer", "Webflow Developer",
-    "Bubble Developer", "No-Code Developer", "Low-Code Developer",
-    "Automation Engineer", "Zapier Expert", "Make (Integromat) Specialist",
-
-    // Design & Creative
-    "UI/UX Designer", "Product Designer", "Graphic Designer", "Motion Designer",
-    "Brand Designer", "Logo Designer", "Illustrator", "Animator",
-    "Video Editor", "Short-form Video Editor", "YouTube Editor",
-    "3D Artist", "VFX Artist", "Game Artist", "Storyboarding Artist",
-    "Presentation Designer", "Pitch Deck Designer",
-
-    // Writing & Content
-    "Content Writer", "Copywriter", "Technical Writer", "Ghostwriter",
-    "Scriptwriter", "Blog Writer", "SEO Writer", "LinkedIn Ghostwriter",
-    "Twitter Ghostwriter", "Email Copywriter", "Sales Copywriter",
-    "Editor", "Proofreader", "Resume Writer",
-
-    // Marketing & Growth
-    "Digital Marketer", "SEO Specialist", "Local SEO Specialist",
-    "Technical SEO Expert", "SEM Specialist", "Google Ads Specialist",
-    "Meta Ads Specialist", "TikTok Ads Specialist",
-    "Social Media Manager", "Content Strategist",
-    "Email Marketing Specialist", "Marketing Automation Specialist",
-    "Performance Marketer", "Growth Hacker",
-    "Conversion Rate Optimization Specialist",
-    "Affiliate Marketer", "Influencer Marketer",
-    "Brand Strategist", "Marketing Analyst",
-
-    // Data & AI
-    "Data Scientist", "Data Analyst", "Machine Learning Engineer",
-    "AI Engineer", "AI Researcher", "Prompt Engineer",
-    "LLM Engineer", "AI Automation Specialist",
-    "Business Intelligence Analyst", "Data Engineer",
-    "Data Visualization Specialist", "Analytics Engineer",
-
-    // Web3 & Blockchain
-    "Blockchain Engineer", "Smart Contract Developer",
-    "Solidity Developer", "Rust Blockchain Developer",
-    "Web3 Engineer", "Smart Contract Auditor",
-    "Crypto Analyst", "Tokenomics Specialist",
-    "NFT Artist", "NFT Community Manager", "DAO Manager",
-
-    // Cloud & DevOps
-    "DevOps Engineer", "Cloud Architect", "Cloud Engineer",
-    "AWS Specialist", "Azure Engineer", "GCP Engineer",
-    "Site Reliability Engineer", "Platform Engineer",
-    "Infrastructure Engineer", "System Administrator",
-    "Kubernetes Specialist",
-
-    // Cybersecurity
-    "Cybersecurity Analyst", "Ethical Hacker",
-    "Penetration Tester", "Bug Bounty Hunter",
-    "Security Engineer", "Security Consultant",
-    "SOC Analyst", "Digital Forensics Analyst",
-
-    // Product & Management
-    "Product Manager", "Associate Product Manager",
-    "Technical Product Manager", "Project Manager",
-    "Program Manager", "Scrum Master",
-    "Agile Coach", "Operations Manager",
-
-    // Business & Finance
-    "Business Analyst", "Financial Analyst",
-    "Startup Consultant", "Management Consultant",
-    "Accountant", "Bookkeeper", "Tax Consultant",
-    "Virtual CFO", "Investment Analyst",
-    "Equity Research Analyst",
-
-    // Sales & Support
-    "Sales Executive", "Sales Closer",
-    "Business Development Manager",
-    "Cold Email Specialist", "Lead Generation Specialist",
-    "Appointment Setter",
-    "Customer Support Specialist",
-    "Customer Success Manager",
-    "Account Manager",
-
-    // HR & Recruiting
-    "HR Manager", "Recruiter",
-    "Technical Recruiter",
-    "Talent Acquisition Specialist",
-    "HR Consultant", "People Operations Specialist",
-
-    // Education & Training
-    "Online Tutor", "Course Creator",
-    "Instructional Designer",
-    "Corporate Trainer", "Language Tutor",
-    "Coding Instructor",
-
-    // Admin & Virtual Work
-    "Virtual Assistant", "Executive Assistant",
-    "Data Entry Specialist", "Transcriptionist",
-    "Research Assistant", "Email Manager",
-
-    // Legal & Compliance
-    "Legal Consultant", "Contract Drafting Specialist",
-    "Compliance Officer", "Privacy Consultant",
-
-    // Media & Creator Economy
-    "Content Creator", "YouTuber",
-    "Podcaster", "Voice Over Artist",
-    "Streamer", "UGC Creator",
-    "Influencer", "Community Manager",
-    "Discord Moderator",
-
-    // Engineering (Non-Software)
-    "Mechanical Engineer", "Civil Engineer",
-    "Electrical Engineer", "CAD Designer",
-    "Architectural Designer",
-
-    // E-commerce & Ops
-    "E-commerce Manager", "Shopify Store Manager",
-    "Amazon FBA Specialist", "Etsy Seller Consultant",
-    "Dropshipping Expert",
-    "Product Listing Specialist",
-    "Supply Chain Analyst",
-
-    // Healthcare & Wellness (Remote-friendly)
-    "Telemedicine Doctor", "Nutritionist",
-    "Dietitian", "Fitness Coach",
-    "Yoga Instructor", "Mental Health Counselor",
-    "Life Coach",
-
-    // Localization & Language
-    "Translator", "Interpreter",
-    "Subtitling Specialist", "Localization Expert",
-
-    // Emerging / Niche Internet Roles
-    "No-Code SaaS Builder", "Indie Hacker",
-    "Micro-SaaS Developer",
-    "Newsletter Operator",
-    "Notion Consultant", "Airtable Specialist",
-    "Community Growth Manager",
-    "Online Reputation Manager",
-    "Personal Branding Consultant",
-    "Digital Product Seller"
+const EXPERIENCE_OPTIONS = [
+    "0-1 years",
+    "1-3 years",
+    "3-5 years",
+    "5-7 years",
+    "7-10 years",
+    "10+ years",
+    "Student / Early learner",
+    "Freelancer · 0-2 years",
+    "Freelancer · 2-5 years",
+    "Freelancer · 5+ years"
 ];
+
 
 const SKILLS_SUGGESTIONS = [
     // Frontend Core
@@ -368,6 +240,10 @@ export default function SignUp() {
     const [error, setError] = useState<string | null>(null);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+    const [experienceSuggestions, setExperienceSuggestions] = useState<string[]>([]);
+    const [showExperienceSuggestions, setShowExperienceSuggestions] = useState(false);
+
+
     // Filter job titles based on input
     useEffect(() => {
         if (!whatDoYouDo.trim()) {
@@ -396,6 +272,20 @@ export default function SignUp() {
         }
     }, [skillInput]);
 
+    useEffect(() => {
+        if (!experience.trim()) {
+            setExperienceSuggestions([]);
+            return;
+        }
+
+        const filtered = EXPERIENCE_OPTIONS.filter(opt =>
+            opt.toLowerCase().includes(experience.toLowerCase())
+        );
+        setExperienceSuggestions(filtered);
+    }, [experience]);
+
+
+
     // Handle username availability check with debounce
     useEffect(() => {
         if (!userName || userName.trim().length < 3) {
@@ -418,7 +308,7 @@ export default function SignUp() {
                     // Fallback for production server issues (502, CORS, etc.)
                     // We don't want to block the user if the check service is down.
                     console.warn("Username check failed (server error or CORS), allowing progress as fallback", err);
-                    setIsUserNameAvailable(true); 
+                    setIsUserNameAvailable(true);
                 }
             } finally {
                 setIsCheckingUserName(false);
@@ -599,9 +489,9 @@ export default function SignUp() {
                 experience,
                 company_name: companyName,
                 github_link: githubLink,
-                linkedin_link: linkedinLink,
+                linkedin_link: linkedinLink ? `https://linkedin.com/in/${linkedinLink}` : "",
                 portfolio_link: portfolioLink,
-                instagram_link: instagramLink,
+                instagram_link: instagramLink ? `https://instagram.com/${instagramLink}` : "",
                 skills,
             });
 
@@ -1038,7 +928,7 @@ export default function SignUp() {
                                     <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
                                         <input
                                             id="user-name"
-                                            placeholder="eg. rakesh_dev"
+                                            placeholder="eg. official_defellix"
                                             type="text"
                                             value={userName}
                                             onChange={(e: any) => setUserName(e.target.value)}
@@ -1069,17 +959,25 @@ export default function SignUp() {
                                         htmlFor="phone"
                                         className="text-xs sm:text-sm text-white/70"
                                     >
-                                        Phone
+                                        Phone <span className="text-red-400">*</span>
                                     </label>
-                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                    <div className="relative group overflow-hidden rounded-2xl border-none flex items-center bg-[#141414] h-9 sm:h-10 md:h-14">
+                                        <span className="pl-4 text-[14px] sm:text-md text-white/90 select-none whitespace-nowrap">
+                                            +91
+                                        </span>
                                         <input
                                             id="phone"
-                                            placeholder="eg. 98765 43210"
+                                            placeholder="98765 43210"
                                             type="tel"
                                             value={phone}
-                                            onChange={(e: any) => setPhone(e.target.value)}
-                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                const onlyDigits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                                setPhone(onlyDigits);
+                                            }}
+
+                                            className="relative w-full z-10 py-7 px-2 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/20 focus:ring-0 focus:outline-none"
                                         />
+
                                     </div>
                                 </LabelInputContainer>
                             </div>
@@ -1137,36 +1035,56 @@ export default function SignUp() {
                                             value={whatDoYouDo}
                                             onChange={(e: any) => setWhatDoYouDo(e.target.value)}
                                             onFocus={() => setShowJobSuggestions(true)}
-                                            onBlur={() => setTimeout(() => setShowJobSuggestions(false), 200)}
+                                            onBlur={() => {
+                                                // close only after click on an option can fire
+                                                setTimeout(() => setShowJobSuggestions(false), 150);
+                                            }}
                                             autoComplete="off"
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
 
-                                        {/* Job Suggestions Dropdown */}
-                                        {showJobSuggestions && whatDoYouDoSuggestions.length > 0 && (
+                                        {showJobSuggestions && (
                                             <motion.div
                                                 initial={{ opacity: 0, y: -10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: -10 }}
                                                 className="absolute left-0 right-0 top-[calc(100%+8px)] z-[100] max-h-60 overflow-y-auto rounded-2xl border border-white/10 bg-[#141414]/95 backdrop-blur-xl p-2 shadow-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                                             >
-                                                {whatDoYouDoSuggestions.map((job) => (
-                                                    <button
-                                                        key={job}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setWhatDoYouDo(job);
-                                                            setShowJobSuggestions(false);
-                                                        }}
-                                                        className="w-full cursor-pointer rounded-xl px-4 py-3 text-left text-xs sm:text-sm text-white/70 hover:bg-white/5 hover:text-[#3cb44f] transition-all"
-                                                    >
-                                                        {job}
-                                                    </button>
-                                                ))}
+                                                {whatDoYouDoSuggestions.length > 0 ? (
+                                                    whatDoYouDoSuggestions.map((job) => (
+                                                        <button
+                                                            key={job}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setWhatDoYouDo(job);
+                                                                setShowJobSuggestions(false);
+                                                            }}
+                                                            className="w-full cursor-pointer rounded-xl px-4 py-3 text-left text-xs sm:text-sm text-white/70 hover:bg-white/5 hover:text-[#3cb44f] transition-all"
+                                                        >
+                                                            {job}
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    // optional: show all jobs when nothing typed yet
+                                                    JOB_TITLES.slice(0, 20).map((job) => (
+                                                        <button
+                                                            key={job}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setWhatDoYouDo(job);
+                                                                setShowJobSuggestions(false);
+                                                            }}
+                                                            className="w-full cursor-pointer rounded-xl px-4 py-3 text-left text-xs sm:text-sm text-white/70 hover:bg-white/5 hover:text-[#3cb44f] transition-all"
+                                                        >
+                                                            {job}
+                                                        </button>
+                                                    ))
+                                                )}
                                             </motion.div>
                                         )}
                                     </div>
                                 </LabelInputContainer>
+
                                 <LabelInputContainer>
                                     <label
                                         htmlFor="location"
@@ -1193,17 +1111,64 @@ export default function SignUp() {
                                     >
                                         Experience
                                     </label>
-                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                    <div className="relative group rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
                                         <input
                                             id="experience"
-                                            placeholder="eg. 5+ years"
+                                            placeholder="eg. 3-5 years"
                                             type="text"
                                             value={experience}
                                             onChange={(e: any) => setExperience(e.target.value)}
+                                            onFocus={() => setShowExperienceSuggestions(true)}
+                                            onBlur={() => {
+                                                setTimeout(() => setShowExperienceSuggestions(false), 150);
+                                            }}
+                                            autoComplete="off"
                                             className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
                                         />
+
+                                        {showExperienceSuggestions && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                                className="absolute left-0 right-0 top-[calc(100%+8px)] z-[100] max-h-60 overflow-y-auto rounded-2xl border border-white/10 bg-[#141414]/95 backdrop-blur-xl p-2 shadow-2xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                            >
+                                                {experienceSuggestions.length > 0 ? (
+                                                    experienceSuggestions.map((opt) => (
+                                                        <button
+                                                            key={opt}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setExperience(opt);
+                                                                setShowExperienceSuggestions(false);
+                                                            }}
+                                                            className="w-full cursor-pointer rounded-xl px-4 py-3 text-left text-xs sm:text-sm text-white/70 hover:bg-white/5 hover:text-[#3cb44f] transition-all"
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    // optional: show default experience options initially
+                                                    EXPERIENCE_OPTIONS.map((opt) => (
+                                                        <button
+                                                            key={opt}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setExperience(opt);
+                                                                setShowExperienceSuggestions(false);
+                                                            }}
+                                                            className="w-full cursor-pointer rounded-xl px-4 py-3 text-left text-xs sm:text-sm text-white/70 hover:bg-white/5 hover:text-[#3cb44f] transition-all"
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))
+                                                )}
+                                            </motion.div>
+                                        )}
                                     </div>
                                 </LabelInputContainer>
+
+
                             </div>
 
 
@@ -1234,14 +1199,24 @@ export default function SignUp() {
                                     >
                                         LinkedIn
                                     </label>
-                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                    <div className="relative group overflow-hidden rounded-2xl border-none flex items-center bg-[#141414] h-9 sm:h-10 md:h-14">
+                                        <span className="pl-4 text-[14px] sm:text-md text-white/90 select-none whitespace-nowrap">
+                                            https://linkedin.com/in/
+                                        </span>
                                         <input
                                             id="linkedin"
-                                            placeholder="https://linkedin.com/in/username"
-                                            type="url"
+                                            placeholder="username"
+                                            type="text"
                                             value={linkedinLink}
-                                            onChange={(e: any) => setLinkedinLink(e.target.value)}
-                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => {
+                                                let val = e.target.value;
+                                                // Handle full URLs and remove varied prefixes (https, www, etc.)
+                                                val = val.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/in\//i, "");
+                                                // Keep only the first segment as the username
+                                                val = val.split('/')[0];
+                                                setLinkedinLink(val);
+                                            }}
+                                            className="w-full h-full bg-transparent text-xs sm:text-sm text-white placeholder:text-white/20 focus:ring-0 focus:outline-none px-1"
                                         />
                                     </div>
                                 </LabelInputContainer>
@@ -1270,14 +1245,24 @@ export default function SignUp() {
                                     >
                                         Instagram
                                     </label>
-                                    <div className="relative group overflow-hidden rounded-2xl border-none focus-within:ring-0 focus-within:outline-none">
+                                    <div className="relative group overflow-hidden rounded-2xl border-none flex items-center bg-[#141414] h-9 sm:h-10 md:h-14">
+                                        <span className="pl-4 text-[14px] sm:text-md text-white/90 select-none whitespace-nowrap">
+                                            https://instagram.com/
+                                        </span>
                                         <input
                                             id="instagram"
-                                            placeholder="https://instagram.com/username"
-                                            type="url"
+                                            placeholder="username"
+                                            type="text"
                                             value={instagramLink}
-                                            onChange={(e: any) => setInstagramLink(e.target.value)}
-                                            className="relative w-full z-10 py-7 px-4 h-9 sm:h-10 md:h-11 bg-[#141414] text-xs rounded-2xl border-none sm:text-sm text-white placeholder:text-white/40 focus:ring-0 focus:outline-none"
+                                            onChange={(e: any) => {
+                                                let val = e.target.value;
+                                                // Handle full URLs and remove varied prefixes (https, www, etc.)
+                                                val = val.replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, "");
+                                                // Keep only the first segment as the username
+                                                val = val.split('/')[0];
+                                                setInstagramLink(val);
+                                            }}
+                                            className="w-full h-full bg-transparent text-xs sm:text-sm text-white placeholder:text-white/20 focus:ring-0 focus:outline-none px-1"
                                         />
                                     </div>
                                 </LabelInputContainer>

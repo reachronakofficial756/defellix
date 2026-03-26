@@ -51,7 +51,7 @@ func main() {
 	repRepo := repository.NewReputationRepository(db)
 
 	// Initialize services
-	userService := service.NewUserService(userRepo, cfg.Auth.ServiceURL)
+	userService := service.NewUserService(userRepo, repRepo, cfg.Auth.ServiceURL, cfg.Contract.ServiceURL)
 	profileService := service.NewProfileService(userRepo)
 	notifRepo := repository.NewNotificationRepository(db)
 	scoreHistoryRepo := repository.NewScoreHistoryRepository(db)
@@ -119,10 +119,7 @@ func setupMiddleware(r *chi.Mux) {
 	// Recoverer middleware
 	r.Use(appmw.Recoverer)
 	
-	// CORS middleware handles preflight locally and serves as a fallback for production Nginx.
-	r.Use(appmw.CORS)
-
-	// Note: CORS headers are typically offloaded to Nginx in production.
+	// CORS is handled entirely by the nginx API gateway — do not set headers here.
 	// Request timeout middleware
 	r.Use(chimw.Timeout(60 * time.Second))
 }

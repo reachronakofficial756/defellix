@@ -34,14 +34,26 @@ func NewContractHandler(svc *service.ContractService) *ContractHandler {
 func (h *ContractHandler) RegisterRoutes(r chi.Router, authMw func(http.Handler) http.Handler) {
 	r.Route("/api/v1/contracts", func(r chi.Router) {
 		r.With(authMw).Group(func(r chi.Router) {
+			// Literal paths MUST be registered before /{id} or Chi matches POST /suggest-milestones,
+			// /suggest-scope, /suggest-terms, etc. to /{id} and returns 405 Method Not Allowed.
+			r.Post("/prd-upload", h.UploadPRD)
+			r.Post("/extract-from-prd", h.ExtractFromPRD)
+			r.Post("/suggest-milestones", h.SuggestMilestones)
+			// Nested route → POST /api/v1/contracts/suggest/scope (avoids /{id} collisions on single-segment paths).
+			r.Route("/suggest", func(r chi.Router) {
+				r.Post("/scope", h.SuggestScope)
+				r.Post("/terms", h.SuggestTerms)
+			})
+			// Legacy single-segment aliases
+			r.Post("/suggest-scope", h.SuggestScope)
+			r.Post("/suggest-terms", h.SuggestTerms)
 			r.Post("/", h.Create)
 			r.Get("/", h.List)
 			r.Get("/{id}", h.GetByID)
 			r.Put("/{id}", h.Update)
+			r.Patch("/{id}/visibility", h.UpdateVisibility)
 			r.Post("/{id}/send", h.Send)
 			r.Delete("/{id}", h.Delete)
-			r.Post("/prd-upload", h.UploadPRD)
-			r.Post("/extract-from-prd", h.ExtractFromPRD)
 		})
 	})
 	// Public contract routes (no auth): client view, send-for-review, sign
@@ -50,6 +62,11 @@ func (h *ContractHandler) RegisterRoutes(r chi.Router, authMw func(http.Handler)
 		r.Post("/{token}/send-for-review", h.SendForReview)
 		r.Post("/{token}/send-otp", h.SendSignOTP)
 		r.Post("/{token}/sign", h.Sign)
+	})
+
+	// Internal routes
+	r.Route("/api/v1/internal/contracts", func(r chi.Router) {
+		r.Get("/public/{freelancerUserID}", h.GetPublicByFreelancerInternal)
 	})
 }
 
@@ -192,6 +209,30 @@ func (h *ContractHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respondSuccess(w, http.StatusOK, map[string]string{"message": "Contract deleted"}, "OK")
+}
+
+func (h *ContractHandler) UpdateVisibility(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseUint(chi.URLParam(r, "id"), 10, 32)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid contract ID", "BAD_REQUEST")
+		return
+	}
+	var req struct {
+		IsPublic bool `json:"is_public"`
+	}
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+	if err := h.svc.UpdateIsPublic(r.Context(), uint(id), h.userID(r), req.IsPublic); err != nil {
+		if err == repository.ErrContractNotFound {
+			respondError(w, http.StatusNotFound, "Contract not found", "NOT_FOUND")
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to update visibility", "INTERNAL_ERROR")
+		return
+	}
+	respondSuccess(w, http.StatusOK, map[string]bool{"is_public": req.IsPublic}, "Visibility updated")
 }
 
 // Removed to replace with a cleaner approach later if neededken returns the contract for client view (no auth). Token from URL.
@@ -375,7 +416,7 @@ func (h *ContractHandler) UploadPRD(w http.ResponseWriter, r *http.Request) {
 	// ---------------------------------------------------------
 	// NATIVE BYPASS: Read bytes directly into PDF parser
 	// ---------------------------------------------------------
-	extractedContractJSON, err := h.svc.ExtractFromPRDBytes(r.Context(), fileBytes)
+	extractedContractJSON, prdPlainText, err := h.svc.ExtractFromPRDBytes(r.Context(), fileBytes)
 	if err != nil {
 		// Even if extraction fails, the upload succeeded.
 		// We can return the URL and let the frontend know extraction failed,
@@ -386,8 +427,9 @@ func (h *ContractHandler) UploadPRD(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondSuccess(w, http.StatusOK, map[string]interface{}{
-		"prd_file_url":       out.SecureURL,
-		"extracted_contract": extractedContractJSON,
+		"prd_file_url":        out.SecureURL,
+		"extracted_contract":  extractedContractJSON,
+		"prd_extracted_text":  prdPlainText,
 	}, "PRD uploaded and extracted successfully")
 }
 
@@ -399,11 +441,75 @@ func (h *ContractHandler) ExtractFromPRD(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	extracted, err := h.svc.ExtractFromPRD(r.Context(), req.PRDFileURL)
+	extracted, prdPlainText, err := h.svc.ExtractFromPRD(r.Context(), req.PRDFileURL)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to extract PRD: "+err.Error(), "INTERNAL_ERROR")
 		return
 	}
 
-	respondSuccess(w, http.StatusOK, extracted, "PRD extracted")
+	respondSuccess(w, http.StatusOK, map[string]interface{}{
+		"extracted_contract": extracted,
+		"prd_extracted_text": prdPlainText,
+	}, "PRD extracted")
+}
+
+// SuggestMilestones returns AI-generated milestone splits for the given project context.
+func (h *ContractHandler) SuggestMilestones(w http.ResponseWriter, r *http.Request) {
+	var req dto.SuggestMilestonesRequest
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+	out, err := h.svc.SuggestMilestones(r.Context(), &req)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error(), "INTERNAL_ERROR")
+		return
+	}
+	respondSuccess(w, http.StatusOK, out, "Milestone suggestions generated")
+}
+
+// SuggestScope returns AI-generated core deliverable and out-of-scope text from project context (+ optional PRD excerpt).
+// Mounted at POST /suggest/scope (preferred) and POST /suggest-scope (legacy alias).
+func (h *ContractHandler) SuggestScope(w http.ResponseWriter, r *http.Request) {
+	var req dto.SuggestScopeRequest
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+	out, err := h.svc.SuggestScope(r.Context(), &req)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error(), "INTERNAL_ERROR")
+		return
+	}
+	respondSuccess(w, http.StatusOK, out, "Scope suggestions generated")
+}
+
+// SuggestTerms returns AI-generated terms & conditions from full project context (+ milestones, PRD excerpt).
+// POST /suggest/terms and legacy POST /suggest-terms.
+func (h *ContractHandler) SuggestTerms(w http.ResponseWriter, r *http.Request) {
+	var req dto.SuggestTermsRequest
+	if err := h.validator.ValidateJSON(r, &req); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error(), "VALIDATION_ERROR")
+		return
+	}
+	out, err := h.svc.SuggestTerms(r.Context(), &req)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error(), "INTERNAL_ERROR")
+		return
+	}
+	respondSuccess(w, http.StatusOK, out, "Terms suggestions generated")
+}
+
+func (h *ContractHandler) GetPublicByFreelancerInternal(w http.ResponseWriter, r *http.Request) {
+	freelancerUserID, err := strconv.ParseUint(chi.URLParam(r, "freelancerUserID"), 10, 32)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid freelancer user ID", "BAD_REQUEST")
+		return
+	}
+	list, err := h.svc.GetPublicByFreelancer(r.Context(), uint(freelancerUserID))
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to get public contracts", "INTERNAL_ERROR")
+		return
+	}
+	respondSuccess(w, http.StatusOK, list, "OK")
 }

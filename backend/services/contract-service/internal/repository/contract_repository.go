@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +37,8 @@ type ContractRepository interface {
 	UpdateBlockchainMetadata(ctx context.Context, contractID uint, txHash, txID, network, status string, blockNum, gasUsed *uint64) error
 	SaveSignOTP(ctx context.Context, token, otp string, expiresAt time.Time) error
 	CountUnapprovedMilestones(ctx context.Context, contractID uint) (int64, error)
+	UpdateIsPublic(ctx context.Context, id uint, freelancerUserID uint, isPublic bool) error
+	GetPublicByFreelancer(ctx context.Context, freelancerUserID uint) ([]*domain.Contract, error)
 
 	// Outbox methods
 	FetchPendingOutboxTasks(ctx context.Context, limit int) ([]*domain.BlockchainOutbox, error)
@@ -152,7 +155,12 @@ func (r *contractRepository) GetByID(ctx context.Context, id uint, freelancerUse
 func (r *contractRepository) ListByFreelancer(ctx context.Context, freelancerUserID uint, status string, page, limit int) ([]*domain.Contract, int64, error) {
 	baseQ := r.db.WithContext(ctx).Model(&domain.Contract{}).Where("freelancer_user_id = ?", freelancerUserID)
 	if status != "" {
-		baseQ = baseQ.Where("status = ?", status)
+		if strings.Contains(status, ",") {
+			statuses := strings.Split(status, ",")
+			baseQ = baseQ.Where("status IN ?", statuses)
+		} else {
+			baseQ = baseQ.Where("status = ?", status)
+		}
 	}
 	var total int64
 	if err := baseQ.Count(&total).Error; err != nil {
@@ -172,7 +180,12 @@ func (r *contractRepository) ListByFreelancer(ctx context.Context, freelancerUse
 		}).
 		Where("freelancer_user_id = ?", freelancerUserID)
 	if status != "" {
-		fetchQ = fetchQ.Where("status = ?", status)
+		if strings.Contains(status, ",") {
+			statuses := strings.Split(status, ",")
+			fetchQ = fetchQ.Where("status IN ?", statuses)
+		} else {
+			fetchQ = fetchQ.Where("status = ?", status)
+		}
 	}
 	err := fetchQ.Order("updated_at DESC").Offset(offset).Limit(limit).Find(&list).Error
 	if err != nil {
@@ -494,6 +507,31 @@ func (r *contractRepository) SaveSignOTP(ctx context.Context, token, otp string,
 			"otp_expires_at":   expiresAt,
 			"last_otp_sent_at": now,
 		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrContractNotFound
+	}
+	return nil
+}
+
+func (r *contractRepository) GetPublicByFreelancer(ctx context.Context, freelancerUserID uint) ([]*domain.Contract, error) {
+	var list []*domain.Contract
+	err := r.db.WithContext(ctx).
+		Preload("Milestones", func(db *gorm.DB) *gorm.DB {
+			return db.Order("order_index ASC")
+		}).
+		Where("freelancer_user_id = ? AND is_public = ?", freelancerUserID, true).
+		Order("updated_at DESC").
+		Find(&list).Error
+	return list, err
+}
+
+func (r *contractRepository) UpdateIsPublic(ctx context.Context, id uint, freelancerUserID uint, isPublic bool) error {
+	res := r.db.WithContext(ctx).Model(&domain.Contract{}).
+		Where("id = ? AND freelancer_user_id = ?", id, freelancerUserID).
+		Update("is_public", isPublic)
 	if res.Error != nil {
 		return res.Error
 	}

@@ -11,6 +11,10 @@ import logo from '@/assets/logo.svg';
 import { useNavigate } from 'react-router-dom';
 
 import { API_BASE } from '@/api/client';
+import {
+  downloadContractPdf,
+  mapPublicContractToDocumentInput,
+} from '@/utils/contractDocument';
 
 const CONTRACT_API_BASE = `${API_BASE}/api/v1/public/contracts`;
 
@@ -22,6 +26,7 @@ interface Milestone {
   amount: number;
   due_date?: string;
   status: string;
+  submission_criteria?: string;
 }
 
 interface Contract {
@@ -41,6 +46,7 @@ interface Contract {
   client_phone?: string;
   client_country?: string;
   terms_and_conditions?: string;
+  submission_criteria?: string;
   revision_policy?: string;
   out_of_scope_work?: string;
   intellectual_property?: string;
@@ -219,6 +225,18 @@ export default function ClientContractReview() {
   );
 
   if (!contract) return null;
+
+  const handleDownloadAgreementPdf = () => {
+    try {
+      downloadContractPdf(
+        mapPublicContractToDocumentInput(contract),
+        contract.project_name
+      );
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Could not generate PDF';
+      alert(msg);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#000] text-white font-sans selection:bg-[#3cb44f]/30 overflow-x-hidden">
@@ -408,7 +426,7 @@ export default function ClientContractReview() {
                     {isSendingOtp ? 'Sending OTP…' : 'Accept & Generate OTP'}
                   </button>
 
-                  <button onClick={() => window.print()} className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold uppercase text-xs tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all cursor-pointer">
+                  <button type="button" onClick={handleDownloadAgreementPdf} className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold uppercase text-xs tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all cursor-pointer">
                     <FileText size={16} className="text-[#3cb44f]" /> Download PDF
                   </button>
                 </div>
@@ -533,8 +551,8 @@ export default function ClientContractReview() {
                   <div className="flex justify-between text-xs"><span className="text-gray-500 uppercase tracking-wider">Signed By</span><span className="text-white font-bold truncate ml-4">{contract.client_email}</span></div>
                   <div className="flex justify-between text-xs"><span className="text-gray-500 uppercase tracking-wider">Timestamp</span><span className="text-white font-bold">{new Date().toLocaleString('en-IN')}</span></div>
                 </div>
-                <button onClick={() => window.print()} className="w-full py-4 rounded-2xl bg-[#3cb44f] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 cursor-pointer hover:bg-[#4dd464] transition-all">
-                  <FileText size={16} /> Download Signed Copy
+                <button type="button" onClick={handleDownloadAgreementPdf} className="w-full py-4 rounded-2xl bg-[#3cb44f] text-black font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 cursor-pointer hover:bg-[#4dd464] transition-all">
+                  <FileText size={16} /> Download agreement (PDF)
                 </button>
               </motion.div>
             )}
@@ -548,6 +566,9 @@ export default function ClientContractReview() {
                 <div className="bg-[#3cb44f]/5 border border-[#3cb44f]/20 rounded-2xl p-4">
                   <p className="text-[#3cb44f] text-xs font-bold">🔒 Defellix Protocol Secured</p>
                 </div>
+                <button type="button" onClick={handleDownloadAgreementPdf} className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold uppercase text-xs tracking-widest flex items-center justify-center gap-3 hover:bg-white/10 transition-all cursor-pointer">
+                  <FileText size={16} className="text-[#3cb44f]" /> Download agreement (PDF)
+                </button>
               </motion.div>
             )}
 

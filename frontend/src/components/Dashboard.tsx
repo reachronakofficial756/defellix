@@ -510,9 +510,9 @@ const Dashboard = () => {
                                             <div className={`w-16 h-16 rounded-full ${m.iconBg} flex items-center justify-center text-xl`}>
                                                 <img src={m.icon} alt={m.label} className="w-10 h-10" />
                                             </div>
-                                            <button className="text-gray-500 hover:text-white px-1 pb-2 h-12 w-12 mt-2 flex items-center justify-center rounded-full border border-gray-700 cursor-pointer transition-colors pt-2 rotate-90">
+                                            {/* <button className="text-gray-500 hover:text-white px-1 pb-2 h-12 w-12 mt-2 flex items-center justify-center rounded-full border border-gray-700 cursor-pointer transition-colors pt-2 rotate-90">
                                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>
-                                            </button>
+                                            </button> */}
                                         </div>
 
                                         <div className="mt-auto">

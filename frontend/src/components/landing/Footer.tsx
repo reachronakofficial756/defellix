@@ -40,10 +40,10 @@ const Footer = () => {
           {/* Slogan & Logo Concept Column */}
           <div className="flex flex-col justify-center items-center">
             <h2 className="text-white text-3xl md:text-5xl lg:text-6xl text-center font-semibold leading-[1.1] mb-8 tracking-tighter">
-              The Architecture of <br />
-              Professional Proof.
+              {/* The Architecture of <br />
+              Professional Proof. */}
             </h2>
-            <p className="text-slate-500 text-lg md:text-2xl text-center font-medium leading-relaxed mb-10 max-w-md">
+            <p className="text-slate-500 text-lg md:text-2xl text-center font-medium leading-relaxed mb-10 mt-24 max-w-md">
               Unlocking the next era of decentralized trust through verifiable infrastructure.
             </p>
 

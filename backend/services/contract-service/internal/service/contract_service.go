@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -244,6 +245,22 @@ func (s *ContractService) Update(ctx context.Context, id uint, freelancerUserID 
 		}
 	}
 	return s.contractToResponse(c), nil
+}
+
+func (s *ContractService) UpdateIsPublic(ctx context.Context, id uint, freelancerUserID uint, isPublic bool) error {
+	return s.repo.UpdateIsPublic(ctx, id, freelancerUserID, isPublic)
+}
+
+func (s *ContractService) GetPublicByFreelancer(ctx context.Context, freelancerUserID uint) ([]*dto.ContractResponse, error) {
+	list, err := s.repo.GetPublicByFreelancer(ctx, freelancerUserID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*dto.ContractResponse, len(list))
+	for i, c := range list {
+		out[i] = s.contractToResponse(c)
+	}
+	return out, nil
 }
 
 func (s *ContractService) Send(ctx context.Context, id uint, freelancerUserID uint) (*dto.ContractResponse, error) {
@@ -662,6 +679,9 @@ func applyUpdate(c *domain.Contract, req *dto.UpdateContractRequest) {
 	if req.AdvancePaymentAmount != nil {
 		c.AdvancePaymentAmount = *req.AdvancePaymentAmount
 	}
+	if req.IsPublic != nil {
+		c.IsPublic = *req.IsPublic
+	}
 }
 
 func (s *ContractService) toResponse(c *domain.Contract, ms []domain.ContractMilestone) *dto.ContractResponse {
@@ -708,6 +728,7 @@ func (s *ContractService) toResponseWithShareable(c *domain.Contract, ms []domai
 		ClientViewToken:        c.ClientViewToken,
 		ShareableLink:          shareableLink,
 		ClientReviewComment:    c.ClientReviewComment,
+		IsPublic:               c.IsPublic,
 		Milestones:             milestonesToResponse(ms),
 		CreatedAt:              c.CreatedAt,
 		UpdatedAt:              c.UpdatedAt,
@@ -753,24 +774,24 @@ func milestonesToResponse(ms []domain.ContractMilestone) []dto.MilestoneResponse
 	return out
 }
 
-func (s *ContractService) ExtractFromPRD(ctx context.Context, prdURL string) (*dto.ExtractedContract, error) {
+func (s *ContractService) ExtractFromPRD(ctx context.Context, prdURL string) (*dto.ExtractedContract, string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, prdURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("invalid PRD URL: %w", err)
+		return nil, "", fmt.Errorf("invalid PRD URL: %w", err)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to download PRD: %w", err)
+		return nil, "", fmt.Errorf("failed to download PRD: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("failed to download PRD: status %d", resp.StatusCode)
+		return nil, "", fmt.Errorf("failed to download PRD: status %d", resp.StatusCode)
 	}
 
 	rawBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read PRD: %w", err)
+		return nil, "", fmt.Errorf("failed to read PRD: %w", err)
 	}
 
 	return s.ExtractFromPRDBytes(ctx, rawBytes)
@@ -778,14 +799,15 @@ func (s *ContractService) ExtractFromPRD(ctx context.Context, prdURL string) (*d
 
 // ExtractFromPRDBytes intercepts a PRD document from memory and generates the contract structure
 // using the Groq LLM API. It avoids network 401/404 CDN delivery blocks by processing the file internally.
-func (s *ContractService) ExtractFromPRDBytes(ctx context.Context, rawBytes []byte) (*dto.ExtractedContract, error) {
+// The returned plainText is the extracted PRD body (capped) for optional client-side session caching and milestone AI context.
+func (s *ContractService) ExtractFromPRDBytes(ctx context.Context, rawBytes []byte) (*dto.ExtractedContract, string, error) {
 	groqAPIKey := os.Getenv("GROQ_API_KEY")
 	groqModel := os.Getenv("GROQ_MODEL")
 	if groqModel == "" {
 		groqModel = "llama-3.3-70b-versatile"
 	}
 	if groqAPIKey == "" {
-		return nil, errors.New("GROQ_API_KEY not configured")
+		return nil, "", errors.New("GROQ_API_KEY not configured")
 	}
 
 	var rawText string
@@ -809,6 +831,7 @@ func (s *ContractService) ExtractFromPRDBytes(ctx context.Context, rawBytes []by
 	if len(rawText) > 100000 {
 		rawText = rawText[:100000]
 	}
+	plainTextForClient := rawText
 
 	systemPrompt := `You are an AI assistant that extracts structured contract data from PRD documents.
 Extract the following fields from the provided PRD text and return ONLY a valid JSON object (no extra text):
@@ -841,6 +864,235 @@ If a field is not found, use an empty string or omit it. Ensure all dates are in
 			{"role": "user", "content": "Extract contract data from this PRD:\n\n" + rawText},
 		},
 		"temperature":     0.2,
+		"max_tokens":      2048,
+		"response_format": map[string]string{"type": "json_object"},
+	}
+
+	payloadBytes, err := json.Marshal(groqPayload)
+	if err != nil {
+		return nil, plainTextForClient, fmt.Errorf("failed to marshal Groq request: %w", err)
+	}
+
+	groqReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, plainTextForClient, fmt.Errorf("failed to create Groq request: %w", err)
+	}
+	groqReq.Header.Set("Content-Type", "application/json")
+	groqReq.Header.Set("Authorization", "Bearer "+groqAPIKey)
+
+	groqResp, err := http.DefaultClient.Do(groqReq)
+	if err != nil {
+		return nil, plainTextForClient, fmt.Errorf("failed to call Groq: %w", err)
+	}
+	defer groqResp.Body.Close()
+	if groqResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(groqResp.Body)
+		return nil, plainTextForClient, fmt.Errorf("Groq API error %d: %s", groqResp.StatusCode, string(body))
+	}
+
+	var groqOut struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(groqResp.Body).Decode(&groqOut); err != nil {
+		return nil, plainTextForClient, fmt.Errorf("failed to parse Groq response: %w", err)
+	}
+	if len(groqOut.Choices) == 0 {
+		return nil, plainTextForClient, errors.New("Groq returned no choices")
+	}
+
+	content := groqOut.Choices[0].Message.Content
+
+	var extracted dto.ExtractedContract
+	if err := json.Unmarshal([]byte(content), &extracted); err != nil {
+		return nil, plainTextForClient, fmt.Errorf("failed to parse extracted JSON: %w", err)
+	}
+
+	return &extracted, plainTextForClient, nil
+}
+
+// SuggestMilestones calls Groq to propose milestone breakdowns for Indian freelancer–client workflows.
+func (s *ContractService) SuggestMilestones(ctx context.Context, req *dto.SuggestMilestonesRequest) (*dto.SuggestMilestonesResponse, error) {
+	groqAPIKey := os.Getenv("GROQ_API_KEY")
+	groqModel := os.Getenv("GROQ_MODEL")
+	if groqModel == "" {
+		groqModel = "llama-3.3-70b-versatile"
+	}
+	if groqAPIKey == "" {
+		return nil, errors.New("GROQ_API_KEY not configured")
+	}
+
+	currency := req.Currency
+	if currency == "" {
+		currency = "INR"
+	}
+
+	systemPrompt := `You are an expert freelance contract advisor for the Indian market (Indian freelancers and Indian/international clients, INR-friendly payment schedules, milestone-based payouts common on Upwork-style and direct contracts).
+
+Given project context and a FIXED total contract amount, output ONLY valid JSON (no markdown) with this exact shape:
+{"milestones":[{"title":"string","description":"string","amount":number,"due_date":"YYYY-MM-DD or empty","submission_criteria":"Link|Video|Docs|Photos","completion_criteria_tc":"short string"}]}
+
+Rules:
+- Create between 4 and 8 milestones unless the project is very small (minimum 3 milestones).
+- The sum of all "amount" fields MUST equal the given total_amount exactly (2 decimal places).
+- Order milestones logically (kickoff/deposit → design/build → review → final delivery/handover).
+- Amounts should reflect realistic phase splits for Indian freelancers (e.g. 15–30% upfront or first milestone, progressive payments, final milestone for delivery/UAT).
+- Spread due_date values between start and deadline when dates are provided; otherwise leave due_date empty strings.
+- Descriptions should be concrete and tied to scope/deliverables.
+- submission_criteria should be one of: Link, Video, Docs, Photos`
+
+	userPayload := fmt.Sprintf(`Project name: %s
+Category: %s
+Description: %s
+Total amount: %.2f %s
+Start date: %s
+Deadline: %s
+Estimated duration: %s
+Core deliverable / submission expectation: %s
+Out of scope: %s
+Revision policy: %s
+IP terms: %s
+Terms snippet: %s
+PRD was uploaded by user: %v
+Preferred payment method (if any): %s`,
+		req.ProjectName, req.ProjectCategory, req.Description, req.TotalAmount, currency,
+		req.StartDate, req.Deadline, req.EstimatedDuration,
+		req.CoreDeliverable, req.OutOfScopeWork, req.RevisionPolicy,
+		req.IntellectualProperty, truncateRunes(req.TermsAndConditions, 3000), req.PrdUploaded,
+		req.PaymentMethod)
+
+	if strings.TrimSpace(req.PrdExtractedText) != "" {
+		userPayload += "\n\n--- Full PRD document excerpt (from user session; use for milestone phasing and deliverables) ---\n"
+		userPayload += truncateRunes(req.PrdExtractedText, 12000)
+	}
+
+	groqPayload := map[string]interface{}{
+		"model": groqModel,
+		"messages": []map[string]interface{}{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPayload},
+		},
+		"temperature":     0.35,
+		"max_tokens":      4096,
+		"response_format": map[string]string{"type": "json_object"},
+	}
+
+	payloadBytes, err := json.Marshal(groqPayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal Groq request: %w", err)
+	}
+
+	groqReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Groq request: %w", err)
+	}
+	groqReq.Header.Set("Content-Type", "application/json")
+	groqReq.Header.Set("Authorization", "Bearer "+groqAPIKey)
+
+	groqResp, err := http.DefaultClient.Do(groqReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call Groq: %w", err)
+	}
+	defer groqResp.Body.Close()
+	if groqResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(groqResp.Body)
+		return nil, fmt.Errorf("Groq API error %d: %s", groqResp.StatusCode, string(body))
+	}
+
+	var groqOut struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(groqResp.Body).Decode(&groqOut); err != nil {
+		return nil, fmt.Errorf("failed to parse Groq response: %w", err)
+	}
+	if len(groqOut.Choices) == 0 {
+		return nil, errors.New("Groq returned no choices")
+	}
+
+	content := groqOut.Choices[0].Message.Content
+	var parsed struct {
+		Milestones []dto.SuggestedMilestoneAI `json:"milestones"`
+	}
+	if err := json.Unmarshal([]byte(content), &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse milestone JSON: %w", err)
+	}
+	if len(parsed.Milestones) == 0 {
+		return nil, errors.New("model returned no milestones")
+	}
+
+	normalizeSuggestedMilestoneAmounts(parsed.Milestones, req.TotalAmount)
+
+	return &dto.SuggestMilestonesResponse{Milestones: parsed.Milestones}, nil
+}
+
+// SuggestScope calls Groq to draft core_deliverable and out_of_scope_work from project + timeline + budget + optional PRD text.
+func (s *ContractService) SuggestScope(ctx context.Context, req *dto.SuggestScopeRequest) (*dto.SuggestScopeResponse, error) {
+	groqAPIKey := os.Getenv("GROQ_API_KEY")
+	groqModel := os.Getenv("GROQ_MODEL")
+	if groqModel == "" {
+		groqModel = "llama-3.3-70b-versatile"
+	}
+	if groqAPIKey == "" {
+		return nil, errors.New("GROQ_API_KEY not configured")
+	}
+
+	currency := req.Currency
+	if currency == "" {
+		currency = "INR"
+	}
+
+	systemPrompt := `You are an expert freelance contract writer for the Indian market (Indian freelancers, INR budgets, clear handoffs, Upwork-style clarity).
+
+Output ONLY valid JSON (no markdown) with this exact shape:
+{"core_deliverable":"string","out_of_scope_work":"string"}
+
+Definitions:
+- core_deliverable: Concrete, verifiable deliverables the freelancer will hand over (artifacts, URLs, repos, files, training, documentation) aligned with the project description, timeline, and budget. Use bullet-style sentences or short paragraphs; be specific (e.g. tech stack, environments, acceptance signals).
+- out_of_scope_work: Explicit exclusions — what is NOT included (ongoing support hours, marketing spend, third-party fees, future phases, out-of-hours, legal advice, hardware, content the client must provide, etc.). Must complement core_deliverable (no contradiction).
+
+Rules:
+- Write in professional English; concise but complete.
+- Respect the contract total and dates when inferring depth of work (smaller budgets → narrower scope).
+- If PRD excerpt is provided, ground both fields in it; otherwise use project description.
+- core_deliverable: at least 2 sentences or 3+ bullet lines worth of content.
+- out_of_scope_work: at least 4 distinct exclusion items (phrases or short bullets).`
+
+	userPayload := fmt.Sprintf(`Project name: %s
+Category: %s
+Description: %s
+Total contract value: %.2f %s
+Start date: %s
+Deadline: %s
+Estimated duration: %s
+Revision policy: %s
+IP / ownership terms: %s
+Client name: %s
+Client company: %s
+PRD document was uploaded (session): %v`,
+		req.ProjectName, req.ProjectCategory, req.Description, req.TotalAmount, currency,
+		req.StartDate, req.Deadline, req.EstimatedDuration,
+		req.RevisionPolicy, req.IntellectualProperty,
+		req.ClientName, req.ClientCompany, req.PrdUploaded)
+
+	if strings.TrimSpace(req.PrdExtractedText) != "" {
+		userPayload += "\n\n--- PRD document excerpt (use for accurate scope vs exclusions) ---\n"
+		userPayload += truncateRunes(req.PrdExtractedText, 12000)
+	}
+
+	groqPayload := map[string]interface{}{
+		"model": groqModel,
+		"messages": []map[string]interface{}{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPayload},
+		},
+		"temperature":     0.35,
 		"max_tokens":      2048,
 		"response_format": map[string]string{"type": "json_object"},
 	}
@@ -882,11 +1134,215 @@ If a field is not found, use an empty string or omit it. Ensure all dates are in
 	}
 
 	content := groqOut.Choices[0].Message.Content
-
-	var extracted dto.ExtractedContract
-	if err := json.Unmarshal([]byte(content), &extracted); err != nil {
-		return nil, fmt.Errorf("failed to parse extracted JSON: %w", err)
+	var parsed dto.SuggestScopeResponse
+	if err := json.Unmarshal([]byte(content), &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse scope JSON: %w", err)
+	}
+	if strings.TrimSpace(parsed.CoreDeliverable) == "" || strings.TrimSpace(parsed.OutOfScopeWork) == "" {
+		return nil, errors.New("model returned empty core_deliverable or out_of_scope_work")
 	}
 
-	return &extracted, nil
+	return &parsed, nil
+}
+
+// SuggestTerms drafts comprehensive T&Cs for freelancer–client work (India-oriented), including anti-ghosting and integrity clauses.
+func (s *ContractService) SuggestTerms(ctx context.Context, req *dto.SuggestTermsRequest) (*dto.SuggestTermsResponse, error) {
+	groqAPIKey := os.Getenv("GROQ_API_KEY")
+	groqModel := os.Getenv("GROQ_MODEL")
+	if groqModel == "" {
+		groqModel = "llama-3.3-70b-versatile"
+	}
+	if groqAPIKey == "" {
+		return nil, errors.New("GROQ_API_KEY not configured")
+	}
+
+	currency := req.Currency
+	if currency == "" {
+		currency = "INR"
+	}
+
+	msJSON, err := json.MarshalIndent(req.Milestones, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal milestones: %w", err)
+	}
+
+	systemPrompt := `You are a senior freelance-agreement drafter for Indian and cross-border remote work (INR and international clients). You write clear, professional contract TERMS (not legal advice).
+
+Output ONLY valid JSON (no markdown fences) with this exact shape:
+{"terms_and_conditions":"string"}
+
+The string must be plain text using numbered sections and sub-bullets where helpful. It must be thorough (aim for substantial coverage, not one paragraph).
+
+Required themes (integrate naturally; use headings like "1. Parties", "2. …"):
+- **Disclaimer:** State that this document is a commercial agreement template, does not constitute lawyer-client advice, and parties may obtain independent legal counsel (India-relevant framing is fine).
+- **Relationship:** Independent contractor / principal–service provider; not employment unless stated otherwise.
+- **Services & scope:** Bind to the described project, core deliverables, and explicit out-of-scope items provided by the user.
+- **Timeline & milestones:** Payments tied to milestone acceptance; reference the milestone list; late or non-delivery consequences in general terms.
+- **Acceptance & revisions:** Tie to the stated revision policy; objective acceptance where possible.
+- **Intellectual property:** Reflect the user's stated IP choice (client owns / shared / freelancer retains) in operative language.
+- **Confidentiality:** Mutual confidentiality for business info, credentials, code, and documents; exceptions for legal requirements.
+- **Ghosting, responsiveness, and abandonment:** Define reasonable communication expectations (e.g. business-day response times), escalation if a party is unresponsive, and right to pause work or terminate after written notice for prolonged silence or failure to provide required inputs—without encouraging illegal penalties; keep it commercial and balanced.
+- **Integrity, cheating, and fraud:** Require good faith; accurate representations of identity and skills; original work or disclosed third-party components; no plagiarism or misrepresentation of deliverables; disclosure of subcontractors when used; no fraudulent invoices, payment evasion, or abusive chargebacks; consequences may include termination, forfeiture of unpaid amounts where appropriate, and remedies under applicable law.
+- **Payment:** Currency, method context, milestone-based releases, late payment, taxes/GST mention where relevant as a general placeholder (not tax advice).
+- **Warranties:** Limited warranties on deliverables; disclaimer of implied warranties where appropriate in a commercial freelance context (word carefully).
+- **Liability:** Reasonable cap tied to fees paid under the agreement; exclude indirect/consequential damages except where non-waivable.
+- **Indemnity:** Mutual or one-sided basics for IP infringement claims arising from materials each party supplies.
+- **Termination:** For convenience with notice; for material breach; effect on payment for work completed and accepted.
+- **Dispute resolution:** Good-faith negotiation, optional mediation, courts/seat in India or as fits the parties described (use neutral "courts of competent jurisdiction in India" unless user context clearly indicates otherwise).
+- **Miscellaneous:** Entire agreement, amendments in writing, notices (email acceptable), severability, assignment restrictions, force majeure (brief).
+
+Tone: firm, fair, and professional. Do not invent party legal names beyond placeholders ("Freelancer", "Client") and the names/emails supplied. Do not add cryptocurrency speculation or illegal clauses.`
+
+	userPayload := fmt.Sprintf(`Freelancer display name (if any): %s
+Client name: %s
+Client company: %s
+Client email: %s
+Client phone: %s
+Client country: %s
+
+Project name: %s
+Category: %s
+Description: %s
+Total contract value: %.2f %s
+Start date: %s
+Deadline: %s
+Estimated duration: %s
+Payment method: %s
+
+Revision policy: %s
+Intellectual property (as selected): %s
+
+--- Core deliverables (in scope) ---
+%s
+
+--- Out of scope ---
+%s
+
+--- Milestones (JSON) ---
+%s
+
+PRD was uploaded (session flag): %v`,
+		req.FreelancerName, req.ClientName, req.ClientCompany, req.ClientEmail, req.ClientPhone, req.ClientCountry,
+		req.ProjectName, req.ProjectCategory, req.Description, req.TotalAmount, currency,
+		req.StartDate, req.Deadline, req.EstimatedDuration, req.PaymentMethod,
+		req.RevisionPolicy, req.IntellectualProperty,
+		truncateRunes(req.CoreDeliverable, 8000),
+		truncateRunes(req.OutOfScopeWork, 8000),
+		string(msJSON),
+		req.PrdUploaded)
+
+	if strings.TrimSpace(req.ExistingTerms) != "" {
+		userPayload += "\n\n--- Existing draft terms to refine or merge (preserve useful specifics; improve structure and gaps) ---\n"
+		userPayload += truncateRunes(req.ExistingTerms, 6000)
+	}
+
+	if strings.TrimSpace(req.PrdExtractedText) != "" {
+		userPayload += "\n\n--- PRD document excerpt ---\n"
+		userPayload += truncateRunes(req.PrdExtractedText, 10000)
+	}
+
+	groqPayload := map[string]interface{}{
+		"model": groqModel,
+		"messages": []map[string]interface{}{
+			{"role": "system", "content": systemPrompt},
+			{"role": "user", "content": userPayload},
+		},
+		"temperature":     0.25,
+		"max_tokens":      8192,
+		"response_format": map[string]string{"type": "json_object"},
+	}
+
+	payloadBytes, err := json.Marshal(groqPayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal Groq request: %w", err)
+	}
+
+	groqReq, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(payloadBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Groq request: %w", err)
+	}
+	groqReq.Header.Set("Content-Type", "application/json")
+	groqReq.Header.Set("Authorization", "Bearer "+groqAPIKey)
+
+	groqResp, err := http.DefaultClient.Do(groqReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to call Groq: %w", err)
+	}
+	defer groqResp.Body.Close()
+	if groqResp.StatusCode >= 300 {
+		body, _ := io.ReadAll(groqResp.Body)
+		return nil, fmt.Errorf("Groq API error %d: %s", groqResp.StatusCode, string(body))
+	}
+
+	var groqOut struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(groqResp.Body).Decode(&groqOut); err != nil {
+		return nil, fmt.Errorf("failed to parse Groq response: %w", err)
+	}
+	if len(groqOut.Choices) == 0 {
+		return nil, errors.New("Groq returned no choices")
+	}
+
+	content := groqOut.Choices[0].Message.Content
+	var parsed dto.SuggestTermsResponse
+	if err := json.Unmarshal([]byte(content), &parsed); err != nil {
+		return nil, fmt.Errorf("failed to parse terms JSON: %w", err)
+	}
+	if strings.TrimSpace(parsed.TermsAndConditions) == "" {
+		return nil, errors.New("model returned empty terms_and_conditions")
+	}
+
+	// Match CreateContractRequest validation (max 10000 on string — truncate by runes for safety).
+	parsed.TermsAndConditions = truncateRunes(parsed.TermsAndConditions, 10000)
+
+	return &parsed, nil
+}
+
+func truncateRunes(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return string(runes[:max]) + "…"
+}
+
+func normalizeSuggestedMilestoneAmounts(m []dto.SuggestedMilestoneAI, target float64) {
+	n := len(m)
+	if n == 0 || target <= 0 {
+		return
+	}
+	var sum float64
+	for i := range m {
+		if m[i].Amount < 0 {
+			m[i].Amount = 0
+		}
+		sum += m[i].Amount
+	}
+	if sum <= 0.0001 {
+		each := math.Round(target/float64(n)*100) / 100
+		var running float64
+		for i := 0; i < n-1; i++ {
+			m[i].Amount = each
+			running += each
+		}
+		m[n-1].Amount = math.Round((target-running)*100) / 100
+		return
+	}
+	var newSum float64
+	for i := 0; i < n-1; i++ {
+		m[i].Amount = math.Round(m[i].Amount*(target/sum)*100) / 100
+		newSum += m[i].Amount
+	}
+	m[n-1].Amount = math.Round((target-newSum)*100) / 100
+	if m[n-1].Amount < 0 {
+		m[n-1].Amount = 0
+	}
 }

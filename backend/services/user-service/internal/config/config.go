@@ -11,6 +11,7 @@ type Config struct {
 	App      AppConfig
 	Database DatabaseConfig
 	Auth     AuthConfig
+	Contract ContractConfig
 }
 
 // ServerConfig holds server-related configuration
@@ -45,6 +46,11 @@ type AuthConfig struct {
 	ServiceURL string // Full HTTP URL for internal service-to-service calls
 }
 
+// ContractConfig holds contract service configuration
+type ContractConfig struct {
+	ServiceURL string
+}
+
 // Load reads configuration from environment variables with defaults
 func Load() *Config {
 	return &Config{
@@ -70,7 +76,10 @@ func Load() *Config {
 		Auth: AuthConfig{
 			Host:       getEnv("AUTH_SERVICE_HOST", "localhost"),
 			Port:       getEnv("AUTH_SERVICE_PORT", "50051"),
-			ServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8080"),
+			ServiceURL: getEnv("AUTH_SERVICE_URL", "http://auth-service:8081"),
+		},
+		Contract: ContractConfig{
+			ServiceURL: getEnv("CONTRACT_SERVICE_URL", "http://contract-service:8083"),
 		},
 	}
 }
