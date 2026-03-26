@@ -7,14 +7,11 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { motion } from 'framer-motion';
 
 import Hero from '../components/landing/Hero';
-import TrustBanner from '../components/landing/TrustBanner';
 import DotMatrix from '../components/landing/DotMatrix';
 import HowItWorks from '../components/landing/HowItWorks';
 import ScrollingCards from '../components/landing/ScrollingCards';
 import CircularSlider from '../components/landing/CircularSlider';
 import FeatureSlider from '../components/landing/FeatureSlider';
-import ScrollTestimonials from '../components/landing/ScrollTestimonials';
-import CustomerStoryCard from '../components/landing/CustomerStoryCard';
 import CallToAction from '../components/landing/CallToAction';
 import Footer from '../components/landing/Footer';
 import noiseImg from '../assets/noise.webp';

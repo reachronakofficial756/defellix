@@ -1,15 +1,8 @@
 import { Linkedin, Twitter, Facebook, Instagram, Youtube } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useRef } from 'react';
 
-const socialLinks = [
-  { icon: Linkedin, label: 'LinkedIn', href: '#' },
-  { icon: Twitter, label: 'Twitter', href: '#' },
-  { icon: Facebook, label: 'Facebook', href: '#' },
-  { icon: Instagram, label: 'Instagram', href: '#' },
-  { icon: Youtube, label: 'YouTube', href: '#' }
-];
+void [Linkedin, Twitter, Facebook, Instagram, Youtube];
 
 const Footer = () => {
   const containerRef = useRef<HTMLElement>(null);

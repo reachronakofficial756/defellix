@@ -64,17 +64,7 @@ function fmt(dt?: string | null): string {
   return new Date(dt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function statusBadge(status: string) {
-  const map: Record<string, string> = {
-    pending: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
-    submitted: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-    approved: 'bg-[#3cb44f]/15 text-[#3cb44f] border-[#3cb44f]/30',
-    paid: 'bg-[#3cb44f]/20 text-[#3cb44f] border-[#3cb44f]/40',
-    revision: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-    rejected: 'bg-red-500/15 text-red-400 border-red-500/30',
-  };
-  return map[status] ?? 'bg-white/10 text-white border-white/20';
-}
+// statusBadge removed (unused)
 
 function getActiveMilestone(milestones: Milestone[]): Milestone | null {
   return milestones.find(m => m.status === 'submitted') ?? null;
@@ -283,7 +273,7 @@ export default function MilestoneReview() {
 
   const activeMilestone = getActiveMilestone(contract.milestones);
   const allApproved = contract.milestones.every(m => m.status === 'approved' || m.status === 'paid');
-  const allSubmittedOrDone = contract.milestones.every(m => m.status === 'submitted' || m.status === 'approved' || m.status === 'paid');
+  // allSubmittedOrDone removed (unused)
   const progressPct = calculateContractProgress(contract.milestones, contract.total_amount);
   const activeSubmission = getActiveSubmission();
 
@@ -686,7 +676,9 @@ export default function MilestoneReview() {
                     {otpCode.map((digit, i) => (
                       <input
                         key={i}
-                        ref={el => otpInputRefs.current[i] = el}
+                        ref={(el) => {
+                          otpInputRefs.current[i] = el;
+                        }}
                         type="text"
                         maxLength={1}
                         value={digit}
