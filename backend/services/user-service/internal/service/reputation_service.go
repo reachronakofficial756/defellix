@@ -166,7 +166,6 @@ func (s *ReputationService) RecalculateUserScore(ctx context.Context, userID uin
 
 	// Build project signals from reputation records
 	var allProjects []ProjectSignals
-	aggregateScore := 0
 
 	for _, rep := range reps {
 		monthsAgo := int(time.Since(rep.CreatedAt).Hours() / 24 / 30)
@@ -232,7 +231,6 @@ func (s *ReputationService) RecalculateUserScore(ctx context.Context, userID uin
 		}
 
 		allProjects = append(allProjects, p)
-		aggregateScore += rep.CalculatedScore
 	}
 
 	// E9: Repeat client bonus — count distinct client emails with 2+ contracts
@@ -334,7 +332,6 @@ func (s *ReputationService) RecalculateUserScore(ctx context.Context, userID uin
 	profile.CredibilityScore = overallScore
 	profile.ScoreTier = tier
 	profile.DimensionScores = datatypes.JSON(dimsJSON)
-	profile.AggregateReputationScore = aggregateScore
 
 	if err := s.userRepo.Update(ctx, profile); err != nil {
 		return err

@@ -16,15 +16,26 @@ const Hero = () => {
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
           <span className="inline-block mb-6 text-sm lg:text-base font-bold tracking-[0.2em] text-slate-500 uppercase">
-            Decentralized Contract Protocol
+          Trusted by freelancers across India
           </span>
-          <h1 className="text-6xl lg:text-9xl font-black tracking-tighter text-white mb-8 leading-[0.85]">
+          <h1 className="text-6xl lg:text-9xl font-black tracking-tight text-white mb-8 leading-[0.85]">
             New Freedom to Build <br />
-            <span className="text-white">With Trust</span>
+            <span
+              className="relative font-black"
+              style={{
+                background: "linear-gradient(135deg, rgba(60,180,79,0.9) 0%, rgba(92,184,112,0.57) 48%, rgba(212,237,218,0.54) 85%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                filter: "drop-shadow(0 0 10px rgba(60,180,79,0.16))",
+              }}
+            >
+              With Trust
+            </span>
           </h1>
           <p className="max-w-4xl mx-auto text-base lg:text-lg text-slate-400 mb-12 font-medium leading-relaxed tracking-wide">
-            Immutable smart contracts. No middlemen, no manual tracking. Milestone-locked escrow. <br className="hidden lg:block" />
-            Verifiable reputation & 100% payment security, delivered.
+          One platform for contracts, payments, and reputation. <br className="hidden lg:block" />
+          So you can focus on the work, not the follow-ups.
           </p>
         </motion.div>
 
@@ -40,7 +51,7 @@ const Hero = () => {
           >
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
             <span className="relative flex items-center gap-3">
-              Get Started<ArrowRight className="w-5 h-5" />
+            Start for Free<ArrowRight className="w-5 h-5" />
             </span>
           </NavLink>
         </motion.div>

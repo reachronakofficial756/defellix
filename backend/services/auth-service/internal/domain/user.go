@@ -41,7 +41,6 @@ type User struct {
 
 	// Reputation & Stats
 	Stats                    datatypes.JSON `gorm:"type:jsonb" json:"stats,omitempty"`
-	AggregateReputationScore int            `gorm:"default:0" json:"aggregate_reputation_score"`
 	Projects                 datatypes.JSON `gorm:"type:jsonb" json:"projects,omitempty"`
 	Testimonials             datatypes.JSON `gorm:"type:jsonb" json:"testimonials,omitempty"`
 	Portfolio                datatypes.JSON `gorm:"type:jsonb" json:"portfolio,omitempty"` // Legacy

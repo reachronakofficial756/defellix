@@ -646,11 +646,10 @@ func (s *UserService) toProfileResponse(profile *domain.User) *dto.UserResponse 
 
 func (s *UserService) toPublicProfileResponse(profile *domain.User, contracts []dto.ContractSummary) *dto.PublicProfileResponse {
 	out := &dto.PublicProfileResponse{
-		UserName:                 profile.UserName,
-		AggregateReputationScore: profile.AggregateReputationScore,
-		CredibilityScore:         profile.CredibilityScore,
-		ScoreTier:                profile.ScoreTier,
-		Contracts:                contracts,
+		UserName:         profile.UserName,
+		CredibilityScore: profile.CredibilityScore,
+		ScoreTier:        profile.ScoreTier,
+		Contracts:        contracts,
 	}
 	if profile.ShowProfile {
 		out.FullName = profile.FullName

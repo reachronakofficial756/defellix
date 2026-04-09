@@ -11,6 +11,7 @@ import on_time_delivery from "@/assets/on_time_delivery.png";
 import active_contracts from "@/assets/active_contracts.png";
 import disputes from "@/assets/disputes.png";
 import { Score } from "@/components/Score";
+import { ReputationGauge } from "@/components/ReputationGauge";
 
 // --- Types ---
 interface MetricCard {
@@ -55,137 +56,6 @@ interface Contract {
 // { id: 3, text: "Deadline extended: SaaS Dashboard", highlight: "SaaS Dashboard", time: "1d ago", dotColor: "bg-red-400" },
 // { id: 4, text: "Invoice #004 marked as paid", highlight: "Invoice #004", time: "2d ago", dotColor: "bg-[#00e676]" },
 // ];
-
-const ReputationGauge = ({ score, animated, maxScale = 1000 }: { score: number; animated: boolean; maxScale?: number }) => {
-    const [normalized, setNormalized] = useState(0);
-
-    const min = 0;
-    const max = maxScale;
-
-    useEffect(() => {
-        if (animated) {
-            const val = Math.max(0, Math.min(1, (score - min) / (max - min)));
-            setNormalized(val);
-        } else {
-            setNormalized(0);
-        }
-    }, [animated, score, min, max]);
-
-    const arcLength = 251.3; // Math.PI * 80
-    const offset = arcLength - normalized * arcLength;
-    const rotation = -90 + normalized * 180; // from -90 to +90
-
-    return (
-        <div className="relative w-[320px] max-w-full mx-auto mt-4">
-            <svg viewBox="0 0 200 120" className="w-full overflow-visible">
-                <defs>
-                    {/* Progress arc gradient */}
-                    <linearGradient id="progressGradient" x1="0%" y1="100%" x2="100%" y2="0%">
-                        {/* Dark base at the bottom-left arc start (20,100) */}
-                        <stop offset="0%" stopColor="#000" />
-                        <stop offset="70%" stopColor="#3cb44f" />
-                        <stop offset="100%" stopColor="#2d8a3e" />
-                    </linearGradient>
-
-                    {/* True bottom-up radial fade for the glow layer */}
-                    {/* <radialGradient id="radialArcGlow" cx="20" cy="100" r="80" gradientUnits="userSpaceOnUse">
-                        <stop offset="5%" stopColor="#00e676" stopOpacity="0.85" />
-                        <stop offset="50%" stopColor="#00e676" stopOpacity="0.28" />
-                        <stop offset="95%" stopColor="#0d140d" stopOpacity="0" />
-                    </radialGradient> */}
-
-                    {/* Subtle outer glow filter */}
-                    <filter id="hueGlow" x="-10%" y="-10%" width="120%" height="120%">
-                        <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="blur" />
-                        <feColorMatrix
-                            in="blur"
-                            type="matrix"
-                            values="
-                                1 0 0 0 0
-                                0 1 0 0 0
-                                0 0 1 0 0
-                                0 0 0 0.28 0
-                            "
-                            result="softGlow"
-                        />
-                        <feMerge>
-                            <feMergeNode in="softGlow" />
-                        </feMerge>
-                    </filter>
-
-                    {/* Arrow shadow filter */}
-                    <filter id="arrowShadow" x="-30%" y="-30%" width="160%" height="160%">
-                        <feDropShadow
-                            dx="0"
-                            dy="1.5"
-                            stdDeviation="1.6"
-                            floodColor="#000000"
-                            floodOpacity="0.4"
-                        />
-                    </filter>
-                </defs>
-
-                {/* BG fade from arc bottom start */}
-                <path
-                    d="M20 100 A80 80 0 0 1 180 100"
-                    fill="none"
-                    stroke="url(#radialArcGlow)"
-                    strokeWidth="26"
-                    strokeLinecap="round"
-                    opacity="0.7"
-                />
-
-                {/* Subtle glow layer over main arc using the same bottom-up concept */}
-                <path
-                    d="M20 100 A80 80 0 0 1 180 100"
-                    fill="none"
-                    stroke="url(#progressGradient)"
-                    strokeWidth="22"
-                    strokeLinecap="round"
-                    filter="url(#hueGlow)"
-                    opacity={0.45}
-                    style={{
-                        strokeDasharray: arcLength,
-                        strokeDashoffset: offset,
-                        transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                />
-
-                {/* Core progress arc */}
-                <path
-                    d="M20 100 A80 80 0 0 1 180 100"
-                    fill="none"
-                    stroke="url(#progressGradient)"
-                    strokeWidth="20"
-                    strokeLinecap="round"
-                    style={{
-                        strokeDasharray: arcLength,
-                        strokeDashoffset: offset,
-                        transition: "stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                />
-
-                {/* Arrow Pointer Group */}
-                <g
-                    style={{
-                        transformOrigin: "100px 100px",
-                        transform: `rotate(${rotation}deg)`,
-                        transition: "transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)"
-                    }}
-                >
-                    {/* Arrow */}
-                    <path
-                        d="M 100 80 L 88 108 L 100 100 L 112 108 Z"
-                        fill="#ffffff"
-                        opacity={0.9}
-                        filter="url(#arrowShadow)"
-                    />
-                </g>
-            </svg>
-
-        </div>
-    );
-};
 
 // --- Status badge ---
 const StatusBadge = ({ status }: { status: Contract["status"] }) => {
@@ -651,6 +521,10 @@ const Dashboard = () => {
                             <motion.div
                                 key={contract.id}
                                 className="bg-[#172b1c] rounded-[30px] p-5 transition-all duration-200 cursor-pointer group"
+                                onClick={() => {
+                                    openContracts(contract.id);
+                                    navigate('/dashboard');
+                                }}
                                 initial={{ opacity: 0, y: 18 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 + idx * 0.04 }}

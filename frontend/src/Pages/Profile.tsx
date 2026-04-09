@@ -45,12 +45,12 @@ function LinkRow({ icon: Icon, title, subtitle, verified }: any) {
   if (!subtitle) return null;
   return (
     <motion.div
-      className="flex items-center justify-between p-4 rounded-2xl mx-2 border border-transparent hover:border-[#3cb44f]/20 hover:bg-[#172b1c]/50 transition-all duration-200 cursor-default"
+      className="flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-[#3cb44f]/20 hover:bg-[#172b1c]/50 transition-all duration-200 cursor-default"
       whileHover={{ x: 4 }}
       transition={{ type: 'tween', duration: 0.2 }}
     >
       <div className="flex items-center gap-4 overflow-hidden">
-        <div className="w-11 h-11 rounded-2xl bg-[#0d1a10] border border-[#3cb44f]/20 flex items-center justify-center text-[#3cb44f] shrink-0 shadow-[0_0_20px_rgba(60,180,79,0.08)]">
+      <div className="w-10 h-10 rounded-2xl bg-[#0d1a10] border border-[#3cb44f]/20 flex items-center justify-center text-[#3cb44f] shrink-0 shadow-[0_0_20px_rgba(60,180,79,0.08)]">
           <Icon size={20} strokeWidth={2} />
         </div>
         <div className="min-w-0">
@@ -200,7 +200,13 @@ export default function Profile() {
              const anchorRes = await apiClient.get(`/blockchain/score-anchors/${apiData.id}/latest`);
              setLatestAnchor(anchorRes.data?.data || null);
           } catch (e) {
-             console.error('Failed to fetch score anchor', e);
+             const status = (e as any)?.response?.status;
+             // 404 means: user has no anchors yet (normal for new users)
+             if (status === 404) {
+               setLatestAnchor(null);
+             } else {
+               console.error('Failed to fetch score anchor', e);
+             }
           }
         }
       } catch (err) {
@@ -369,7 +375,7 @@ export default function Profile() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-8 pt-6 border-t border-white/[0.06]">
+              {/* <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-8 pt-6 border-t border-white/[0.06]">
                 {[
                   { Icon: Building, text: data.company_name || '-' },
                   { Icon: MapPin, text: data.location || '-' },
@@ -379,40 +385,71 @@ export default function Profile() {
                     <Icon size={14} className="text-[#3cb44f]/80 shrink-0" /> {text}
                   </span>
                 ))}
-              </div>
+              </div> */}
             </motion.div>
 
-            {/* RIGHT: Reputation card */}
-          
+            {/* RIGHT: Skills pills */}
+            <motion.div
+              className="lg:col-span-4 flex justify-center lg:justify-end"
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
+            >
+              <div className="w-full max-w-md lg:max-w-none mt-10">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
+                    {/* <Sparkles size={14} className="text-[#3cb44f]" /> Skills */}
+                  </div>
+                  <span className="text-[10px] text-gray-100 font-semibold uppercase tracking-wider">Specialties</span>
+                </div>
+                <div className="flex flex-wrap justify-center lg:justify-end gap-2.5">
+                  {data.skills && data.skills.length > 0 ? (
+                    data.skills.map((skill: string) => (
+                      <span
+                        key={skill}
+                        className="px-4 py-2 bg-[#0d1a10]/80 text-gray-200 border border-white/5 text-xs font-semibold rounded-xl hover:border-[#3cb44f]/30 hover:text-[#3cb44f]/90 transition-all cursor-default"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-sm text-gray-500">No skills added.</span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
 
           </div>
         </motion.div>
 
-        {/* MAIN 2-COL GRID */}
+        {/* MAIN GRID (full width) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 pb-4 -mt-6">
 
           {/* LEFT: Personal Details & Verified Links */}
-          <div className="lg:col-span-8 space-y-2">
+          <div className="lg:col-span-12 space-y-2">
             <motion.div
               className="bg-[#111f14] rounded-[40px]   overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.2, ease: 'easeOut' }}
             >
-              <div className="flex items-center justify-between p-6 sm:px-8 border-b border-white/[0.06] bg-[#0d1a10]/50">
+              <div className="flex items-center justify-center p-6 sm:px-8 border-b border-white/[0.06] bg-[#0d1a10]/50">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2"><User size={20} className="text-[#3cb44f]" /> Personal details</h3>
-                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Public identity</span>
               </div>
-              <div className="p-6 sm:p-8 space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-10">
-                  <InfoField label="Username" value={data.user_name} />
-                  <InfoField label="What do you do" value={data.what_do_you_do} />
-                  <InfoField label="Short headline" value={data.short_headline} />
-                  <InfoField label="Location" value={data.location} />
-                  <InfoField label="Experience" value={data.experience} />
-                  <InfoField label="Company Name" value={data.company_name} />
-                  <InfoField label="Phone" value={data.phone as string | undefined} />
+              <div className="p-5 sm:p-6 space-y-4">
+                <div className="flex justify-center">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-6 text-center w-full">
+                    <InfoField label="Username" value={data.user_name} />
+                    <InfoField label="What do you do" value={data.what_do_you_do} />
+                    <InfoField label="Short headline" value={data.short_headline} />
+                    <InfoField label="Location" value={data.location} />
+                    <InfoField label="Experience" value={data.experience} />
+                    <InfoField label="Company Name" value={data.company_name} />
+                    <div />
+                    <InfoField label="Phone" value={data.phone as string | undefined} />
+                  </div>
                 </div>
+           
 
                 {/* {data.bio && (
                   <div className="pt-2 border-t border-white/[0.06]">
@@ -433,138 +470,16 @@ export default function Profile() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, delay: 0.28, ease: 'easeOut' }}
             >
-              <div className="flex items-center justify-between p-6 border-b border-white/[0.06] bg-[#0d1a10]/50 mb-2">
+              <div className="flex items-center justify-center p-6 border-b border-white/[0.06] bg-[#0d1a10]/50">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2"><Link2 size={20} className="text-[#3cb44f]" /> Verified links</h3>
-                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Identity & presence</span>
               </div>
-              <div className="space-y-1 p-4">
+              <div className="flex justify-center">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-4 w-full">
                 <LinkRow icon={Github} title="GitHub" subtitle={data.github_link} />
                 <LinkRow icon={Linkedin} title="LinkedIn" subtitle={data.linkedin_link} />
                 <LinkRow icon={Globe} title="Portfolio" subtitle={data.portfolio_link} />
                 <LinkRow icon={Instagram} title="Instagram" subtitle={data.instagram_link} />
-              </div>
-            </motion.div>
-          </div>
-
-          {/* RIGHT: Skills & Visibility */}
-          <div className="lg:col-span-4 space-y-2">
-          <motion.div
-              className="lg:col-span-4 bg-[#111f14] rounded-[32px] p-8   flex flex-col justify-between backdrop-blur-sm"
-              initial={{ opacity: 0, x: 12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-white text-lg font-bold flex items-center gap-2">
-                  <Activity size={20} className="text-[#3cb44f]" /> Reputation Score
-                </h3>
-                {latestAnchor && latestAnchor.transaction_hash && (
-                  <a 
-                    href={`https://sepolia.basescan.org/tx/${latestAnchor.transaction_hash}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-colors cursor-pointer group"
-                    title="View score on Base L2 blockchain"
-                  >
-                    <div className="w-4 h-4 rounded-full bg-[#0052FF] flex items-center justify-center p-0.5">
-                      <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-[#0052FF]"></div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-300 group-hover:text-white pt-px">Verified on Base</span>
-                  </a>
-                )}
-              </div>
-              <div className="flex-1 flex flex-col justify-center relative my-2">
-                <ScoreHistoryGraph data={scoreHistory} currentScore={(data as any).credibility_score || 0} />
-              </div>
-              <div className="text-center mt-2">
-                <p className="text-[#3cb44f] text-sm font-bold mb-1">{(data as any).score_tier || 'Starter'}</p>
-                <p className="text-xs text-gray-400 leading-relaxed max-w-[260px] mx-auto">
-                  Your credibility score grows as you deliver complex milestones and retain clients. 
-                </p>
-              </div>
-              {/* <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-[11px] text-gray-300 font-semibold">
-                <div className="flex items-center gap-2"><Check size={16} className="text-[#3cb44f] shrink-0" /> Photo uploaded</div>
-                <div className="flex items-center gap-2"><Check size={16} className="text-[#3cb44f] shrink-0" /> Bio added</div>
-                <div className="flex items-center gap-2"><Check size={16} className="text-[#3cb44f] shrink-0" /> Projects public</div>
-              </div> */}
-            </motion.div>
-            
-
-            <motion.div
-              className="bg-[#111f14] rounded-[40px] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.32, ease: 'easeOut' }}
-            >
-              <div className="flex items-center justify-between p-6 border-b border-white/[0.06] bg-[#0d1a10]/50 mb-2">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2"><Eye size={20} className="text-[#3cb44f]" /> Visibility settings</h3>
-                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">What others see</span>
-              </div>
-              <div className="px-6 pb-6 pt-4 space-y-5">
-                <ToggleRow 
-                  title="Show profile" 
-                  desc="Your public profile is visible and included in search." 
-                  checked={data.show_profile !== false} 
-                  loading={updating === 'show_profile'}
-                  onChange={(v: boolean) => handleToggle('show_profile', v)}
-                />
-
-                {data.show_profile !== false && profile?.user_name && (
-                  <motion.div 
-                    className="p-3 bg-[#0d1a10] rounded-2xl border border-[#3cb44f]/20 flex items-center justify-between gap-3 mt-2"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <Link2 size={14} className="text-[#3cb44f] shrink-0" />
-                      <span className="text-[10px] text-gray-300 font-mono truncate">{publicUrl}</span>
-                    </div>
-                    <button 
-                      onClick={copyToClipboard}
-                      className="p-1.5 hover:bg-white/5 rounded-lg text-[#3cb44f] transition-colors cursor-pointer"
-                    >
-                      {copied ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
-                  </motion.div>
-                )}
-
-                <div className="w-full h-px bg-white/[0.06]" />
-                
-                <ToggleRow 
-                  title="Show projects" 
-                  desc="Showcase your verified work and boost reputation." 
-                  checked={data.show_projects !== false} 
-                  loading={updating === 'show_projects'}
-                  onChange={(v: boolean) => handleToggle('show_projects', v)}
-                />
-
-                {data.show_projects !== false && (
-                  <button 
-                    onClick={() => { setShowProjectModal(true); fetchContracts(); }}
-                    className="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-bold text-white hover:bg-[#3cb44f]/10 hover:border-[#3cb44f]/30 transition-all cursor-pointer flex items-center justify-center gap-2 mt-1"
-                  >
-                    <Edit2 size={12} /> Select displayed projects
-                  </button>
-                )}
-              </div>
-            </motion.div>
-            <motion.div
-              className="bg-[#111f14] rounded-[40px] overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.24, ease: 'easeOut' }}
-            >
-              <div className="flex items-center justify-between p-6 border-b border-white/[0.06] bg-[#0d1a10]/50 mb-2">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2"><Sparkles size={20} className="text-[#3cb44f]" /> Skills</h3>
-                <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Specialties</span>
-              </div>
-              <div className="flex flex-wrap gap-2.5 px-6 pb-6 pt-4">
-                {data.skills && data.skills.length > 0 ? data.skills.map((skill: string) => (
-                  <span key={skill} className="px-4 py-2 bg-[#172b1c] text-gray-200 border border-white/5 text-xs font-semibold rounded-xl hover:border-[#3cb44f]/30 hover:text-[#3cb44f]/90 transition-all cursor-default">
-                    {skill}
-                  </span>
-                )) : <span className="text-sm text-gray-500">No skills added.</span>}
+                </div>
               </div>
             </motion.div>
           </div>

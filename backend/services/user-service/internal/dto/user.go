@@ -122,7 +122,6 @@ type PublicProfileResponse struct {
 	Skills        []string             `json:"skills,omitempty"`
 	HourlyRate    *float64             `json:"hourly_rate,omitempty"`
 	Availability             string               `json:"availability,omitempty"`
-	AggregateReputationScore int                  `json:"aggregate_reputation_score,omitempty"`
 	CredibilityScore         int                  `json:"credibility_score"`
 	ScoreTier                string               `json:"score_tier,omitempty"`
 	Projects                 []ProjectResponse    `json:"projects,omitempty"` // only if show_projects

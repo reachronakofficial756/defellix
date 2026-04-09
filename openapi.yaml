@@ -207,9 +207,11 @@ components:
           type: array
           items:
             type: string
-        aggregate_reputation_score:
+        credibility_score:
           type: integer
-          description: Total Reputation Points earned on the platform
+          description: Credibility score (0-1000)
+        score_tier:
+          type: string
         projects:
           type: array
           items:

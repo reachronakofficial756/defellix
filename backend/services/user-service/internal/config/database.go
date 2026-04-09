@@ -43,6 +43,11 @@ func InitDB(cfg *Config) (*gorm.DB, error) {
 func AutoMigrate(db *gorm.DB, models ...interface{}) error {
 	// Drop the auto-generated unique index if it exists, so our partial index takes precedence
 	db.Exec("DROP INDEX IF EXISTS idx_users_user_name CASCADE")
+
+	// Explicit schema cleanup: this column is deprecated and must not exist.
+	if err := db.Exec("ALTER TABLE users DROP COLUMN IF EXISTS aggregate_reputation_score").Error; err != nil {
+		return fmt.Errorf("failed to drop aggregate_reputation_score column: %w", err)
+	}
 	
 	if err := db.AutoMigrate(models...); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)

@@ -21,6 +21,81 @@ type MilestoneDetail = {
   last_draft_at?: string;
 };
 
+function renderReadableText(input?: string) {
+  const raw = (input || '').trim();
+  if (!raw) return <span className="text-gray-500">—</span>;
+
+  const lines = raw
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return <span className="text-gray-500">—</span>;
+
+  const isBullet = (l: string) => /^[-*•]\s+/.test(l) || /^\d+\.\s+/.test(l);
+  const hasBullets = lines.some(isBullet);
+
+  if (!hasBullets) {
+    return (
+      <div className="space-y-2 text-gray-300 leading-relaxed whitespace-pre-wrap">
+        {raw.split(/\n{2,}/).map((p, idx) => (
+          <p key={idx}>{p.trim()}</p>
+        ))}
+      </div>
+    );
+  }
+
+  const blocks: Array<{ type: 'p' | 'ul'; items: string[] }> = [];
+  let currentPara: string[] = [];
+  let currentList: string[] = [];
+
+  const flushPara = () => {
+    if (currentPara.length) {
+      blocks.push({ type: 'p', items: [currentPara.join(' ')] });
+      currentPara = [];
+    }
+  };
+  const flushList = () => {
+    if (currentList.length) {
+      blocks.push({ type: 'ul', items: currentList });
+      currentList = [];
+    }
+  };
+
+  for (const l of lines) {
+    if (isBullet(l)) {
+      flushPara();
+      currentList.push(l.replace(/^([-*•]|\d+\.)\s+/, '').trim());
+    } else {
+      flushList();
+      currentPara.push(l);
+    }
+  }
+  flushPara();
+  flushList();
+
+  return (
+    <div className="space-y-3 text-gray-300 leading-relaxed">
+      {blocks.map((b, i) =>
+        b.type === 'ul' ? (
+          <ul key={i} className="list-disc pl-5 space-y-1 marker:text-[#3cb44f]/70">
+            {b.items.map((it, j) => (
+              <li key={j} className="text-sm text-gray-300">
+                {it}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i} className="text-sm whitespace-pre-wrap">
+            {b.items[0]}
+          </p>
+        )
+      )}
+    </div>
+  );
+}
+
 export interface ContractItem {
   id: number;
   title: string;
@@ -526,6 +601,9 @@ export default function ContractsOverlay() {
 
   if (!active || !cfg) return null;
 
+  const revisionMilestone = active.milestones.find((m: any) => m?.status === 'revision');
+  const needsResubmission = Boolean(revisionMilestone);
+
   return (
     <motion.div
       ref={pageRef}
@@ -544,7 +622,16 @@ export default function ContractsOverlay() {
       </div>
 
       <div className="absolute top-52 right-20 flex flex-row items-end gap-2 mb-4">
-        {(active.rawStatus === 'signed' || active.rawStatus === 'active') && (
+        {(active.rawStatus === 'signed' || active.rawStatus === 'active') && revisionMilestone && (
+          <button
+            className="cursor-pointer px-4 py-3 bg-orange-500/10 border border-orange-500/20 text-orange-400 rounded-full font-medium shadow hover:bg-orange-500/20 transition flex items-center gap-2"
+            onClick={() => navigate(`/submit-milestone/${active.id}?milestoneId=${revisionMilestone.id}`)}
+            title="Client left feedback — resubmit required"
+          >
+            <MessageSquareMore size={18} /> Feedback Review • Resubmit
+          </button>
+        )}
+        {(active.rawStatus === 'signed' || active.rawStatus === 'active') && !needsResubmission && (
           <button
             className="cursor-pointer px-5 py-3 bg-green-600 text-white rounded-full font-medium shadow hover:bg-green-700 transition"
             onClick={() => navigate(`/submit-milestone/${active.id}`)}
@@ -840,11 +927,17 @@ export default function ContractsOverlay() {
                           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                             <div><dt className="text-gray-500 mb-0.5">Project Title</dt><dd className="text-white font-medium">{(active as { title: string }).title}</dd></div>
                             <div><dt className="text-gray-500 mb-0.5">Project Type</dt><dd className="text-white font-medium">{(active as { projectType?: string }).projectType ?? '—'}</dd></div>
-                            <div className="sm:col-span-2"><dt className="text-gray-500 mb-0.5">Project Description</dt><dd className="text-gray-300 leading-relaxed">{(active as { projectDesc?: string }).projectDesc ?? active.details}</dd></div>
+                            <div className="sm:col-span-2">
+                              <dt className="text-gray-500 mb-1">Project Description</dt>
+                              <dd>{renderReadableText((active as { projectDesc?: string }).projectDesc ?? active.details)}</dd>
+                            </div>
                             <div><dt className="text-gray-500 mb-0.5">Start Date</dt><dd className="text-white font-medium">{(active as { startDate?: string }).startDate ?? '—'}</dd></div>
                             <div><dt className="text-gray-500 mb-0.5">Deadline</dt><dd className="text-white font-medium">{(active as { deadline?: string }).deadline ?? '—'}</dd></div>
                             <div><dt className="text-gray-500 mb-0.5">Duration</dt><dd className="text-white font-medium">{(active as { duration?: string }).duration ?? '—'}</dd></div>
-                            <div className="sm:col-span-2"><dt className="text-gray-500 mb-0.5">Terms & Conditions</dt><dd className="text-gray-300 leading-relaxed">{(active as { customTerms?: string }).customTerms ?? '—'}</dd></div>
+                            <div className="sm:col-span-2">
+                              <dt className="text-gray-500 mb-1">Terms & Conditions</dt>
+                              <dd>{renderReadableText((active as { customTerms?: string }).customTerms)}</dd>
+                            </div>
                           </dl>
                         </div>
 
@@ -900,8 +993,14 @@ export default function ContractsOverlay() {
                           </h3>
                           <dl className="space-y-3 text-sm">
                             <div><dt className="text-gray-500 mb-0.5">Revision Policy</dt><dd className="text-white font-medium">{(active as { revisionPolicy?: string }).revisionPolicy ?? '—'}</dd></div>
-                            <div><dt className="text-gray-500 mb-0.5">Out of Scope</dt><dd className="text-gray-300 leading-relaxed">{(active as { outOfScope?: string }).outOfScope ?? '—'}</dd></div>
-                            <div><dt className="text-gray-500 mb-0.5">Core Deliverable</dt><dd className="text-white font-medium">{(active as { coreDeliverable?: string }).coreDeliverable ?? '—'}</dd></div>
+                            <div>
+                              <dt className="text-gray-500 mb-1">Out of Scope</dt>
+                              <dd>{renderReadableText((active as { outOfScope?: string }).outOfScope)}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-gray-500 mb-1">Core Deliverable</dt>
+                              <dd className="text-white">{renderReadableText((active as { coreDeliverable?: string }).coreDeliverable)}</dd>
+                            </div>
                             <div><dt className="text-gray-500 mb-0.5">Intellectual Property</dt><dd className="text-white font-medium">{(active as { intellectualProperty?: string }).intellectualProperty ?? '—'}</dd></div>
                           </dl>
                           {/* Milestones (form-style with title, description, amount, due_date, etc.) */}
@@ -974,12 +1073,9 @@ export default function ContractsOverlay() {
                                       );
                                     })()}
                                     {m.status === 'revision' && (
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); navigate(`/submit-milestone/${active.id}?milestoneId=${m.id}`); }}
-                                        className="mt-1 w-full py-2 bg-orange-500/10 border border-orange-500/20 text-orange-400 font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-orange-500/20 transition-all cursor-pointer flex justify-center items-center gap-2"
-                                      >
-                                        <MessageSquareMore size={12} /> Feedback Received - Resubmit
-                                      </button>
+                                      <div className="ml-9 mt-1 text-[10px] text-orange-400 font-bold uppercase tracking-widest">
+                                        Feedback received — resubmit required
+                                      </div>
                                     )}
                                   </div>
                                 );
@@ -1215,7 +1311,22 @@ export default function ContractsOverlay() {
                             </div>
                           ) : (
                             <>
-                              { (active?.rawStatus === 'signed' || active?.rawStatus === 'active') && (
+                              { (active?.rawStatus === 'signed' || active?.rawStatus === 'active') && needsResubmission && revisionMilestone && (
+                                <button
+                                  className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer flex justify-center items-center gap-2"
+                                  style={{
+                                    background: `linear-gradient(135deg, #f9731622, #ea580c12)`,
+                                    border: `1px solid #f9731640`,
+                                    color: '#f97316',
+                                  }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = `#f9731622`)}
+                                  onMouseLeave={e => (e.currentTarget.style.background = `linear-gradient(135deg, #f9731622, #ea580c12)`)}
+                                  onClick={() => navigate(`/submit-milestone/${active.id}?milestoneId=${revisionMilestone.id}`)}
+                                >
+                                  <MessageSquareMore size={18} /> Feedback Review • Resubmit
+                                </button>
+                              )}
+                              { (active?.rawStatus === 'signed' || active?.rawStatus === 'active') && !needsResubmission && (
                                 <button
                                   className="w-full py-4 rounded-2xl font-bold text-md transition-all duration-200 cursor-pointer"
                                   style={{

@@ -37,7 +37,6 @@ type User struct {
 
 	// Reputation & Stats (Populated after contracts) - Using JSONB for flexibility
 	Stats                    datatypes.JSON `gorm:"type:jsonb" json:"stats,omitempty"` // {no_of_projects_done, on_time_completion, reputation_score}
-	AggregateReputationScore int            `gorm:"default:0" json:"aggregate_reputation_score"`
 	CredibilityScore         int            `gorm:"default:0" json:"credibility_score"`                      // 0-1000 overall score
 	ScoreTier                string         `gorm:"type:varchar(40);default:'Starter'" json:"score_tier"`     // Tier label
 	DimensionScores          datatypes.JSON `gorm:"type:jsonb" json:"dimension_scores,omitempty"`             // 6-dimension breakdown
