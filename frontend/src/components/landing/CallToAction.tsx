@@ -1,5 +1,6 @@
 import { motion, useScroll, useTransform, useSpring } from 'motion/react';
 import { useRef } from 'react';
+import BetaLaunchLink from './BetaLaunchLink';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -137,9 +138,7 @@ const CallToAction = () => {
               Stop worrying about payments and start focusing on your craft. Join the first platform where your hard work becomes your permanent legacy.
             </p>
 
-            <button className="bg-[#1C1C1C] text-[#3cb44f] px-8 py-3.5 rounded-full text-lg font-medium hover:bg-[#3cb44f] hover:text-black hover:border-bg-[#000] border cursor-pointer transition-colors duration-300">
-              Start Your First Contract
-            </button>
+            <BetaLaunchLink variant="cta" />
           </motion.div>
 
           <motion.div

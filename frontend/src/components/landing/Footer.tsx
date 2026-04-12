@@ -1,6 +1,7 @@
 import { Linkedin, Twitter, Facebook, Instagram, Youtube } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { useRef } from 'react';
+import BetaLaunchLink from './BetaLaunchLink';
 
 void [Linkedin, Twitter, Facebook, Instagram, Youtube];
 
@@ -36,9 +37,13 @@ const Footer = () => {
               {/* The Architecture of <br />
               Professional Proof. */}
             </h2>
-            <p className="text-slate-500 text-lg md:text-2xl text-center font-medium leading-relaxed mb-10 mt-24 max-w-md">
+            <p className="text-slate-500 text-lg md:text-2xl text-center font-medium leading-relaxed mb-8 mt-24 max-w-md">
               Unlocking the next era of decentralized trust through verifiable infrastructure.
             </p>
+
+            {/* <div className="mb-12 pointer-events-auto">
+              <BetaLaunchLink variant="cta" className="!px-10 !py-3 !text-base" />
+            </div> */}
 
             <div className="relative h-64 md:h-80 overflow-hidden flex items-center -ml-12 pointer-events-none">
               <img

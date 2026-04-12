@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
-import { NavLink } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
 import HeroSpiral from './HeroSpiral';
+import BetaLaunchLink from './BetaLaunchLink';
 
 const Hero = () => {
   return (
@@ -45,15 +44,7 @@ const Hero = () => {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-6"
         >
-          <NavLink
-            to="/signup"
-            className="group relative px-12 py-5 bg-accent text-black font-bold rounded-full overflow-hidden transition-all hover:scale-105 shadow-[0_0_30px_rgba(60,180,79,0.3)] hover:shadow-[0_0_50px_rgba(60,180,79,0.5)]"
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-            <span className="relative flex items-center gap-3">
-            Start for Free<ArrowRight className="w-5 h-5" />
-            </span>
-          </NavLink>
+          <BetaLaunchLink variant="hero" />
         </motion.div>
 
         <HeroSpiral />
