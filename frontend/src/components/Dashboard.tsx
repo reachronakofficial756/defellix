@@ -12,6 +12,17 @@ import active_contracts from "@/assets/active_contracts.png";
 import disputes from "@/assets/disputes.png";
 import { Score } from "@/components/Score";
 import { ReputationGauge } from "@/components/ReputationGauge";
+import { useAuth } from "@/contexts/AuthContext";
+import NotificationPanel from "@/components/NotificationPanel";
+import {
+    HouseIcon,
+    FolderOpenIcon,
+    BellRingIcon,
+    ListChevronsUpDownIcon,
+    UserRoundIcon,
+    LogoutIcon,
+    PlusIcon,
+} from "@/components/MobileDockIcons";
 
 // --- Types ---
 interface MetricCard {
@@ -85,17 +96,19 @@ const ImpactDots = ({ count, max = 3 }: { count: number; max?: number }) => (
 const Dashboard = () => {
     const navigate = useNavigate();
     const { openContracts } = useContractsStore();
+    const { logout } = useAuth();
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [rawContracts, setRawContracts] = useState<any[]>([]); // raw API data for computing metrics
     const [loadingContracts, setLoadingContracts] = useState(true);
     const [animated, setAnimated] = useState(false);
-    const [tab, setTab] = useState<"Overall" | "Last Project">("Overall");
     const [scrollY, setScrollY] = useState(0);
     const [score, setScore] = useState(0);
     const [scoreTier, setScoreTier] = useState('Starter');
     const [dimensionScores, setDimensionScores] = useState<any>(null);
     const [scoreHistory, setScoreHistory] = useState<any[]>([]);
     const [totalEarnings, setTotalEarnings] = useState(0);
+    const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+    const [mobileNotifOpen, setMobileNotifOpen] = useState(false);
 
     useEffect(() => {
         const fetchContracts = async () => {
@@ -218,7 +231,7 @@ const Dashboard = () => {
 
     const metrics = computeMetrics();
     const isEmpty = !loadingContracts && contracts.length === 0;
-    const isOverall = tab === "Overall";
+    const isOverall = true;
 
     let lastProjectScoreChange = 0;
 
@@ -247,8 +260,8 @@ const Dashboard = () => {
         lastProjectScoreChange = score > baseScore ? score - baseScore : score;
     }
 
-    const displayScore = isOverall ? score : lastProjectScoreChange;
-    const gaugeMax = isOverall ? 1000 : 200;
+    const displayScore = score;
+    const gaugeMax = 1000;
 
     return (
         <motion.div
@@ -258,14 +271,264 @@ const Dashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
         >
-            {/* --- TOP SECTION (fixed hero) --- */}
-            <div className="fixed inset-x-0 top-15 z-10 pointer-events-none">
-                <motion.div
-                    className="pointer-events-auto max-w-full mx-auto flex flex-col gap-6 p-8 pb-24"
-                    initial={{ opacity: 0, y: -16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.55, ease: "easeOut", delay: 0.1 }}
-                >
+            {/* --- MOBILE LAYOUT (stacked, app-like) --- */}
+            <div className="md:hidden px-4 pt-8 pb-24 space-y-8">
+                {/* Hero */}
+                <div className="space-y-4">
+                    {/* <div className="flex items-center justify-center">
+                        <h2 className="text-3xl font-normal text-white leading-none font-syne">Credibility Score</h2>
+                        <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800">
+                            {(["Overall", "Last Project"] as const).map((t) => (
+                                <button
+                                    key={t}
+                                    onClick={() => setTab(t)}
+                                    className={`text-[10px] px-3 py-1 rounded-full font-medium transition-all duration-200 cursor-pointer ${tab === t ? "bg-[#3cb44f] text-black" : "text-gray-400 hover:text-white"
+                                        }`}
+                                >
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                    </div> */}
+                    <div className="flex flex-col items-center gap-1">
+                        {isOverall && lastProjectScoreChange !== 0 && (
+                            <p className="text-xs font-medium text-[#00e676]">
+                                ↗ {lastProjectScoreChange > 0 ? `+${lastProjectScoreChange}` : lastProjectScoreChange} from last project
+                            </p>
+                        )}
+                        <Score displayScore={displayScore} />
+                        <p className="text-xs text-gray-400">{isOverall ? scoreTier : 'Last Project Impact'}</p>
+                        <div className="mt-4 w-full flex justify-center">
+                            <div className="scale-100">
+                                <ReputationGauge score={displayScore} animated={animated} maxScale={gaugeMax} idPrefix="mobile-gauge" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Metrics */}
+                <div className="grid grid-cols-2 gap-3">
+                    {metrics.map((m, i) => (
+                        <div
+                            key={i}
+                            className="bg-[#111f14] rounded-3xl p-4 flex flex-col justify-between min-h-[120px] border border-white/5"
+                        >
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className={`w-10 h-10 rounded-2xl ${m.iconBg} flex items-center justify-center`}>
+                                    <img src={m.icon} alt={m.label} className="w-8 h-8" />
+                                </div>
+                                <span className="text-[11px] text-gray-400 font-medium">{m.label}</span>
+                            </div>
+                            <div className="flex items-end justify-between">
+                                <span className="text-2xl font-bold text-white">{m.value}{m.unit && <span className="text-xs text-gray-400 ml-1">{m.unit}</span>}</span>
+                                <ImpactDots count={m.impactDots} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Active contracts list */}
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Active Contracts</h3>
+                            <p className="text-xs text-gray-500">Live updates on your work</p>
+                        </div>
+                        <button
+                            onClick={() => navigate("/dashboard/contract")}
+                            className="cursor-pointer text-xs font-semibold text-[#0d140d] border border-[#3cb44f]/30 hover:border-[#3cb44f] bg-[#3cb44f] px-3 py-1.5 rounded-xl transition-all duration-200 flex items-center gap-1.5"
+                        >
+                            <span className="text-lg -mt-0.5 leading-none">+</span>
+                            Create
+                        </button>
+                    </div>
+
+                    {loadingContracts ? (
+                        <div className="space-y-2">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i} className="bg-[#172b1c] rounded-2xl p-4 animate-pulse h-[96px]" />
+                            ))}
+                        </div>
+                    ) : contracts.length === 0 ? (
+                        <div className="bg-[#111f14] rounded-2xl p-5 text-center text-sm text-gray-400">
+                            No active contracts. Create one to start building credibility.
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {contracts.map((contract) => (
+                                <button
+                                    key={contract.id}
+                                    className="w-full text-left bg-[#172b1c] rounded-2xl p-4 border border-white/10 flex flex-col gap-3 active:scale-[0.99] transition shadow-sm"
+                                    onClick={() => {
+                                        openContracts(contract.id);
+                                        navigate('/dashboard');
+                                    }}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-semibold text-white">{contract.name}</h4>
+                                            <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                                                Client: <span className="text-gray-300">{contract.client}</span>
+                                            </p>
+                                        </div>
+                                        <StatusBadge status={contract.status} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full rounded-full transition-all duration-700"
+                                                style={{
+                                                    width: `${contract.completion}%`,
+                                                    backgroundColor: contract.color,
+                                                    boxShadow: `0 0 6px ${contract.color}55`,
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] text-gray-500">{contract.completion}% complete · Milestone {contract.milestone}</p>
+                                            <p className="text-[10px] text-gray-500">Updated {contract.updatedAgo}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Bottom dock */}
+                <div className="fixed bottom-4 inset-x-0 flex justify-center md:hidden pointer-events-none">
+                    <div className="pointer-events-auto w-[92%] max-w-md">
+                        {/* Dock body */}
+                        <div className="relative rounded-[26px] bg-[#050807]/90 border-b border-white/10 shadow-[0_18px_40px_rgba(0,0,0,0.9)] px-5 py-3 backdrop-blur-md">
+                            {/* Center FAB (Create) */}
+                            <div className="absolute left-1/2 -translate-x-1/2 -top-4 z-10 flex items-center justify-center">
+                       
+                                <div className="w-16 h-16 rounded-full bg-[#050807]/90 backdrop-blur-md flex items-center justify-center">
+                                    <button
+                                        onClick={() => navigate('/dashboard/contract')}
+                                        className="w-14 h-14 rounded-full bg-[#3cb44f] text-black shadow-[0_8px_16px_rgba(60,180,79,0.18)] border border-[#b7f3c2]/40 flex items-center justify-center active:scale-95 transition cursor-pointer"
+                                        title="Create Contract"
+                                    >
+                                        <PlusIcon size={26} className="text-black" />
+                                    </button>
+                                </div>
+                            </div>
+                       
+
+                            <div className="grid grid-cols-5 gap-1 items-end">
+                                {/* Home */}
+                                <button
+                                    className="flex flex-col items-center gap-1 text-[12px] font-medium text-[#3cb44f] min-w-0 px-1"
+                                    onClick={() => navigate('/dashboard')}
+                                >
+                                    <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-[#3cb44f]">
+                                        <HouseIcon size={22} />
+                                    </div>
+                                    Home
+                                </button>
+
+                                {/* Contracts */}
+                                <button
+                                    className="flex flex-col items-center gap-1 text-[12px] font-medium text-gray-400 min-w-0 px-1"
+                                    onClick={() => openContracts()}
+                                >
+                                    <div className="w-9 h-9 rounded-2xl flex items-center justify-center">
+                                        <FolderOpenIcon size={22} />
+                                    </div>
+                                    Contracts
+                                </button>
+
+                                {/* Center spacing (for FAB) */}
+                                <div className="w-full h-full" />
+
+                                {/* Notifications */}
+                                <button
+                                    className="flex flex-col items-center gap-1 text-[12px] font-medium text-gray-400 min-w-0 px-1"
+                                    onClick={() => setMobileNotifOpen(true)}
+                                >
+                                    <div className="w-9 h-9 rounded-2xl flex items-center justify-center">
+                                        <BellRingIcon size={22} />
+                                    </div>
+                                    Alerts
+                                </button>
+
+                                {/* Menu */}
+                                <button
+                                    className="flex flex-col items-center gap-1 text-[12px] font-medium text-gray-400 min-w-0 px-1"
+                                    onClick={() => setMobileDrawerOpen(true)}
+                                >
+                                    <div className="w-9 h-9 rounded-2xl flex items-center justify-center">
+                                        <ListChevronsUpDownIcon size={22} />
+                                    </div>
+                                    Menu
+                                </button>
+                            </div>
+                       
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Mobile: notifications panel (reuses existing component) */}
+            <div className="md:hidden">
+                <NotificationPanel isOpen={mobileNotifOpen} onClose={() => setMobileNotifOpen(false)} />
+            </div>
+
+            {/* Mobile: profile drawer */}
+            {mobileDrawerOpen && (
+                <div className="fixed inset-0 z-[9999] md:hidden">
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        onClick={() => setMobileDrawerOpen(false)}
+                    />
+                    <motion.div
+                        initial={{ y: 30, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 30, opacity: 0 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        className="absolute left-0 right-0 bottom-0 rounded-t-[28px] bg-[#050807] border-t border-white/10 shadow-[0_-20px_60px_rgba(0,0,0,0.8)] p-5"
+                    >
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="w-12 h-1 rounded-full bg-white/10 mx-auto" />
+                            {/* <button
+                                className="absolute right-4 top-4 w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-300"
+                                onClick={() => setMobileDrawerOpen(false)}
+                            >
+                                <X size={18} />
+                            </button> */}
+                        </div>
+
+                        <div className="space-y-2 pt-2">
+                            <button
+                                onClick={() => { setMobileDrawerOpen(false); navigate('/dashboard/profile'); }}
+                                className="w-full flex items-center justify-between px-4 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-semibold"
+                            >
+                                <span className="flex items-center gap-3"><UserRoundIcon size={18} className="text-[#3cb44f]" /> Profile</span>
+                                <span className="text-gray-500 text-xs">View</span>
+                            </button>
+
+                            <button
+                                onClick={async () => { setMobileDrawerOpen(false); await logout(); navigate('/'); }}
+                                className="w-full flex items-center justify-between px-4 py-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 font-bold"
+                            >
+                                <span className="flex items-center gap-3"><LogoutIcon size={18} /> Logout</span>
+                                <span className="text-red-300/70 text-xs">Exit</span>
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* --- DESKTOP LAYOUT (existing) --- */}
+            <div className="hidden md:block">
+                {/* TOP SECTION (fixed hero) */}
+                <div className="fixed inset-x-0 top-15 z-10 pointer-events-none">
+                    <motion.div
+                        className="pointer-events-auto max-w-full mx-auto flex flex-col gap-6 p-8 pb-24"
+                        initial={{ opacity: 0, y: -16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.55, ease: "easeOut", delay: 0.1 }}
+                    >
                     {/* ── EMPTY STATE: just the gauge, centered ── */}
                     {isEmpty ? (
                         <div className="w-full flex flex-col items-center justify-center gap-6 pt-4 pb-4">
@@ -316,7 +579,7 @@ const Dashboard = () => {
                                 {/* Title row */}
                                 <div className="flex items-start justify-between mb-8">
                                     <h2 className="text-6xl font-normal text-white leading-tight -mt-8 font-syne">Credibility<br />Score</h2>
-                                    <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800">
+                                    {/* <div className="flex gap-1 bg-[#172b1c] rounded-full p-1 border border-gray-800">
                                         {(["Overall", "Last Project"] as const).map((t) => (
                                             <button
                                                 key={t}
@@ -327,7 +590,7 @@ const Dashboard = () => {
                                                 {t}
                                             </button>
                                         ))}
-                                    </div>
+                                    </div> */}
                                 </div>
 
                                 {/* Middle: Score and Gauge */}
@@ -403,14 +666,14 @@ const Dashboard = () => {
                             </div>
                         </div>
                     )}
-                </motion.div>
-            </div>
+                    </motion.div>
+                </div>
 
-            {/* --- BOTTOM SECTION (curved, overlaps, parallax) --- */}
-            <div className={`relative min-h-screen ${isEmpty ? 'pt-[700px]' : 'pt-[700px]'}`}>
-                <div
-                    className="relative z-20 rounded-t-[100px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
-                >
+                {/* BOTTOM SECTION (curved, overlaps, parallax) */}
+                <div className={`relative min-h-screen ${isEmpty ? 'pt-[700px]' : 'pt-[700px]'}`}>
+                    <div
+                        className="relative z-20 rounded-t-[100px] bg-[#0d1a10] p-8 shadow-[0_-30px_80px_rgba(0,0,0,0.8)]"
+                    >
                     {/* Centered handle / notch */}
                     <div
                         className="absolute top-0 left-1/2 transform -translate-x-1/2 mb-4"
@@ -578,9 +841,10 @@ const Dashboard = () => {
                             </motion.div>
                         ))}
                     </motion.div>
+                    </div>
                 </div>
             </div>
-            {/* Floating Action Button */}
+            {/* Floating Action Button (desktop, currently disabled) */}
             {/* <button
                 onClick={() => navigate("/contract")}
                 className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-10 py-3.5 rounded-[20px] bg-[#00e676] text-black font-bold text-lg shadow-[0_8px_30px_rgba(0,230,118,0.25)] hover:shadow-[0_12px_40px_rgba(0,230,118,0.4)] transition-all duration-300 hover:-translate-y-1 active:scale-95 flex items-center gap-2 group cursor-pointer"

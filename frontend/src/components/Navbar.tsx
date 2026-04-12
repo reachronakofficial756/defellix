@@ -122,7 +122,7 @@ const Navbar = () => {
         <>
             <nav
                 className={
-                    `h-16 fixed top-0 w-full px-6 py-10 flex items-center justify-between z-50` +
+                    `hidden md:flex h-16 fixed top-0 w-full px-6 py-10 items-center justify-between z-50` +
                     (location.pathname.startsWith('/dashboard/profile')
                         ? ' bg-[#111f14]/10 backdrop-blur-md'
                         : '')

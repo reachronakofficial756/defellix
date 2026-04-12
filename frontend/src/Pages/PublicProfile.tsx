@@ -79,20 +79,6 @@ function Section({ title, icon: Icon, children }: any) {
   );
 }
 
-function StatPill({ icon: Icon, label, value }: { icon: any; label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex items-center gap-3 bg-white/5 px-4 py-3 rounded-2xl border border-white/5">
-      <div className="w-10 h-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center text-[#3cb44f]">
-        <Icon size={18} />
-      </div>
-      <div className="leading-tight">
-        <div className="text-[9px] text-gray-500 font-black uppercase tracking-widest">{label}</div>
-        <div className="text-sm font-bold text-white">{value}</div>
-      </div>
-    </div>
-  );
-}
-
 export default function PublicProfile() {
   const { userName } = useParams();
   const [profile, setProfile] = useState<PublicProfileData | null>(null);

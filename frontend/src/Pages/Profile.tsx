@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { motion } from 'motion/react';
 import {
-  MapPin, Building, Briefcase,
-  Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Eye, Sparkles, Activity, Copy, Check, X
+  Briefcase,
+  Github, Linkedin, Instagram, Globe, Edit2, User, Link2, Activity, X,
 } from 'lucide-react';
 
 interface UserProfile {
@@ -65,117 +65,14 @@ function LinkRow({ icon: Icon, title, subtitle, verified }: any) {
   );
 }
 
-function ToggleRow({ title, desc, checked, onChange, loading }: any) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-1">
-      <div className="flex-1">
-        <div className="text-sm font-bold text-white mb-1.5">{title}</div>
-        <div className="text-xs text-gray-400 leading-relaxed pr-4">{desc}</div>
-      </div>
-      <button 
-        onClick={() => !loading && onChange(!checked)}
-        disabled={loading}
-        className={`w-11 h-6 shrink-0 rounded-full flex items-center p-0.5 transition-all duration-300 border cursor-pointer ${loading ? 'opacity-50 grayscale' : ''} ${checked ? 'bg-[#3cb44f] border-[#3cb44f] shadow-[0_0_12px_rgba(60,180,79,0.35)]' : 'bg-[#172b1c] border-white/10'}`}
-      >
-        <motion.div
-          className="w-5 h-5 bg-white rounded-full shadow-md"
-          animate={{ x: checked ? 18 : 2 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        />
-      </button>
-    </div>
-  );
-}
-
-function ScoreHistoryGraph({ data, currentScore }: { data: any[]; currentScore: number }) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 text-gray-500 text-sm">
-        <h1 className="text-6xl font-black text-white/5 mb-2">{currentScore}</h1>
-        No score history yet.
-      </div>
-    );
-  }
-
-  // Assume data is sorted newest to oldest from backend, we want oldest to newest for left-to-right graph
-  const sortedData = [...data].reverse();
-  const scores = sortedData.map(d => d.overall_score);
-  
-  if (scores.length === 1) scores.push(scores[0]); // Duplicate for line rendering
-
-  const width = 320;
-  const height = 140;
-  const paddingX = 15;
-  const paddingY = 20;
-  
-  const minScore = 0;
-  const maxScore = 1000;
-
-  const points = scores.map((val, i) => {
-    const x = paddingX + (i / (scores.length - 1)) * (width - 2 * paddingX);
-    const y = height - paddingY - ((val - minScore) / (maxScore - minScore)) * (height - 2 * paddingY);
-    return `${x},${y}`;
-  });
-
-  const pathData = `M ${points.join(' L ')}`;
-  const areaData = `${pathData} L ${width - paddingX},${height - paddingY} L ${paddingX},${height - paddingY} Z`;
-
-  return (
-    <div className="relative w-full max-w-[320px] mx-auto mt-2 mb-4 group select-none">
-      <svg viewBox={`0 0 ${width} ${height}`} className="w-full overflow-visible">
-        <defs>
-          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#3cb44f" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#3cb44f" stopOpacity="0.0" />
-          </linearGradient>
-          <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Horizontal Grid lines */}
-        {[200, 400, 600, 800].map(val => {
-           const y = height - paddingY - ((val - minScore) / (maxScore - minScore)) * (height - 2 * paddingY);
-           return <line key={val} x1={paddingX} y1={y} x2={width-paddingX} y2={y} stroke="#ffffff08" strokeWidth="1" strokeDasharray="4 4" />
-        })}
-
-        <path d={areaData} fill="url(#areaGradient)" />
-        <path d={pathData} fill="none" stroke="#3cb44f" strokeWidth="3" filter="url(#lineGlow)" strokeLinecap="round" strokeLinejoin="round" />
-        
-        {scores.map((val, i) => {
-          const x = paddingX + (i / (scores.length - 1)) * (width - 2 * paddingX);
-          const y = height - paddingY - ((val - minScore) / (maxScore - minScore)) * (height - 2 * paddingY);
-          return (
-             <circle key={i} cx={x} cy={y} r="4" fill="#111f14" stroke="#3cb44f" strokeWidth="2.5" className="cursor-pointer hover:stroke-white transition-all duration-300" />
-          );
-        })}
-      </svg>
-      {/* Current Score Overlay */}
-      <div className="absolute top-0 right-2 flex flex-col items-end">
-         <span className="text-3xl font-bold text-white tracking-tighter drop-shadow-md">{currentScore}</span>
-      </div>
-    </div>
-  );
-}
-
 export default function Profile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [scoreHistory, setScoreHistory] = useState<any[]>([]);
-  const [latestAnchor, setLatestAnchor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [allContracts, setAllContracts] = useState<any[]>([]);
   const [fetchingContracts, setFetchingContracts] = useState(false);
-
-  const publicUrl = profile?.user_name ? `${window.location.origin}/${profile.user_name}` : '';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -185,30 +82,6 @@ export default function Profile() {
         const nested = apiData.profile || {};
         const profileObj = { ...apiData, ...nested };
         setProfile(profileObj as UserProfile);
-
-        // Fetch E12 Score History
-        try {
-          const histRes = await apiClient.get('/users/me/score-history');
-          setScoreHistory((histRes.data?.data || []).slice(0, 52)); // Keep max 52 entries
-        } catch (e) {
-          console.error('Failed to fetch score history', e);
-        }
-
-        // Fetch E11 Blockchain Anchor
-        if (apiData.id) {
-          try {
-             const anchorRes = await apiClient.get(`/blockchain/score-anchors/${apiData.id}/latest`);
-             setLatestAnchor(anchorRes.data?.data || null);
-          } catch (e) {
-             const status = (e as any)?.response?.status;
-             // 404 means: user has no anchors yet (normal for new users)
-             if (status === 404) {
-               setLatestAnchor(null);
-             } else {
-               console.error('Failed to fetch score anchor', e);
-             }
-          }
-        }
       } catch (err) {
         console.error('Failed to fetch profile data', err);
       } finally {
@@ -217,23 +90,6 @@ export default function Profile() {
     };
     fetchData();
   }, []);
-
-  const handleToggle = async (field: string, value: boolean) => {
-    setUpdating(field);
-    try {
-      await apiClient.put('/users/me', { [field]: value });
-      setProfile(prev => prev ? { ...prev, [field]: value } : null);
-      
-      if (field === 'show_projects' && value) {
-        setShowProjectModal(true);
-        fetchContracts();
-      }
-    } catch (err) {
-      console.error(`Failed to update ${field}`, err);
-    } finally {
-      setUpdating(null);
-    }
-  };
 
   const fetchContracts = async () => {
     setFetchingContracts(true);
@@ -266,10 +122,9 @@ export default function Profile() {
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(publicUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const openShowcaseModal = () => {
+    setShowProjectModal(true);
+    void fetchContracts();
   };
 
   if (loading) {
@@ -345,14 +200,26 @@ export default function Profile() {
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Open for collaborations
               </span>
             </div> */}
-            <button
-              onClick={() => navigate('/dashboard/profile/edit')}
-              className="absolute right-0 top-0 items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-[#3cb44f]/15 text-white text-sm font-semibold transition-all border border-white/10 hover:border-[#3cb44f]/30 cursor-pointer shadow-sm"
-            >
-              <span className="text-white text-sm font-semibold flex items-center gap-2">
-              <Edit2 size={16} strokeWidth={2} /> Edit Profile
-              </span>
-            </button>
+            <div className="absolute right-0 top-0 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={openShowcaseModal}
+                className="items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-[#3cb44f]/15 text-white text-sm font-semibold transition-all border border-white/10 hover:border-[#3cb44f]/30 cursor-pointer shadow-sm"
+              >
+                <span className="text-white text-sm font-semibold flex items-center gap-2">
+                  <Briefcase size={16} strokeWidth={2} /> Showcase contracts
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard/profile/edit')}
+                className="items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-[#3cb44f]/15 text-white text-sm font-semibold transition-all border border-white/10 hover:border-[#3cb44f]/30 cursor-pointer shadow-sm"
+              >
+                <span className="text-white text-sm font-semibold flex items-center gap-2">
+                  <Edit2 size={16} strokeWidth={2} /> Edit Profile
+                </span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 relative z-10">
