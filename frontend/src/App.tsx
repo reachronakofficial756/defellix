@@ -10,6 +10,8 @@ import MilestoneReview from './Pages/MilestoneReview'
 import ContractReview from './Pages/ContractReview'
 import PublicProfile from './Pages/PublicProfile'
 import { useAuth } from './contexts/AuthContext'
+import { Analytics } from '@vercel/analytics/react';
+
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isProfileComplete } = useAuth()
@@ -35,24 +37,27 @@ function CatchAll() {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
+    <>
+      <Analytics />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
 
-      <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
-      <Route path="/submit-milestone/:contractId" element={<ProtectedRoute><MilestoneSubmission /></ProtectedRoute>} />
-      <Route path="/review-milestone/:contractId" element={<MilestoneReview />} />
-      <Route path="/review/:token" element={<ContractReview />} />
-      {/* All dashboard routes are protected */}
-      <Route path="/dashboard/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
-      
-      {/* Public profile vanity URL */}
-      <Route path="/:userName" element={<PublicProfile />} />
+        <Route path="/review-contract/:contractId" element={<ClientContractReview />} />
+        <Route path="/submit-milestone/:contractId" element={<ProtectedRoute><MilestoneSubmission /></ProtectedRoute>} />
+        <Route path="/review-milestone/:contractId" element={<MilestoneReview />} />
+        <Route path="/review/:token" element={<ContractReview />} />
+        {/* All dashboard routes are protected */}
+        <Route path="/dashboard/*" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
 
-      {/* Catch-all: go to dashboard if logged in, else landing */}
-      <Route path="*" element={<CatchAll />} />
-    </Routes>
+        {/* Public profile vanity URL */}
+        <Route path="/:userName" element={<PublicProfile />} />
+
+        {/* Catch-all: go to dashboard if logged in, else landing */}
+        <Route path="*" element={<CatchAll />} />
+      </Routes>
+    </>
   )
 }
 
