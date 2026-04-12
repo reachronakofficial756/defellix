@@ -11,6 +11,8 @@ import ContractReview from './Pages/ContractReview'
 import PublicProfile from './Pages/PublicProfile'
 import { useAuth } from './contexts/AuthContext'
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
+
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -39,6 +41,7 @@ function App() {
   return (
     <>
       <Analytics />
+      <SpeedInsights />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
